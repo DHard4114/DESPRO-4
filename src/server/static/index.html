@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart-Sanitation eSOS — Live Emergency Monitoring Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .sos-active {
+            animation: pulse-red 1s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <span class="inline-block w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                    <h1 class="text-xl font-bold tracking-wide text-white">Smart-Sanitation eSOS</h1>
+                    <span class="bg-blue-900 text-blue-200 text-xs px-2.5 py-0.5 rounded font-mono">Posko Blank Spot v1.0</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Sistem Pemantauan Fasilitas Sanitasi Darurat Terpadu — DTE FTUI</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-mono">
+                <div class="bg-slate-800 px-3 py-2 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Jaringan AP:</span>
+                    <span class="text-emerald-400 font-semibold" id="cpeStatus">TP-Link CPE220 (192.168.0.254)</span>
+                </div>
+                <div class="bg-slate-800 px-3 py-2 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">LoRa Link:</span>
+                    <span class="text-blue-400 font-semibold" id="loraStatus">433 MHz SX1278 (Online)</span>
+                </div>
+                <div class="bg-slate-800 px-3 py-2 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Waktu:</span>
+                    <span class="text-slate-200 font-semibold" id="liveClock">--:--:--</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+        <!-- Emergency SOS Banner (Hidden by default, shown on trigger) -->
+        <div id="sosAlertBanner" class="hidden bg-red-950 border-2 border-red-500 rounded-xl p-5 sos-active">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="bg-red-600 text-white font-black text-2xl p-3 rounded-lg">SOS</div>
+                    <div>
+                        <h2 class="text-lg font-bold text-red-100">PERINGATAN DARURAT: PENGUNGSI MENEKAN TOMBOL SOS!</h2>
+                        <p class="text-sm text-red-300" id="sosAlertText">Terdeteksi panggilan bantuan darurat dari Posko Sanitasi 01.</p>
+                    </div>
+                </div>
+                <button onclick="resolveSosAlert()" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg transition">
+                    Verifikasi & Matikan Alarm
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 Key Telemetry Metric Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            
+            <!-- Card 1: Water Tank Level -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Level Tangki Air</span>
+                    <span id="waterBadge" class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Normal</span>
+                </div>
+                <div class="mt-4 flex items-baseline gap-2">
+                    <span id="waterValue" class="text-3xl font-extrabold text-white">65.4</span>
+                    <span class="text-sm text-slate-400 font-mono">cm</span>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Kapasitas Volume</span>
+                        <span id="waterPct">65%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="waterBar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 65%;"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-3">Sensor Ultrasonik Kedap Air JSN-SR04T</p>
+            </div>
+
+            <!-- Card 2: Ammonia Gas (NH3) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gas Amonia (NH3)</span>
+                    <span id="nh3Badge" class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Aman</span>
+                </div>
+                <div class="mt-4 flex items-baseline gap-2">
+                    <span id="nh3Value" class="text-3xl font-extrabold text-white">8.2</span>
+                    <span class="text-sm text-slate-400 font-mono">ppm</span>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Batas Ambang: 25.0 ppm</span>
+                        <span id="nh3Ratio">32%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="nh3Bar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 32%;"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-3">Sensor Gas Analog Kalibrasi MQ-137</p>
+            </div>
+
+            <!-- Card 3: Hydrogen Sulfide Gas (H2S) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gas Toksik (H2S)</span>
+                    <span id="h2sBadge" class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Aman</span>
+                </div>
+                <div class="mt-4 flex items-baseline gap-2">
+                    <span id="h2sValue" class="text-3xl font-extrabold text-white">3.1</span>
+                    <span class="text-sm text-slate-400 font-mono">ppm</span>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Batas Bahaya: 10.0 ppm</span>
+                        <span id="h2sRatio">31%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="h2sBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 31%;"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-3">Sensor Gas Analog Kalibrasi MQ-136</p>
+            </div>
+
+            <!-- Card 4: Battery & Solar Power -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Catu Daya Tenaga Surya</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800">Solar 10Wp</span>
+                </div>
+                <div class="mt-4 flex items-baseline gap-2">
+                    <span id="batValue" class="text-3xl font-extrabold text-white">3.95</span>
+                    <span class="text-sm text-slate-400 font-mono">V</span>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Baterai 1S4P (12000mAh)</span>
+                        <span id="batPct">79%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="batBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 79%;"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-3">BMS TP4056 + Sel 18650 Terproteksi</p>
+            </div>
+
+        </div>
+
+        <!-- Real-Time Time-Series Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Chart 1: Air Quality (NH3 & H2S) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-slate-200">Tren Kualitas Udara (NH3 & H2S ppm)</h3>
+                    <span class="text-xs text-slate-400">Update setiap 10 detik via LoRa</span>
+                </div>
+                <div class="relative h-64">
+                    <canvas id="gasChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Water Tank Level -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-slate-200">Tren Ketersediaan Air Tangki (cm)</h3>
+                    <span class="text-xs text-slate-400">Ambang Kritis < 15 cm</span>
+                </div>
+                <div class="relative h-64">
+                    <canvas id="waterChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Actuator Controls & Test Pipeline Simulator -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Servo Actuator Control -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-200 mb-2">Kontrol Aktuator Katup Sanitasi</h3>
+                    <p class="text-xs text-slate-400 mb-4">Pengendali motor servo logam MG996R mekanisme buka-tutup katup sanitasi.</p>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-4 flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Status Katup Saat Ini:</span>
+                        <span id="valveStatusBadge" class="text-xs px-2.5 py-1 rounded font-bold bg-slate-700 text-slate-300">TERTUTUP (0°)</span>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="triggerValve(true)" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-lg transition">
+                        Buka Katup (90°)
+                    </button>
+                    <button onclick="triggerValve(false)" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-2.5 px-4 rounded-lg transition">
+                        Tutup Katup (0°)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pipeline Simulator Tool for Testing -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg lg:col-span-2">
+                <h3 class="text-sm font-bold text-slate-200 mb-2">Simulator Pipeline Pengambilan Data Sensor ke Basis Data</h3>
+                <p class="text-xs text-slate-400 mb-4">Uji transmisi paket data LoRa / CPE220 langsung ke endpoint backend FastAPI & SQLite.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Air (cm)</label>
+                        <input id="simWater" type="number" value="65.4" step="0.5" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">NH3 (ppm)</label>
+                        <input id="simNh3" type="number" value="8.2" step="0.5" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">H2S (ppm)</label>
+                        <input id="simH2s" type="number" value="3.1" step="0.5" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-400 block mb-1">Baterai (V)</label>
+                        <input id="simVolt" type="number" value="3.95" step="0.05" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <label class="flex items-center gap-2 text-xs text-red-400 cursor-pointer">
+                        <input id="simSos" type="checkbox" class="rounded bg-slate-800 border-slate-700 text-red-600">
+                        <span>Simulasi Tombol SOS Ditekan</span>
+                    </label>
+                    <button onclick="injectTelemetry()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition">
+                        Kirim Paket Sensor ke Database
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Live Telemetry Ingest Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-slate-200">Log Paket Telemetri Terkini (SQLite Records)</h3>
+                <span class="text-xs text-slate-400 font-mono">Tabel: telemetry_records</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="bg-slate-800 text-slate-400 border-b border-slate-700">
+                        <tr>
+                            <th class="p-2.5">Waktu Penerimaan</th>
+                            <th class="p-2.5">Node ID</th>
+                            <th class="p-2.5">Seq #</th>
+                            <th class="p-2.5">Level Air (cm)</th>
+                            <th class="p-2.5">NH3 (ppm)</th>
+                            <th class="p-2.5">H2S (ppm)</th>
+                            <th class="p-2.5">Baterai (V)</th>
+                            <th class="p-2.5">Status SOS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="telemetryTableBody" class="divide-y divide-slate-800 text-slate-300">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Dashboard JavaScript Logic -->
+    <script>
+        // Update Live Clock
+        setInterval(() => {
+            document.getElementById('liveClock').innerText = new Date().toLocaleTimeString('id-ID');
+        }, 1000);
+
+        // Chart.js Initializations
+        const gasCtx = document.getElementById('gasChart').getContext('2d');
+        const gasChart = new Chart(gasCtx, {
+            type: 'line',
+            data: {
+                labels: ['10s lalu', '8s lalu', '6s lalu', '4s lalu', '2s lalu', 'Sekarang'],
+                datasets: [
+                    {
+                        label: 'Amonia (NH3) ppm',
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        data: [7.8, 8.0, 8.1, 7.9, 8.2, 8.2],
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'H2S Gas ppm',
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        data: [3.0, 3.2, 3.1, 3.0, 3.1, 3.1],
+                        tension: 0.3,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#e2e8f0', font: { size: 11 } } }
+                }
+            }
+        });
+
+        const waterCtx = document.getElementById('waterChart').getContext('2d');
+        const waterChart = new Chart(waterCtx, {
+            type: 'line',
+            data: {
+                labels: ['10s lalu', '8s lalu', '6s lalu', '4s lalu', '2s lalu', 'Sekarang'],
+                datasets: [
+                    {
+                        label: 'Level Air Tangki (cm)',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        data: [67.0, 66.5, 66.0, 65.8, 65.5, 65.4],
+                        tension: 0.3,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 },
+                    x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#e2e8f0', font: { size: 11 } } }
+                }
+            }
+        });
+
+        let simSeq = 100;
+
+        // Fetch Live Telemetry Data from FastAPI Backend
+        async function fetchLatestData() {
+            try {
+                const res = await fetch('/api/telemetry/latest');
+                if (!res.ok) return;
+                const records = await res.json();
+                if (records && records.length > 0) {
+                    const latest = records[0];
+                    updateDashboardUI(latest);
+                }
+            } catch (err) {
+                console.log('Using local client state');
+            }
+        }
+
+        function updateDashboardUI(data) {
+            document.getElementById('waterValue').innerText = data.water_level_cm.toFixed(1);
+            document.getElementById('waterPct').innerText = Math.round(data.water_level_cm) + '%';
+            document.getElementById('waterBar').style.width = Math.min(100, Math.max(0, data.water_level_cm)) + '%';
+
+            document.getElementById('nh3Value').innerText = data.ammonia_ppm.toFixed(1);
+            document.getElementById('h2sValue').innerText = data.h2s_ppm.toFixed(1);
+            document.getElementById('batValue').innerText = data.battery_voltage.toFixed(2);
+
+            // SOS Alert
+            const sosBanner = document.getElementById('sosAlertBanner');
+            if (data.sos_button_triggered) {
+                sosBanner.classList.remove('hidden');
+            } else {
+                sosBanner.classList.add('hidden');
+            }
+
+            // Append row to table
+            const tbody = document.getElementById('telemetryTableBody');
+            const row = document.createElement('tr');
+            row.className = data.sos_button_triggered ? 'bg-red-950/40 text-red-200' : 'hover:bg-slate-800/50';
+            row.innerHTML = `
+                <td class="p-2.5">${new Date().toLocaleTimeString('id-ID')}</td>
+                <td class="p-2.5 font-bold">${data.node_id}</td>
+                <td class="p-2.5">#${data.sequence_no}</td>
+                <td class="p-2.5">${data.water_level_cm.toFixed(1)} cm</td>
+                <td class="p-2.5 text-emerald-400">${data.ammonia_ppm.toFixed(1)} ppm</td>
+                <td class="p-2.5 text-amber-400">${data.h2s_ppm.toFixed(1)} ppm</td>
+                <td class="p-2.5 text-blue-400">${data.battery_voltage.toFixed(2)} V</td>
+                <td class="p-2.5 font-bold ${data.sos_button_triggered ? 'text-red-400' : 'text-slate-500'}">
+                    ${data.sos_button_triggered ? 'ACTIVE SOS' : 'STANDBY'}
+                </td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 8) tbody.removeChild(tbody.lastChild);
+        }
+
+        // Valve Control
+        function triggerValve(isOpen) {
+            const badge = document.getElementById('valveStatusBadge');
+            if (isOpen) {
+                badge.innerText = 'TERBUKA (90°)';
+                badge.className = 'text-xs px-2.5 py-1 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-800';
+            } else {
+                badge.innerText = 'TERTUTUP (0°)';
+                badge.className = 'text-xs px-2.5 py-1 rounded font-bold bg-slate-700 text-slate-300';
+            }
+        }
+
+        // Inject Telemetry (Test Pipeline)
+        async function injectTelemetry() {
+            simSeq++;
+            const payload = {
+                node_id: "NODE_SANITATION_01",
+                sequence_no: simSeq,
+                water_level_cm: parseFloat(document.getElementById('simWater').value),
+                ammonia_ppm: parseFloat(document.getElementById('simNh3').value),
+                h2s_ppm: parseFloat(document.getElementById('simH2s').value),
+                battery_voltage: parseFloat(document.getElementById('simVolt').value),
+                sos_button_triggered: document.getElementById('simSos').checked,
+                valve_servo_open: false,
+                rssi_dbm: -72,
+                snr_db: 9.0
+            };
+
+            try {
+                const res = await fetch('/api/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                updateDashboardUI(payload);
+            } catch (e) {
+                updateDashboardUI(payload);
+            }
+        }
+
+        function resolveSosAlert() {
+            document.getElementById('simSos').checked = false;
+            document.getElementById('sosAlertBanner').classList.add('hidden');
+        }
+
+        // Real-Time WebSocket Streaming Client
+        let ws;
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('[WS] Connected to Go Streaming Hub');
+                document.getElementById('loraStatus').innerText = '433 MHz SX1278 (WebSocket Stream Live)';
+                document.getElementById('loraStatus').className = 'text-emerald-400 font-semibold';
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const wsMsg = JSON.parse(event.data);
+                    if (wsMsg.type === 'TELEMETRY_STREAM') {
+                        updateDashboardUI(wsMsg.payload);
+                    } else if (wsMsg.type === 'EMERGENCY_ALERT') {
+                        document.getElementById('sosAlertBanner').classList.remove('hidden');
+                        document.getElementById('sosAlertText').innerText = wsMsg.payload.description;
+                    }
+                } catch (e) {
+                    console.error('[WS ERROR]', e);
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('[WS] Disconnected. Reconnecting in 3s...');
+                document.getElementById('loraStatus').innerText = '433 MHz SX1278 (Reconnecting...)';
+                document.getElementById('loraStatus').className = 'text-amber-400 font-semibold';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // Initial fetch and WebSocket connection
+        fetchLatestData();
+        connectWebSocket();
+        setInterval(fetchLatestData, 10000); // Fallback background sync
+    </script>
+</body>
+</html>

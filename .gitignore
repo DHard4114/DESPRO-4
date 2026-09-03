@@ -1,0 +1,27 @@
+# OS Metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Temporary & Lock files
+*.tmp
+*~
+*.bak
+
+# SQLite temporary journal files (keep the main .db)
+*.db-shm
+*.db-wal
+*.db-journal
+
+# IDE & Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build caches
+.pio/
+.pioenvs/
+.piolibdeps/

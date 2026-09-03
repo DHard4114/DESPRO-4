@@ -1,0 +1,48 @@
+{
+  "system": "Smart-Sanitation eSOS",
+  "version": "1.0.0",
+  "updatedAt": "2026-09-03T06:00:00+07:00",
+  "thresholds": {
+    "waterLevel": {
+      "unit": "cm",
+      "tankHeight": 100.0,
+      "sensorOffset": 20.0,
+      "criticalLow": 15.0,
+      "warningLow": 30.0,
+      "optimal": 75.0,
+      "overflowDanger": 95.0
+    },
+    "ammoniaGas_MQ137": {
+      "unit": "ppm",
+      "preheatHours": 24,
+      "normalThreshold": 10.0,
+      "warningThreshold": 25.0,
+      "dangerThreshold": 50.0,
+      "rl_load_resistor_kohm": 47.0,
+      "ro_clean_air_resistance_kohm": 32.5
+    },
+    "hydrogenSulfideGas_MQ136": {
+      "unit": "ppm",
+      "preheatHours": 24,
+      "normalThreshold": 5.0,
+      "warningThreshold": 10.0,
+      "dangerThreshold": 20.0,
+      "rl_load_resistor_kohm": 20.0,
+      "ro_clean_air_resistance_kohm": 15.8
+    },
+    "batteryPower": {
+      "unit": "Volt",
+      "nominalVoltage": 3.7,
+      "fullChargedVoltage": 4.2,
+      "warningLowVoltage": 3.4,
+      "criticalCutoffVoltage": 3.0,
+      "expectedRuntimeHours": 24.0
+    },
+    "servoActuator": {
+      "closedAngle": 0,
+      "openAngle": 90,
+      "dispenseDurationMs": 3000,
+      "pwmFrequencyHz": 50
+    }
+  }
+}

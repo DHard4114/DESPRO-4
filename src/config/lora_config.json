@@ -1,0 +1,42 @@
+{
+  "protocol": "LoRa Point-to-Gateway",
+  "transceiver": "SX1278 (RA-02)",
+  "rfParameters": {
+    "frequencyHz": 433000000,
+    "bandwidthHz": 125000,
+    "spreadingFactor": 7,
+    "codingRate": "4/5",
+    "syncWord": "0x12",
+    "txPowerDbm": 17,
+    "preambleLength": 8,
+    "crcEnabled": true
+  },
+  "networkTopology": {
+    "gatewayId": "GATEWAY_ESOS_01",
+    "nodeList": [
+      {
+        "nodeId": "NODE_SANITATION_01",
+        "location": "Shelter Posko A - Zona Evakuasi 1",
+        "txIntervalSeconds": 10
+      },
+      {
+        "nodeId": "NODE_SANITATION_02",
+        "location": "Shelter Posko B - Zona Dapur Umum",
+        "txIntervalSeconds": 10
+      }
+    ]
+  },
+  "payloadFormat": {
+    "type": "binary_packed_json",
+    "fields": [
+      "nodeId",
+      "seq",
+      "waterLevelCm",
+      "ammoniaPpm",
+      "h2sPpm",
+      "batteryVolt",
+      "sosStatus",
+      "checksum"
+    ]
+  }
+}

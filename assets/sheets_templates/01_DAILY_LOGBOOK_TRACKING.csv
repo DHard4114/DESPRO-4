@@ -1,0 +1,80 @@
+﻿No,Tanggal,Pekan,Nama Anggota,Jam Mulai,Jam Selesai,Durasi Jam,Kode WBS,Deskripsi Aktivitas Harian,Luaran Teknis / Output,ID Bukti Teknis
+1,2026-08-25,W1,Daffa Hardhan,09:00,17:00,8,1.1,"Rapat inisiasi tim, analisis proposal DP1 & pembagian RACI",RACI Matrix & WBS Draft,EV-W1-PM-002
+2,2026-08-26,W1,Daffa Hardhan,10:00,16:00,6,1.2,Finalisasi Master WBS 14 Pekan & arsitektur repositori Git,03_MASTER_SEMESTER_WBS.md,EV-W1-PM-001
+3,2026-08-25,W1,Raka Arrayan Muttaqien,09:00,16:00,7,1.1,Evaluasi kebutuhan sanitasi darurat & spesifikasi sensor,Dokumen Kebutuhan Sanitasi,EV-W1-SA-001
+4,2026-08-27,W1,Raka Arrayan Muttaqien,13:00,17:00,4,2.1,Analisis perbandingan vendor e-commerce & verifikasi BoM,Master BoM 15 Komponen,02_BOM_PROCUREMENT.md
+5,2026-08-26,W1,Siti Amalia Nurfaidah,10:00,17:00,7,1.2,"Penyiapan IDE PlatformIO, arsitektur driver ESP32 & LoRa",Baseline Firmware Project,EV-W2-SW-001
+6,2026-08-26,W1,Muhammad Ilman Zuhriy,09:00,17:00,8,1.2,Perhitungan Power Budget Solar 10Wp & skema baterai 1S4P,Lembar Power Budget & Skematik,EV-W2-HW-001
+7,2026-08-27,W1,Darrel Alfath,10:00,17:00,7,1.2,Perancangan konsep 3D Casing IoT modular IP54 di CAD,Model 3D CAD Baseline,EV-W2-MECH-002
+8,2026-09-01,W2,Daffa Hardhan,09:00,17:00,8,2.5,Implementasi Server Go (Streaming Ingestion & Batch ETL),bin/esos-server.exe & Code,EV-W2-PM-002
+9,2026-09-02,W2,Daffa Hardhan,10:00,17:00,7,2.5,Pengembangan Web Dashboard Real-Time & Integrasi CPE220,src/server/static/index.html,EV-W2-PM-001
+10,2026-09-01,W2,Raka Arrayan Muttaqien,09:00,15:00,6,2.1,Eksekusi checkout 15 komponen BoM & koordinasi resi kurir,Resi Pembelian & Invoice,EV-W2-PROC-001
+11,2026-09-02,W2,Siti Amalia Nurfaidah,09:00,17:00,8,2.2,"Pemrograman firmware sampling MQ-137, MQ-136, JSN-SR04T",src/firmware/src/main.cpp,EV-W2-SW-002
+12,2026-09-01,W2,Muhammad Ilman Zuhriy,09:00,17:00,8,2.3,Validasi sirkuit proteksi TP4056 & perakitan wiring harness,Wiring Harness Perfboard Kit,EV-W2-HW-004
+13,2026-09-02,W2,Darrel Alfath,10:00,17:00,7,2.4,Pembuatan gambar kerja teknik 2D & persiapan slicer print,technical_drawing_2d.pdf,EV-W2-MECH-001
+14,2026-09-08,W3,Darrel Alfath,09:00,17:00,8,3.1,Fabrikasi cetak 3D Printing PETG bagian base & lid enclosure,Fisik Enclosure 3D PETG,EV-W3-MECH-001
+15,2026-09-09,W3,Muhammad Ilman Zuhriy,09:00,17:00,8,3.2,Solder komponen sensor shield & konektor terminal screw,Perfboard Shield Sensor,EV-W3-HW-001
+16,2026-09-09,W3,Siti Amalia Nurfaidah,10:00,17:00,7,3.4,Pengembangan filter moving average noise sensor jarak ultrasonik,Driver JSN-SR04T Filtered,EV-W3-SW-001
+17,2026-09-10,W3,Raka Arrayan Muttaqien,13:00,17:00,4,3.3,Pemeriksaan fisik komponen tiba di lab & inventarisasi aset,Register Aset Fisik Lab,EV-W3-PROC-001
+18,2026-09-10,W3,Daffa Hardhan,14:00,17:00,3,2.5,Integrasi skema UUIDv7 & pengujian REST API ingestion lokal,API Ingest UUID Active,EV-W3-PM-001
+19,2026-09-15,W4,Muhammad Ilman Zuhriy,09:00,17:00,8,3.2,Kalibrasi kurva resistansi gas amonia MQ-137 & H2S MQ-136,Tabel Log Kalibrasi Sensor,EV-W4-HW-001
+20,2026-09-16,W4,Siti Amalia Nurfaidah,09:00,17:00,8,3.4,Integrasi logika kendali PWM motor servo MG996R buka-tutup,Firmware Servo Controller,EV-W4-SW-001
+21,2026-09-16,W4,Darrel Alfath,10:00,17:00,7,3.1,Pemasangan seal gasket silikon RTV & uji toleransi gland PG7,Casing Assembled Seal,EV-W4-MECH-001
+22,2026-09-17,W4,Raka Arrayan Muttaqien,13:00,17:00,4,3.3,Evaluasi kesesuaian ambang gas sanitasi Permenkes,Laporan Standar Sanitasi,EV-W4-SA-001
+23,2026-09-17,W4,Daffa Hardhan,14:00,17:00,3,2.5,Optimasi WebSocket broadcast latency <1ms & stress test ETL,Benchmark Log Server Go,EV-W4-PM-001
+24,2026-09-22,W5,Siti Amalia Nurfaidah,09:00,17:00,8,4.1,Implementasi driver LoRa RA-02 433MHz SX1278 paket biner,LoRa Transmitter Driver,EV-W5-SW-001
+25,2026-09-23,W5,Muhammad Ilman Zuhriy,09:00,17:00,8,4.2,Pengujian efisiensi step-down LM2596 & modul pengisian TP4056,Power Efficiency Report,EV-W5-HW-001
+26,2026-09-23,W5,Darrel Alfath,10:00,17:00,7,4.2,Perakitan mekanik mounting bracket sensor & tangki air uji,Mekanik Fixture Tangki,EV-W5-MECH-001
+27,2026-09-24,W5,Daffa Hardhan,13:00,17:00,4,4.3,Konfigurasi Gateway forwarding router CPE220 & subagent,Network Gateway Route,EV-W5-PM-001
+28,2026-09-24,W5,Raka Arrayan Muttaqien,13:00,17:00,4,4.3,Audit evaluasi Gerbang 2 (Gate 2 Subsystem Acceptance),Gate 2 Audit Checklist,EV-W5-SA-001
+29,2026-09-29,W6,Siti Amalia Nurfaidah,09:00,17:00,8,4.1,Integrasi transmisi jalur ganda (Dual-Path Wi-Fi & LoRa SX1278),Dual-Path Firmware Code,EV-W6-SW-001
+30,2026-09-30,W6,Muhammad Ilman Zuhriy,09:00,16:00,7,4.2,Uji siklus proteksi overcharge/overdischarge baterai 1S4P,Battery Protection Curve,EV-W6-HW-001
+31,2026-09-30,W6,Darrel Alfath,10:00,16:00,6,4.2,Inspeksi dimensional fit internal komponen & kabel harness,Inspection Dimensional 3D,EV-W6-MECH-001
+32,2026-10-01,W6,Daffa Hardhan,14:00,17:00,3,4.3,Penyempurnaan visualisasi web dashboard: indikator SOS blink,Dashboard v2.0 UI Assets,EV-W6-PM-001
+33,2026-10-01,W6,Raka Arrayan Muttaqien,14:00,17:00,3,4.3,Verifikasi integritas payload JSON telemetri vs standar DTE,Payload Verification Doc,EV-W6-SA-001
+34,2026-10-06,W7,Daffa Hardhan,09:00,12:00,3,5.0,Presentasi progress tengah semester & live demo backend server,Slide Evaluasi UTS,EV-W7-PM-001
+35,2026-10-06,W7,Raka Arrayan Muttaqien,09:00,12:00,3,5.0,"Paparan analisis sistem, kepatuhan BoM, & serapan anggaran",Laporan Kemajuan W7,EV-W7-SA-001
+36,2026-10-06,W7,Siti Amalia Nurfaidah,09:00,12:00,3,5.0,Demonstrasi transmisi paket telemetri sensor ke gateway,Log Demo Telemetri,EV-W7-SW-001
+37,2026-10-06,W7,Muhammad Ilman Zuhriy,09:00,12:00,3,5.0,Demonstrasi kestabilan suplai daya DC-DC & pembacaan sensor,Log Demo Suplai Daya,EV-W7-HW-001
+38,2026-10-06,W7,Darrel Alfath,09:00,12:00,3,5.0,Demonstrasi ketahanan fisik casing & mekanisme servo katup,Log Demo Mekanikal,EV-W7-MECH-001
+39,2026-10-13,W8,Darrel Alfath,09:00,16:00,7,6.1,Uji ketahanan semprot air IP54 (Water Ingress Test TC-04),Video Uji IP54 Water,EV-W8-MECH-001
+40,2026-10-14,W8,Siti Amalia Nurfaidah,09:00,16:00,7,6.2,Uji jangkauan nirkabel outdoor LoRa 433MHz jarak 100m - 500m,Dataset RSSI/SNR LoRa,EV-W8-SW-001
+41,2026-10-14,W8,Muhammad Ilman Zuhriy,10:00,16:00,6,6.1,Pengukuran thermal heating sensor MQ-137/136 di dalam casing,Grafik Termal Enclosure,EV-W8-HW-001
+42,2026-10-15,W8,Raka Arrayan Muttaqien,13:00,17:00,4,6.2,Pengukuran packet error rate (PER) di lapangan terbuka,Tabel Packet Error Rate,EV-W8-SA-001
+43,2026-10-15,W8,Daffa Hardhan,14:00,17:00,3,6.2,Uji throughput ingest paket data sensor simultan pada server,Log Throughput Testing,EV-W8-PM-001
+44,2026-10-20,W9,Daffa Hardhan,09:00,17:00,8,6.2,Pengujian tautan jarak jauh outdoor AP TP-Link CPE220 >500m,Log Ping CPE220 Field,EV-W9-PM-001
+45,2026-10-21,W9,Siti Amalia Nurfaidah,09:00,16:00,7,6.2,Validasi mekanisme auto-failover LoRa ke Wi-Fi CPE220,Log Failover Redundancy,EV-W9-SW-001
+46,2026-10-21,W9,Muhammad Ilman Zuhriy,10:00,16:00,6,6.3,Pengukuran kurva pengisian panel surya 10Wp kondisi mendung,Solar Charging Curve Log,EV-W9-HW-001
+47,2026-10-22,W9,Darrel Alfath,10:00,16:00,6,6.3,Evaluasi keandalan engsel & gasket setelah paparan panas-hujan,Laporan Durabilitas 3D,EV-W9-MECH-001
+48,2026-10-22,W9,Raka Arrayan Muttaqien,13:00,17:00,4,6.3,Rekapitulasi bukti Gerbang 3 (Gate 3 Outdoor Acceptance),Checklist Kelulusan Gate 3,EV-W9-SA-001
+49,2026-10-27,W10,Muhammad Ilman Zuhriy,09:00,17:00,8,7.1,Uji ketahanan operasi 24 jam kontinu mandiri solar + baterai,Dataset Tegangan 24 Jam,EV-W10-HW-001
+50,2026-10-28,W10,Siti Amalia Nurfaidah,09:00,16:00,7,7.1,Penyempurnaan sleep mode ESP32 untuk efisiensi arus <15mA,Firmware Low Power Code,EV-W10-SW-001
+51,2026-10-28,W10,Darrel Alfath,10:00,16:00,6,7.2,"Pemasangan label safety, instruksi pengungsi & tombol SOS",Foto Fisik Stiker Unit,EV-W10-MECH-001
+52,2026-10-29,W10,Raka Arrayan Muttaqien,13:00,17:00,4,7.2,Uji kebergunaan user acceptance testing (UAT) simulasi posko,Kuisioner UAT Simulasi,EV-W10-SA-001
+53,2026-10-29,W10,Daffa Hardhan,14:00,17:00,3,7.2,Uji query historical API & pemeliharaan partisi database,Query Performance Log,EV-W10-PM-001
+54,2026-11-03,W11,Muhammad Ilman Zuhriy,09:00,16:00,7,7.1,Finalisasi proteksi isolasi elektrikal & uji surge tegangan,Checklist Safety Elektrik,EV-W11-HW-001
+55,2026-11-04,W11,Siti Amalia Nurfaidah,09:00,16:00,7,7.2,Stress test tombol SOS 100x siklus berturut-turut tanpa freeze,Log Stress Test SOS,EV-W11-SW-001
+56,2026-11-04,W11,Darrel Alfath,10:00,16:00,6,7.2,Perakitan modul prototipe final siap pameran & packaging box,Foto Prototipe Final,EV-W11-MECH-001
+57,2026-11-05,W11,Raka Arrayan Muttaqien,13:00,17:00,4,7.2,Penyusunan draft awal laporan akhir Capstone DP2 Bab 1-3,Draft Laporan DP2 v1,EV-W11-SA-001
+58,2026-11-05,W11,Daffa Hardhan,14:00,17:00,3,7.2,Penyusunan draft laporan Bab 4 (Arsitektur Server & Pipeline),Draft Laporan DP2 Bab 4,EV-W11-PM-001
+59,2026-11-10,W12,Daffa Hardhan,09:00,17:00,8,8.1,Penyusunan laporan akhir Bab 5 (Pengujian Sistem & Hasil),Draft Laporan DP2 Bab 5,EV-W12-PM-001
+60,2026-11-11,W12,Raka Arrayan Muttaqien,09:00,16:00,7,8.1,"Penyusunan Bab 6 (Kesimpulan, Rekomendasi & Analisis Biaya)",Draft Laporan DP2 Bab 6,EV-W12-SA-001
+61,2026-11-11,W12,Siti Amalia Nurfaidah,10:00,17:00,7,8.1,"Dokumentasi kode program, flowchart, & lampiran firmware",Lampiran Kode Firmware,EV-W12-SW-001
+62,2026-11-12,W12,Muhammad Ilman Zuhriy,10:00,17:00,7,8.1,"Dokumentasi skematik elektrikal, BoM aktual & lampiran power",Lampiran Hardware BoM,EV-W12-HW-001
+63,2026-11-12,W12,Darrel Alfath,10:00,17:00,7,8.1,Desain poster pameran Capstone DP2 format A1 resolusi tinggi,Berkas Poster Capstone A1,EV-W12-MECH-001
+64,2026-11-17,W13,Daffa Hardhan,09:00,17:00,8,8.2,Perekaman video demonstrasi komprehensif sistem eSOS,Video Demo Final MP4,EV-W13-PM-001
+65,2026-11-18,W13,Raka Arrayan Muttaqien,09:00,16:00,7,8.2,Finalisasi review kelengkapan berkas kuitansi & audit RAB,Bundel Finansial Final,EV-W13-PROC-001
+66,2026-11-18,W13,Siti Amalia Nurfaidah,10:00,17:00,7,8.2,Uji gladi resik demonstrasi live transmisi sensor ke dashboard,Checklist Gladi Resik,EV-W13-SW-001
+67,2026-11-19,W13,Muhammad Ilman Zuhriy,10:00,17:00,7,8.2,Pengecekan akhir kondisi baterai & stand display perangkat,Checklist Display Unit,EV-W13-HW-001
+68,2026-11-19,W13,Darrel Alfath,10:00,17:00,7,8.2,Penyelesaian stand acrylic fixture & poster pameran cetak,Display Acrylic Fixture,EV-W13-MECH-001
+69,2026-11-24,W14,Daffa Hardhan,08:00,16:00,8,8.3,Presentasi sidang akhir & pameran Desain Proyek 2 DTE FTUI,Berita Acara Sidang DP2,EV-W14-PM-001
+70,2026-11-24,W14,Raka Arrayan Muttaqien,08:00,15:00,7,8.3,Sesi tanya jawab analisis kelayakan sistem & standar sanitasi,Lembar Penilaian Penguji,EV-W14-SA-001
+71,2026-11-24,W14,Siti Amalia Nurfaidah,08:00,16:00,8,8.3,Demonstrasi live operasi firmware & tombol SOS di hadapan penguji,Lembar Nilai Demonstrasi,EV-W14-SW-001
+72,2026-11-24,W14,Muhammad Ilman Zuhriy,08:00,16:00,8,8.3,Penjelasan arsitektur proteksi kelistrikan & power budget,Lembar Nilai Hardware,EV-W14-HW-001
+73,2026-11-24,W14,Darrel Alfath,08:00,15:00,7,8.3,Penjelasan rancang bangun 3D enclosure IP54 & kendali katup,Lembar Nilai Mekanikal,EV-W14-MECH-001
+,,,REKAPITULASI DAFFA HARDHAN,,,"=SUMIF(D2:D74, ""Daffa Hardhan"", G2:G74)",Target: 40 Jam,,,STATUS: SESUAI PROPOSAL (40 JAM)
+,,,REKAPITULASI RAKA ARRAYAN M.,,,"=SUMIF(D2:D74, ""Raka Arrayan Muttaqien"", G2:G74)",Target: 35 Jam,,,STATUS: SESUAI PROPOSAL (35 JAM)
+,,,REKAPITULASI SITI AMALIA N.,,,"=SUMIF(D2:D74, ""Siti Amalia Nurfaidah"", G2:G74)",Target: 45 Jam,,,STATUS: SESUAI PROPOSAL (45 JAM)
+,,,REKAPITULASI M. ILMAN ZUHRIY,,,"=SUMIF(D2:D74, ""Muhammad Ilman Zuhriy"", G2:G74)",Target: 45 Jam,,,STATUS: SESUAI PROPOSAL (45 JAM)
+,,,REKAPITULASI DARREL ALFATH,,,"=SUMIF(D2:D74, ""Darrel Alfath"", G2:G74)",Target: 40 Jam,,,STATUS: SESUAI PROPOSAL (40 JAM)
+,,,TOTAL AKUMULASI JAM KERJA TIM,,,=SUM(G2:G74),Target: 205 Jam,,,STATUS: 100% LENGKAP (205 JAM)

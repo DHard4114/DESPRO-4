@@ -1,0 +1,7 @@
+﻿Test ID,Nama Skenario Uji,Kebutuhan Proposal,Metrik Target Kelulusan,Hasil Terukur Aktual,Status Uji,Tautan Bukti Video / Log,Tester PIC
+TC-01,Uji Akurasi Sensor Level Air,REQ-01 (Tinggi Tangki),"Rentang 20 - 100 cm, Toleransi Galat <= 5%",Error Rata-rata: 1.8%,PASSED,assets/logs/test_tc01.csv,Siti A. N.
+TC-02,Uji Respon Gas Amonia MQ-137,REQ-02 (Gas NH3),"Rentang 5 - 100 ppm, Waktu Respon < 15 detik",Terdeteksi stabil pada 25 ppm,PASSED,assets/logs/test_tc02.csv,Raka / Ilman
+TC-03,Uji Respon Gas Toksik MQ-136,REQ-03 (Gas H2S),"Rentang 1 - 50 ppm, Alarm picu pada 10 ppm",Trigger alarm aktif pada 10.2 ppm,PASSED,assets/logs/test_tc03.csv,Raka / Ilman
+TC-04,Uji Ketahanan Air Casing 3D,REQ-05 (IP54 Weatherproof),Semprotan air kontinu 5 menit tanpa rembesan internal,0 rembesan air ke ruang elektronik,PASSED,assets/media/water_test.mp4,Darrel Alfath
+TC-05,Uji Jangkauan Nirkabel Dual-Path,REQ-04 (LoRa & CPE220),"Jarak transmisi LoRa > 500 m LOS, CPE220 Wi-Fi",Sinyal RSSI -82 dBm pada 650 m,PASSED,assets/logs/test_tc05.csv,Daffa / Siti
+TC-06,Uji Ketahanan Mandiri Daya Surya,REQ-06 (Solar 10Wp & 1S4P),"Operasi kontinu 24 jam, tegangan baterai >= 3.5 V",Tegangan minimum subuh 3.72 V,PASSED,assets/logs/test_tc06.csv,M. Ilman Z.

@@ -1,0 +1,109 @@
+{
+  "projectName": "Smart-Sanitation eSOS",
+  "projectCode": "DESPRO2_SMART_SANITATION_MODULAR",
+  "institution": "Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)",
+  "course": "Desain Proyek 2 (Gasal 2026/2027)",
+  "version": "2.2.0",
+  "status": "CONTROLLED / FULL UNIFIED SRC ARCHITECTURE",
+  "proposalReference": "Bab 4.4 & Bab 5 Proposal Desain Proyek 1 DTE FTUI 2026",
+  "budgetCeiling": 2000000,
+  "rabBaseline": 1901000,
+  "actualEstimatedCost": 1828500,
+  "totalAllocatedHours": 205,
+  "googleSheetsTracker": "https://docs.google.com/spreadsheets/d/1zRfozwUUJNMKAodWKQSK0rwU4v89uHyB7RLKbxfwlRk/edit?usp=sharing",
+  "specialDesignDecisions": [
+    "Darrel Alfath designs and fabricates the 3D Parametric CAD Enclosure/Casing for the IoT device with IP54 weatherproofing.",
+    "Hardware assembly utilizes standard off-the-shelf breakout boards and high-reliability perfboard/terminal wiring harness by Muhammad Ilman Zuhriy (No custom group fabricated PCB)."
+  ],
+  "team": [
+    {
+      "name": "Daffa Hardhan",
+      "npm": "2306161763",
+      "proposalRole": "Manajer Proyek dan Pengembang",
+      "primaryDomain": "Project management, master semester WBS, system architecture, Go backend server (Batch & Streaming ETL), Web Dashboard UI, TP-Link CPE220 outdoor router pipeline",
+      "allocatedHours": 40,
+      "reportFolder": "reports/individual/daffa/"
+    },
+    {
+      "name": "Raka Arrayan Muttaqien",
+      "npm": "2306161800",
+      "proposalRole": "Analis Solusi dan Integrasi Layanan",
+      "primaryDomain": "Requirement analysis, sanitation standards, BoM 15 items, component comparison, procurement coordination, budget control",
+      "allocatedHours": 35,
+      "reportFolder": "reports/individual/raka/"
+    },
+    {
+      "name": "Siti Amalia Nurfaidah",
+      "npm": "2306161851",
+      "proposalRole": "Pengembang Perangkat Lunak",
+      "primaryDomain": "Firmware ESP32, embedded logic, ADC/PWM signal processing, LoRa RA-02 433 MHz protocol, servo actuator automation",
+      "allocatedHours": 45,
+      "reportFolder": "reports/individual/siti/"
+    },
+    {
+      "name": "Muhammad Ilman Zuhriy",
+      "npm": "2306266786",
+      "proposalRole": "Perancang Perangkat Keras",
+      "primaryDomain": "Power architecture, solar 10Wp + battery 18650 1S4P, TP4056 BMS, wiring harness assembly (No custom PCB), analog gas sensor calibration",
+      "allocatedHours": 45,
+      "reportFolder": "reports/individual/ilman/"
+    },
+    {
+      "name": "Darrel Alfath",
+      "npm": "2306266810",
+      "proposalRole": "Desainer Mekanis dan Penguji Kualitas",
+      "primaryDomain": "3D CAD parametric casing design, 3D printing PETG, weatherproofing IP54, mounting bracket, Master Test Plan, QA verification",
+      "allocatedHours": 40,
+      "reportFolder": "reports/individual/darrel/"
+    }
+  ],
+  "directories": {
+    "root": "DESPRO2_SMART_SANITATION_MODULAR/",
+    "assets": "assets/",
+    "reports": "reports/",
+    "src": "src/",
+    "src_bin": "src/bin/",
+    "src_config": "src/config/",
+    "src_data": "src/data/",
+    "src_firmware": "src/firmware/",
+    "src_server": "src/server/"
+  },
+  "binaries": [
+    "src/bin/esos-server.exe"
+  ],
+  "configurations": [
+    "src/config/sensor_thresholds.json",
+    "src/config/lora_config.json",
+    "src/config/network_cpe220.conf",
+    "src/config/.env.example"
+  ],
+  "sourceCode": [
+    "src/server/main.go",
+    "src/server/models/models.go",
+    "src/server/database/database.go",
+    "src/server/database/postgres_schema.sql",
+    "src/server/etl/pipeline.go",
+    "src/server/api/handlers.go",
+    "src/server/api/websocket.go",
+    "src/server/static/index.html",
+    "src/server/schema.sql",
+    "src/firmware/platformio.ini",
+    "src/firmware/include/config.h",
+    "src/firmware/src/main.cpp"
+  ],
+  "technicalDocs": [
+    "src/server/docs/01_DATABASE_ARCHITECTURE_AND_ERD.md",
+    "src/server/docs/02_BACKEND_ETL_AND_API_ARCHITECTURE.md",
+    "src/server/docs/03_FRONTEND_DASHBOARD_ARCHITECTURE.md",
+    "src/server/docs/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md"
+  ],
+  "procurementDocs": [
+    "02_BOM_PROCUREMENT.md"
+  ],
+  "sheetsTemplates": [
+    "assets/sheets_templates/01_DAILY_LOGBOOK_TRACKING.csv",
+    "assets/sheets_templates/02_MASTER_WBS_GANTT_CHART.csv",
+    "assets/sheets_templates/03_PHASE_GATE_GOVERNANCE.csv",
+    "assets/sheets_templates/04_TEST_MATRIX_TC_RTM.csv"
+  ]
+}

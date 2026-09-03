@@ -1,0 +1,5 @@
+﻿Gate ID,Nama Gerbang Evaluasi,Target Pekan,Kriteria Kelulusan Teknis Utama,Dokumen Bukti Wajib,Status Persetujuan,Tanggal Verifikasi,Catatan Dosen / Reviewer
+GATE-01,Baseline Readiness & BoM Control,Pekan 2,"15 item BoM terverifikasi <= Rp2.000.000, RACI 205 jam terikat, toolchain & server Go aktif.","02_BOM_PROCUREMENT.md, bin/esos-server.exe",APPROVED,2026-09-03,Baseline dan kontrol anggaran tervalidasi sangat baik.
+GATE-02,Subsystem Unit Testing,Pekan 5,"Sensor gas terkalibrasi ppm, ultrasonik membaca level air, casing 3D tercetak presisi.","EV-W5-HW-001, EV-W5-SW-001",PENDING,,Menunggu pengujian laboratorium subsistem.
+GATE-03,Outdoor Dual-Path Range Testing,Pekan 9,Transmisi data berhasil via WiFi CPE220 & LoRa 433MHz jarak jauh tanpa packet loss fatal.,"EV-W9-SYS-001, assets/logs/",PENDING,,Menunggu uji lapangan outdoor.
+GATE-04,Final Exhibition & Acceptance,Pekan 13,"Sistem beroperasi 24 jam mandiri tenaga surya, dashboard real-time aktif, laporan akhir lengkap.","Laporan Akhir, Video Demo, Poster",PENDING,,Gerbang akhir kelulusan Capstone DP2.
