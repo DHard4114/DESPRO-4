@@ -21,6 +21,8 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
    Darrel bertanggung jawab penuh atas perancangan **Model 3D CAD Parametrik dan Fabrikasi 3D Print Enclosure / Casing untuk seluruh perangkat IoT Smart-Sanitation eSOS** (kompartemen ESP32, dudukan probe ultrasonik JSN-SR04T, kisi ventilasi sensor gas MQ-137/136, housing baterai 18650, alur gasket silikon RTV IP54, dan klem mounting eksternal).
 2. **Keputusan Perakitan Elektrikal (No Custom Group PCB):**  
    Untuk meminimalkan risiko kegagalan fabrikasi, menekan lead-time manufaktur, dan mempercepat integrasi mekanik, sistem **TIDAK MENGGUNAKAN PCB CUSTOM KELOMPOK (No custom fabricated/etched PCB)**. Perakitan elektrikal menggunakan modul breakout board standar industri (ESP32 DevKit, modul TP4056 BMS, breakout MQ, breakout LoRa) yang diintegrasikan secara kokoh menggunakan *high-reliability perfboard / terminal shield wiring harness* oleh Muhammad Ilman Zuhriy.
+3. **Model Pengadaan Kolektif Terdistribusi (Collaborative Joint Procurement by All 5 Members):**  
+   Pengadaan 15 komponen BoM **dilaksanakan secara bersama oleh seluruh 5 anggota tim**, di mana setiap anggota mengeksekusi pembelian komponen sesuai domain subsistemnya (Daffa: Router CPE220 & Network, Siti: ESP32 & LoRa, Ilman: Daya Solar & Sensor Gas, Darrel: Casing 3D, Servo & Gasket, Raka: Konsolidasi Finansial & Audit Invoice).
 
 ---
 
@@ -31,6 +33,7 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
   - **Pembangunan Web Dashboard Pemantauan Real-Time:** Frontend UI interaktif (HTML5, Tailwind CSS, Chart.js) untuk visualisasi level air, konsentrasi gas amonia/H2S, tegangan baterai, alarm SOS, dan kendali servo.
   - **Pembangunan Pipeline Data Sensor ke Basis Data:** Backend server Go berkinerja tinggi (`src/server/`), Streaming Ingestion, Batch ETL Engine, binary mandiri (`src/bin/esos-server.exe`), basis data SQLite WAL mode, dan skema PostgreSQL ACID UUIDv7 (`src/server/database/postgres_schema.sql`).
   - **Konfigurasi & Integrasi Jaringan Outdoor TP-Link CPE220:** Jaringan wireless jarak jauh 2.4GHz (`src/config/network_cpe220.conf`) menjembatani gateway sensor bilik sanitasi ke server posko.
+  - **Pengadaan Komponen Jaringan:** Eksekusi pembelian Access Point Outdoor TP-Link CPE220 dan kabel jaringan outdoor STP Cat6.
   - Master WBS 14 Pekan, linimasa semester, jalur kritis, dan tautan live Google Sheets.
   - Tata kelola repositori Git dan sistem issue tracker proyek.
   - Koordinasi integrasi lintas domain dan audit Phase Gate 1 s.d. 4.
@@ -39,20 +42,19 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
   - Wiring elektrikal daya dan kalibrasi sensor analog $\rightarrow$ Ilman.
   - Firmware mikrokontroler dan stack LoRa $\rightarrow$ Siti.
   - 3D CAD casing enclosure IoT dan weatherproofing $\rightarrow$ Darrel.
-  - Komparasi vendor dan pelacak pengadaan $\rightarrow$ Raka.
 
-### 2.2 Raka Arrayan Muttaqien — *Solution Analysis, Standards & Procurement*
+### 2.2 Raka Arrayan Muttaqien — *Solution Analysis, Sanitation Standards & Financial Consolidation*
 * **Tanggung Jawab Utama (Primary PIC):**
   - Analisis kebutuhan fungsional dan Requirements Traceability Matrix (RTM).
-  - Verifikasi kepatuhan terhadap standar sanitasi darurat dan keselamatan.
+  - Verifikasi kepatuhan terhadap standar sanitasi darurat dan keselamatan (Permenkes).
   - Komparasi spesifikasi teknis 15 komponen BoM terhadap target proposal.
   - Pengumpulan dan pengarsipan lembar data resmi (*datasheets*) pabrikan.
-  - Manajemen logistik, pemilihan vendor terverifikasi, dan pelacakan resi.
+  - **Konsolidasi Finansial & Audit Pengadaan:** Menghimpun seluruh kuitansi/faktur pembelian dari 5 anggota ke dalam bundel resmi `assets/procurement/receipts_bundle.pdf` (`EV-W2-PROC-001`).
   - Pengendalian anggaran proyek (Committed Cost $\le$ Ceiling Rp2.000.000).
   - Penanganan variansi harga sensor gas MQ-137/136 (`GATE-PROC-01` & `GATE-PROC-02`).
   - Pembuatan buku register aset inventaris proyek.
 * **Aturan Penerimaan Teknis (*Technical Acceptance Rule*):**
-  - Raka bertindak sebagai koordinator pengadaan, namun penerimaan teknis wajib diuji dan disetujui oleh Domain Engineer:
+  - Seluruh 5 anggota membeli komponen sesuai subsistem masing-masing, dan penerimaan teknis wajib diuji oleh Domain Engineer:
     - *Hardware acceptance* $\rightarrow$ Ilman.
     - *Software/tool acceptance* $\rightarrow$ Siti / Daffa.
     - *Mechanical material acceptance* $\rightarrow$ Darrel.
@@ -120,8 +122,8 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
 |:---:|:---|:---:|:---:|:---:|:---:|:---|
 | 1 | Master WBS 14 Pekan & Jadwal Semester | **Daffa** | **Daffa** | All | Dosen | `03_MASTER_SEMESTER_WBS.md` |
 | 2 | Requirements Baseline & Matriks RTM | **Raka** | **Raka** | Daffa, All Technical PICs | All | `04_PHASE_GATE_AND_TRACEABILITY.md` |
-| 3 | Baseline BoM & Procurement Control | **Raka** | **Raka** | Ilman, Siti, Darrel, Daffa | All | `02_BOM_PROCUREMENT.md` |
-| 4 | Eksekusi Pengadaan 15 Komponen BoM | **Raka** | **Raka** | Domain PICs terkait | Daffa | Bundel Faktur & Aset Fisik Tiba |
+| 3 | Baseline BoM & Konsolidasi Finansial | **Raka** | **Raka** | Daffa, Ilman, Siti, Darrel | All | `02_BOM_PROCUREMENT.md` |
+| 4 | Eksekusi Pengadaan 15 Komponen (Kolektif) | **Daffa & Raka** | **Seluruh 5 Anggota sesuai Domain** | — | All | Bundel Faktur & Aset Fisik Tiba |
 | 5 | Desain 3D CAD Casing IoT & Fixture | **Darrel** | **Darrel** | Ilman, Siti | Daffa, Raka | Berkas CAD `.step` & File `.stl` |
 | 6 | Fabrikasi 3D Printing Casing PETG | **Darrel** | **Darrel** | Ilman | All | Casing 3D Fisik IP54 |
 | 7 | Power Management & Wiring Harness | **Ilman** | **Ilman** | Siti, Darrel | Daffa, Raka | Sirkuit Daya Solar & Harness Fisik |
