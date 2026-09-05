@@ -11,6 +11,28 @@ Sistem ini beroperasi **100% Offline (Intranet)** menggunakan *Router* TP-Link C
 Sistem ini secara tegas **TIDAK menggunakan topologi Mesh**. Untuk memastikan keandalan tingkat tinggi (*high reliability*) dan kemudahan pemrograman, sistem menggunakan topologi **Star**.
 
 *   **Mengapa Bintang (Star)?** Jangkauan frekuensi LoRa 433MHz sangat jauh (ratusan meter hingga kilometer) dan mampu menembus tembok/beton *septic tank*. Oleh karena itu, Node WC di lapangan tidak perlu saling menitip pesan (*hopping/mesh*). Semua Node langsung memancarkan data (*broadcast*) lurus ke satu titik pusat (Menara Posko).
+
+`mermaid
+flowchart BT
+    subgraph Edge_Nodes[Wilayah Sanitasi (Blank Spot)]
+        WC1[ESP32 Node WC 01
+LoRa 433MHz]
+        WC2[ESP32 Node WC 02
+LoRa 433MHz]
+        WC3[ESP32 Node WC 03
+LoRa 433MHz]
+    end
+
+    subgraph Central_Gateway[Posko Pusat eSOS]
+        GW[ESP32 Gateway
+Receiver]
+    end
+    
+    WC1 -- RF Telemetry --> GW
+    WC2 -- RF Telemetry --> GW
+    WC3 -- RF Telemetry --> GW
+`
+
 *   **Kelebihan:** Menghemat baterai Node (karena tidak perlu terus menyala untuk mem-*forward* pesan orang lain) dan membebaskan mikrokontroler dari algoritma *routing* yang rawan *error*.
 
 ---
@@ -40,15 +62,41 @@ Sistem ini dibangun oleh 3 entitas (aktor) utama yang bekerja secara terpisah na
 
 Berikut adalah perjalanan satu paket data dari kotoran limbah hingga menjadi grafik di layar:
 
-1. **[Fisik]** Sensor Gas MQ-137 membaca konsentrasi amonia 150ppm.
+`mermaid
+sequenceDiagram
+    autonumber
+    participant Sensor as MQ-137 / JSN-SR04T
+    participant Node as ESP32 Node WC
+    participant GW as ESP32 Gateway
+    participant Broker as Mosquitto Broker
+    participant Go as Server Go (Backend)
+    participant DB as PostgreSQL (TSDB)
+    participant UI as Web Dashboard
+
+    Sensor->>Node: 1. Baca Data (Amonia = 150ppm)
+    Node->>Node: 2. Parse ke String JSON
+    Node-)GW: 3. Transmisi Radio (LoRa 433MHz)
+    GW->>Broker: 4. Publish MQTT via Wi-Fi (Port 1883)
+    Broker->>Go: 5. Forward Pesan ke Subscriber Go
+    
+    par Jalur Batch (Persistensi ACID)
+        Go->>DB: 6. Simpan permanen ke SSD (TimescaleDB)
+    and Jalur Stream (Kecepatan)
+        Go->>UI: 7. Push via WebSocket
+    end
+    UI->>UI: 8. Render Grafik Chart.js secara Real-Time
+`
+
+**Penjelasan Sekuensial:**
+1. **[Fisik]** Sensor Gas membaca konsentrasi.
 2. **[C++]** ESP32 Node WC membungkusnya jadi teks JSON.
-3. **[Radio]** ESP32 Node WC menembakkan JSON ke udara via LoRa 433MHz.
-4. **[Radio]** ESP32 Gateway (di posko) menangkap sinyal radio tersebut.
-5. **[Wi-Fi]** ESP32 Gateway meneruskannya ke IP `192.168.0.100` pada Port `1883` (Protokol MQTT).
-6. **[RAM]** Aplikasi *Mosquitto* di Laptop Daffa menangkap paket itu di dalam RAM, lalu mem-*forward*-nya ke Server Go.
-7. **[Storage]** Server Go menyimpannya ke *Hardisk/SSD* (PostgreSQL).
-8. **[REST API]** Layar Monitor *Dashboard* menembak REST API (atau WebSocket) ke Server Go untuk meminta data terbaru.
-9. **[Visualisasi]** Grafik Amonia di layar bergerak naik ke angka 150.
+3. **[Radio]** Ditembakkan ke udara via LoRa 433MHz.
+4. **[Wi-Fi]** ESP32 Gateway meneruskannya ke Protokol MQTT.
+5. **[RAM]** Mosquitto mem-forward-nya ke Server Go.
+6. **[Storage]** Disimpan permanen ke Hardisk/SSD (PostgreSQL).
+7. **[Network]** Server Go menembak WebSocket ke layar.
+8. **[Visualisasi]** Grafik di layar bergerak naik seketika.
+
 
 ---
 
@@ -58,3 +106,13 @@ Untuk menepis kesalahpahaman, protokol MQTT adalah "kurir" tanpa bentuk fisik. S
 *   **SRAM ESP32 (Internal):** Hanya memakan $\approx 1\text{ KB}$ RAM untuk menampung *buffer string* JSON sebelum ditransmisikan.
 *   **RAM Laptop Server (Mosquitto):** Hanya memakan $\approx 5 - 15\text{ MB}$ RAM untuk melakukan *In-Memory Routing* (Luar biasa ringan dan cepat, tidak menyebabkan laptop lemot).
 *   **SSD Laptop Server (PostgreSQL):** Penyimpanan permanen. Data histori tidak akan pernah hilang meskipun sistem dimatikan atau listrik posko padam.
+
+---
+
+## 5. Pemenuhan Prinsip ACID pada Telemetri MQTT
+Walaupun MQTT adalah protokol transmisi, arsitektur ini dirancang untuk mendukung prinsip ACID (Atomicity, Consistency, Isolation, Durability) saat data mendarat di database:
+
+1. **Atomicity (Keutuhan):** Penggunaan *MQTT QoS 1 (At least once)* pada *library* PubSubClient menjamin bahwa paket tidak akan setengah terkirim. Pesan JSON masuk secara utuh (Atomik) ke Server Go, atau gagal seluruhnya.
+2. **Consistency (Konsistensi):** Format JSON yang dikirimkan node (seperti mmonia_ppm) divalidasi ketat oleh tipe data struct Golang sebelum INSERT ke database.
+3. **Isolation (Isolasi):** Setiap *Goroutine* di Go memproses paket LoRa dari WC 1 dan WC 2 secara independen tanpa saling menimpa memori (*Thread-Safe*).
+4. **Durability (Ketahanan):** Dengan integrasi langsung ke PostgreSQL *Write-Ahead Logging* (WAL), setelah data menyentuh siklus ke-6 pada diagram di atas, data dijamin tidak akan hilang walau posko mati listrik mendadak.
