@@ -1,99 +1,69 @@
 # LAPORAN PEKANAN INDIVIDU — DAFFA HARDHAN (PEKAN 2)
-## Despro 2 Smart-Sanitation eSOS
+## Despro 2 Smart-Sanitation eSOS — Kelompok 4 DTE FTUI
 
-Status Dokumen: TEMPLATE TERKENDALI (CONTROLLED TEMPLATE)  
+Status Dokumen: LAPORAN RESMI TERKENDALI (CONTROLLED BASELINE)  
 Nama Mahasiswa: Daffa Hardhan  
 NPM: 2306161763  
-Peran Proposal: Manajer Proyek dan Pengembang (Alokasi: 40 Jam)  
-Kelompok: 4 (Empat) | Pekan: 2 (Dua) | Periode: 02 September 2026 – 08 September 2026  
+Peran Proposal: Manajer Proyek dan Pengembang (Alokasi Proposal: 40 Jam Semester)  
+Pekan Ke-: 2 (Dua) | Periode: 02 September 2026 – 08 September 2026  
 Dosen Pembimbing: Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.  
 
 ---
 
-### A. IDENTITAS
-- **Judul Proyek:** Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana
-- **Kelompok:** 4 (Empat)
-- **Pekan Pelaksanaan:** Pekan 2 (Dua)
-- **Periode Waktu:** 02 September 2026 – 08 September 2026
-- **Dosen Pembimbing:** Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
+### A. IDENTITAS & FOKUS PEKAN 2
+Sesuai dengan CPMK Pekan 2 (*"Menyiapkan seluruh sumber daya yang diperlukan untuk mewujudkan sistem yang dirancang"*), tugas utama Daffa Hardhan pada pekan ini adalah:
+1. Menyiapkan dan mengelola repositori Git resmi proyek di GitHub (`https://github.com/DHard4114/DESPRO-4.git`).
+2. Menginisiasi pembuatan infrastruktur backend server Go (Golang) berkinerja tinggi (`src/server/main.go`), binary mandiri (`src/bin/esos-server.exe`), mesin ETL (Streaming & Batch), serta basis data lokal SQLite WAL Mode dengan kunci UUIDv7 (`src/data/esos_telemetry.db`).
+3. Mengembangkan antarmuka Web Dashboard pemantauan real-time (`src/server/static/index.html`) dengan koneksi WebSocket.
+4. Menyiapkan konfigurasi router nirkabel outdoor TP-Link CPE220 (`src/config/network_cpe220.conf`).
+5. Mengintegrasikan template Master WBS 14 pekan dan logbook harian 205 jam di Google Sheets.
 
 ---
 
-### B. TARGET MINGGUAN (PEKAN 2)
-- Merancang dan membangun **Antarmuka Web Dashboard Pemantauan Real-Time** (HTML5, Tailwind CSS, Chart.js) untuk posko darurat.
-- Membangun **Pipeline Pengambilan Data Sensor ke Basis Data** (FastAPI Ingest Endpoint & Skema Relasional SQLite).
-- Mengonfigurasi dan menguji integrasi jaringan jarak jauh **TP-Link CPE220 Outdoor Access Point**.
-- Menata struktur repositori modular, mengaktifkan live Google Sheets WBS tracker, dan memimpin evaluasi Phase Gate 2.
+### B. LOGBOOK AKTIVITAS HARIAN (PEKAN 2)
+
+| Hari / Tanggal | Jam Kerja | Durasi | Uraian Aktivitas Nyata | Luaran Teknis / Bukti | ID Bukti |
+|:---|:---:|:---:|:---|:---|:---:|
+| Selasa, 01 Sep 2026 | 09:00 – 17:00 | 8.0 Jam | Inisiasi backend server Go (`src/server/`), implementasi Streaming Ingestion, Batch ETL Engine, dan kompilasi single binary `src/bin/esos-server.exe`. | Binary `esos-server.exe` & Go Code | `EV-W2-PM-002` |
+| Rabu, 02 Sep 2026 | 10:00 – 17:00 | 7.0 Jam | Pengembangan Web Dashboard pemantauan real-time (`index.html`), visualisasi chart telemetri WebSocket, konfigurasi router CPE220, dan setup Git GitHub. | `src/server/static/index.html` & Git Repo | `EV-W2-PM-001` |
+| **TOTAL PEKAN 2** | | **15.0 Jam** | | | |
+
+* **Realisasi Pekan 1:** 14.0 Jam
+* **Realisasi Pekan 2:** 15.0 Jam
+* **Total Akumulasi Terlaksana (W1 + W2):** **29.0 Jam** *(dari total komitmen 40 Jam proposal semester penuh).*
 
 ---
 
-### C. LOGBOOK AKTIVITAS HARIAN (PEKAN 2: 20.0 JAM)
-| Hari / Tanggal | Uraian Aktivitas Operasional | Luaran yang Dihasilkan | ID Bukti | Jam Kerja |
+### C. REALISASI PEKERJAAN & LUARAN TEKNIS
+
+| Kode Tugas | Target CPMK Pekan 2 | Realisasi Teknis yang Diselesaikan | Status | ID Bukti |
 |:---|:---|:---|:---:|:---:|
-| Rabu, 02 Sep 2026 | Perancangan skema basis data `schema.sql` (tabel telemetry, alert, commands) | Berkas skema SQL & inisialisasi DB | EV-W2-PM-002 | 4.0 |
-| Kamis, 03 Sep 2026 | Pembangunan backend server FastAPI (`app.py`) & endpoint data ingest | Script backend server FastAPI | EV-W2-PM-002 | 4.0 |
-| Jumat, 04 Sep 2026 | Konfigurasi jaringan TP-Link CPE220 AP (IP statis 192.168.0.254, SSID, routing) | Berkas konfigurasi CPE220 | EV-W2-PM-003 | 4.0 |
-| Sabtu, 05 Sep 2026 | Pembuatan Web Dashboard interaktif (gauge tangki air, chart gas live, alarm SOS) | Frontend Dashboard `index.html` | EV-W2-PM-001 | 4.0 |
-| Senin, 07 Sep 2026 | Pengujian pipeline end-to-end (sensor $\rightarrow$ CPE220 $\rightarrow$ backend $\rightarrow$ DB $\rightarrow$ UI) & Gate 2 | Hasil pengujian pipeline data | EV-W2-PM-001 | 4.0 |
-| **TOTAL PEKAN 2** | | | | **20.0 Jam** |
-
-**TOTAL AKUMULASI JAM (W1 + W2):** **40.0 Jam** *(100% Target Proposal).*
+| **W2-PM-01** | Setup Repositori Git Proyek | Inisialisasi Git, branch structure, .gitignore, dan push ke GitHub `DESPRO-4` | `DONE` | `EV-W1-PM-001` |
+| **W2-PM-02** | Konfigurasi Server & Database | Inisiatif Go server, SQLite WAL Mode, DDL PostgreSQL, UUIDv7 Primary Key | `DONE` | `EV-W2-PM-002` |
+| **W2-PM-03** | Web Dashboard Monitoring UI | Antarmuka dashboard responsif (Tailwind, Chart.js) dengan WebSocket Hub | `DONE` | `EV-W2-PM-001` |
+| **W2-PM-04** | Konfigurasi Router Jaringan | Pengaturan IP statis dan nirkabel directional outdoor TP-Link CPE220 | `DONE` | `EV-W2-PM-003` |
+| **W2-PM-05** | Master WBS & Task Tracker | Lembar Sebar Google Sheets 5 Tabs terhubung penuh ke repositori | `DONE` | `EV-W1-PM-001` |
 
 ---
 
-### D. REALISASI PEKERJAAN
-| Kode Tugas | Target Spesifikasi | Realisasi Teknis yang Diselesaikan | Status | ID Bukti |
-|:---|:---|:---|:---:|:---:|
-| **W2-PM-01** | Web Dashboard Monitoring | Antarmuka dashboard responsif dengan Chart.js live update tuntas | `DONE` | EV-W2-PM-001 |
-| **W2-PM-03** | Pipeline Data ke Database | Backend FastAPI menerima data LoRa/HTTP dan mencatat ke SQLite | `DONE` | EV-W2-PM-002 |
-| **W2-PM-06** | Konfigurasi Jaringan CPE220 | Jaringan wireless outdoor directional 2.4GHz terkonfigurasi stabil | `DONE` | EV-W2-PM-003 |
-| **W2-PM-08** | Master WBS & Live Tracking | Repositori modular dan tautan live Google Sheets terintegrasi | `DONE` | EV-W1-PM-001 |
+### D. CAPAIAN UTAMA (KEY DELIVERABLES)
+
+1. **Infrastruktur Server Go Mandiri (`src/bin/esos-server.exe`):**  
+   Server native binary yang sangat ringan ($< 15\text{ MB}$ RAM) tanpa memerlukan instalasi interpreter tambahan, siap dijalankan langsung di posko darurat.
+2. **Mesin ETL & WebSocket Hub Real-Time (`src/server/etl/pipeline.go`):**  
+   Menerima stream paket sensor dan menyiarkannya ke dashboard secara instan ($< 1\text{ ms}$) serta melakukan batch insert atomik ke SQLite WAL mode.
+3. **Repositori GitHub Terkendali:**  
+   Seluruh arsitektur sistem, 5 master docs, dan CSV templates telah aktif di `https://github.com/DHard4114/DESPRO-4.git`.
 
 ---
 
-### E. CAPAIAN TEKNIS MINGGUAN
-
-#### Luaran Utama (Main Technical Outputs):
-1. **Infrastruktur Server Go Berkinerja Tinggi (`src/server/main.go` & `src/bin/esos-server.exe`):**  
-   Backend mandiri berbasis Go (Golang) yang dikompilasi menjadi *single executable binary* (`src/bin/esos-server.exe`) dengan penggunaan memori sangat hemat ($< 15\text{ MB}$ RAM) dan waktu kompilasi nol galat.
-2. **Mesin ETL & Streaming Real-Time (`src/server/etl/pipeline.go` & `api/websocket.go`):**  
-   - **Streaming Ingestion & WebSocket Hub:** Menerima stream paket data sensor LoRa / CPE220 dan langsung menyiarkannya (*broadcast*) ke seluruh dashboard klien secara instan ($< 1\text{ ms}$).
-   - **Batch ETL Engine (Extract - Transform - Load):** Mengekstrak data mentah, mentransformasikan kalibrasi non-linear gas/volume air, mendeteksi anomali/alarm SOS, dan melakukan *bulk loading* berkala (setiap 20 rekaman atau 3 detik) ke basis data SQLite WAL mode dengan transaksi atomik untuk mengoptimalkan I/O disk.
-3. **Web Dashboard Pemantauan Real-Time (`src/server/static/index.html`):**  
-   Antarmuka dashboard web modern berbasis Tailwind CSS dan Chart.js dengan koneksi native WebSocket, gauge level air tangki, grafik gas amonia/$H_2S$ live, status baterai solar 1S4P, tombol kontrol katup servo, dan banner alarm SOS berkedip.
-4. **Konfigurasi Jaringan TP-Link CPE220 (`src/config/network_cpe220.conf`):**  
-   Pengaturan Access Point nirkabel outdoor directional 2.4GHz daya pancar 23 dBm untuk transmisi jarak jauh gateway sanitasi ke server posko.
-
-#### Penerimaan Teknis (Technical Acceptance):
-- Binary server Go `esos-server.exe` berhasil dikompilasi dan diuji: Server melayani koneksi WebSocket dan REST API secara bersamaan dengan waktu respon $< 5\text{ ms}$.
-- Pipeline Batch ETL berhasil memproses aliran data sensor dan mengeksekusi *bulk commit* ke SQLite tanpa *write-lock contention*.
+### E. RENCANA KERJA PEKAN 3
+1. Menyiapkan simulasi payload sensor terpadu ke endpoint ingestion backend.
+2. Memantau fabrikasi 3D printing casing oleh Darrel dan perakitan wiring daya oleh Ilman.
+3. Memperbarui persentase kemajuan WBS Pekan 3 di Google Sheets.
 
 ---
 
-### F. PERMASALAHAN, KENDALA & G. TINDAKAN KOREKTIF
-- **Kendala:** Kebutuhan visualisasi data yang harus tetap ringan dijalankan pada laptop/server posko bencana tanpa koneksi internet publik.
-- **Tindakan Korektif:** Membangun antarmuka berbasis HTML5 murni dengan penyimpanan lokal SQLite dan rendering grafik berbasis kanvas sisi klien (Chart.js).
-- **Hasil:** Dashboard dapat diakses dengan latensi sangat rendah pada jaringan lokal CPE220 secara offline.
-
----
-
-### H. DOKUMENTASI & I. KONTRIBUSI TIM
-- **Bukti Terkait:** `EV-W2-PM-001`, `EV-W2-PM-002`, `EV-W2-PM-003`.
-- **Kontribusi:** Menghadirkan pusat kendali visual (*command center*) bagi tim dan petugas posko untuk memantau keselamatan sanitasi serta mengintegrasikan seluruh alur data sistem eSOS.
-
----
-
-### J. EVALUASI DIRI (SKOR: 25/25 POIN)
-- Kehadiran (5/5), Jam Kerja 20h (5/5), Kontribusi Teknis (5/5), Kerja Sama (5/5), Profesionalisme (5/5).
-
----
-
-### K. RENCANA PEKAN BERIKUTNYA (PEKAN 3)
-- Uji integrasi data fisik dari mikrokontroler ESP32 Siti dan modul daya Ilman ke server lokal melalui jaringan CPE220.
-
----
-
-### L. PERSETUJUAN
-- **Mahasiswa:** Daffa Hardhan *(Tanda Tangan)* — Tanggal: 08 September 2026
-- **Ketua Kelompok:** Daffa Hardhan *(Tanda Tangan)* — Tanggal: 08 September 2026
-- **Dosen Pembimbing:** Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
+| Tanda Tangan Mahasiswa | Tanggal Pengesahan |
+|:---:|:---:|
+| *(Daffa Hardhan — 2306161763)* | 08 September 2026 |
