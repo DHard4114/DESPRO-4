@@ -1,119 +1,118 @@
 # LAPORAN KEMAJUAN PEKANAN
 ## DESAIN PROYEK TEKNIK ELEKTRO, KOMPUTER, BIOMEDIK 2
 
-**Judul Proyek** : Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana
-**Kelompok** : 4 (Empat)
-**Pekan Ke-** : 2 (Dua)
+**Judul Proyek** : RANCANG BANGUN SISTEM MONITORING SMART-SANITATION ESOS BERBASIS IOT UNTUK WILAYAH BLANK SPOT PASCA-BENCANA
+**Kelompok** : 4
+**Pekan Ke-** : 2
 **Periode** : 31 Agustus 2026 – 05 September 2026
-**Dosen Pembimbing** : Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
-**Ketua Kelompok** : Daffa Hardhan
+**Dosen Pembimbing** : Prof. Dr. Muhammad Suryanegara, S.T., M.Sc
+**Ketua Kelompok** : Daffa Hardhan (2306161763)
 **Anggota Kelompok** : 
-1. Daffa Hardhan (2306161763)
-2. Raka Arrayan Muttaqien (2306161800)
-3. Siti Amalia Nurfaidah (2306161851)
+1. Raka Arrayan Muttaqien (2306161800)
+2. Siti Amalia Nurfaidah (2306161851)
+3. Darrell Alfath (2306266810)
 4. Muhammad Ilman Zuhriy (2306266786)
-5. Darrel Alfath (2306266810)
 
 ---
 
 ### 1. Ringkasan Kemajuan Pekanan
-Pada pekan ke-2 ini, tim berfokus pada penyiapan seluruh sumber daya proyek sesuai target CPMK. Kegiatan meliputi verifikasi spesifikasi 15 komponen kelistrikan dan IoT, eksekusi pemesanan (*checkout*), serta penyusunan register aset dan Bundel Kuitansi Final dengan status hemat. Selain itu, tim juga telah merampungkan pembuatan repositori Git, penyiapan server lokal Go untuk backend, setup IDE PlatformIO untuk ESP32, dan penyusunan draf desain 3D CAD awal untuk *enclosure* tahan cuaca. Secara fisik, komponen sedang dalam proses pengiriman dan beberapa telah tiba untuk dicek.
+Pada pekan ini, tim telah menyelesaikan riset spesifikasi teknis dan menyusun dokumen Master Bill of Materials (BoM) lengkap dengan komparasi vendor serta estimasi anggaran proyek. Tim juga telah melaksanakan sesi konsultasi tatap muka bersama dosen pembimbing untuk validasi rencana pengadaan, menyelesaikan finalisasi daftar belanja (*listing*) komponen siap transaksi, menginisialisasi repositori GitHub untuk manajemen kode dan kolaborasi tim, serta mengaktifkan sistem *daily logbook tracker* guna memantau linimasa. **Selain itu, terdapat inisiatif pengembangan awal (*prototyping*) dari sisi perangkat lunak oleh Ketua Kelompok, berupa pembangunan *backend server* mandiri menggunakan bahasa Go dan penyusunan skema basis data PostgreSQL.**
 
 ### 2. Target Pekan Ini
 | No | Target | Status |
 |:---|:---|:---|
-| 1 | Pengadaan komponen kelistrikan & BoM final (15 item) | [x] Tercapai &nbsp; [ ] Belum |
-| 2 | Persiapan lingkungan pengembangan firmware (PlatformIO) | [x] Tercapai &nbsp; [ ] Belum |
-| 3 | Persiapan repositori proyek & setup Server Go Backend | [x] Tercapai &nbsp; [ ] Belum |
-| 4 | Finalisasi rancangan gambar teknik 2D dan Draf 3D CAD | [x] Tercapai &nbsp; [ ] Belum |
-| 5 | Setup format laporan, master WBS, dan sistem logbook | [x] Tercapai &nbsp; [ ] Belum |
+| 1 | Penyusunan dokumen Master Bill of Materials (BoM) lengkap dengan spesifikasi teknis dan komparasi harga toko online | [x] Tercapai &nbsp; [ ] Belum |
+| 2 | Konsultasi dan validasi rencana desain sistem serta pengadaan komponen bersama dosen pembimbing | [x] Tercapai &nbsp; [ ] Belum |
+| 3 | Finalisasi daftar belanja (*listing*) komponen siap beli serta inisialisasi repositori GitHub dan sistem logbook tracking tim | [x] Tercapai &nbsp; [ ] Belum |
+| 4 | **(Inisiatif Software)** Inisiasi prototipe *backend server* (Go) dan arsitektur basis data (PostgreSQL/SQLite) sebagai langkah akselerasi | [x] Tercapai &nbsp; [ ] Belum |
 
 ### 3. Realisasi Kegiatan
 | No | Kegiatan | Penanggung Jawab | Hasil |
 |:---|:---|:---|:---|
-| 1 | Verifikasi & checkout BoM 15 komponen hardware | Raka Arrayan & Tim | Komponen dipesan, anggaran Rp1.828.500 (hemat). |
-| 2 | Setup repositori GitHub, Inisiasi Server Go & PostgreSQL/SQLite | Daffa Hardhan | Git repo siap, server Go lokal dapat dijalankan. |
-| 3 | Instalasi IDE PlatformIO & board package ESP32 | Siti Amalia N. | PlatformIO siap digunakan untuk kompilasi C++. |
-| 4 | Penghitungan daya panel surya 10Wp & topologi 1S4P | M. Ilman Zuhriy | Skema arsitektur perakitan kabel tanpa PCB custom. |
-| 5 | Perancangan gambar teknik 2D mekanikal & 3D Casing | Darrel Alfath | Sketsa CAD 3D enclosure IP54 siap direview. |
+| 1 | Riset spesifikasi teknis hardware, komparasi toko daring, dan penyusunan daftar belanja produk BoM | Seluruh Anggota Tim | Dokumen Master BoM tervalidasi dengan rincian teknis, tautan toko, dan siap transaksi. |
+| 2 | Rapat koordinasi tim via Zoom Meeting dan inisialisasi Daily Logbook Tracker | Seluruh Anggota Tim | Kesepakatan alokasi tugas & lembar pelacakan jam kerja aktif. |
+| 3 | Asistensi dan bimbingan tatap muka bersama dosen pembimbing di Gedung MRPQ Lt. 1 | Seluruh Anggota Tim | Persetujuan arah perancangan sistem dan arahan pengadaan komponen. |
+| 4 | Inisialisasi repositori GitHub tim sebagai pusat manajemen berkas proyek dan pelaporan | Daffa Hardhan & Tim | Repositori GitHub (DESPRO-4) aktif lengkap dengan folder dan template. |
+| 5 | **(Inisiatif)** Pemrograman awal Server Go, integrasi arsitektur PostgreSQL 16 & SQLite Edge, serta desain awal Web Dashboard | Daffa Hardhan | Kode sumber *backend* awal selesai ditulis dan dikompilasi menjadi *native binary*. |
 
 ### 4. Kemajuan Tiap Anggota
 | Nama | Tugas Pekan Ini | Persentase Penyelesaian |
 |:---|:---|:---:|
-| Daffa Hardhan | Setup Git, inisiasi Go server, setup pipeline DB PostgreSQL/SQLite | 100% |
-| Raka Arrayan M. | Eksekusi BoM, kuitansi invoice, register aset | 100% |
-| Siti Amalia N. | Toolchain IDE, setup framework ESP32 PlatformIO | 100% |
-| M. Ilman Zuhriy | Verifikasi hardware list, rencana topologi & kabel | 100% |
-| Darrel Alfath | Gambar teknik mekanik 2D, rencana desain 3D casing | 100% |
+| Daffa Hardhan | Repositori GitHub, riset BoM, koordinasi tim, **serta inisiatif ekstra mengembangkan *backend server* Go dan database PostgreSQL/SQLite.** | 100% |
+| Raka Arrayan M. | Riset spesifikasi teknis hardware, menyusun master daftar belanja (listing) BoM, serta pemetaan tautan toko | 100% |
+| Siti Amalia N. | Riset kompatibilitas komponen elektronika/daya, membantu penyusunan BoM | 100% |
+| Darrell Alfath | Verifikasi ketersediaan stok, komparasi harga toko daring, serta mempelajari dasar 3D design | 100% |
+| M. Ilman Zuhriy | Riset modul antarmuka/mikrokontroler pada BoM, serta konfigurasi templat pelaporan tim | 100% |
 
 ### 5. Hasil Implementasi
 **Hardware**
-*   **Komponen yang telah direalisasikan:** 15 item BoM (ESP32, TP4056, Panel Surya 10Wp, LoRa SX1278, Baterai 18650, dll) telah terverifikasi spesifikasinya dan dieksekusi pesanannya.
-*   **Status integrasi:** Belum diintegrasikan secara fisik; status masih dalam penerimaan barang di lab dan inspeksi kelengkapan visual.
+*   **Komponen yang telah direalisasikan:** Dokumen Master Bill of Materials (BoM) final dan daftar belanja komponen siap transaksi (*ready to checkout*).
+*   **Status integrasi:** Tahap pra-integrasi / verifikasi kompatibilitas elektrik. Perakitan dan integrasi fisik dijadwalkan segera setelah proses transaksi pengadaan tiba di laboratorium.
 
 **Software**
-*   **Fitur yang telah selesai:** Repositori GitHub, infrastruktur lokal *native binary* Server Go (`esos-server.exe`), konfigurasi database PostgreSQL 16 & SQLite Edge, kerangka REST API awal.
-*   **Fitur yang masih dikembangkan:** Firmware sensor ESP32, skrip sampling ADC gas, filter debouncing, dan telemetri pengiriman paket via komunikasi serial LoRa.
+*   **Fitur yang telah selesai:** Inisialisasi struktur repositori GitHub tim (DESPRO-4), berkas .gitignore, README.md, templat pelaporan, dan *Daily Logbook*. **Telah selesai pula arsitektur awal *backend server native binary* Go (`esos-server.exe`), kerangka API awal, dan skema database PostgreSQL 16 (UUIDv7).**
+*   **Fitur yang masih dikembangkan:** Penyiapan *environment* IDE/toolchain untuk mikrokontroler, penulisan *baseline firmware* pengujian I/O ESP32, dan sinkronisasi LoRa.
 
 **Mekanik/Biomedik (jika ada)**
-*   Draft dimensi fisik ruang *casing* telah disesuaikan dengan dimensi komponen breakout ESP32 dan modul kelistrikan untuk kesiapan cetak filamen 3D PETG.
+*   Belum dilakukan pengerjaan fisik pada subsistem mekanik pada pekan ini. Pemodelan dan perancangan fisik 3D akan dimulai setelah komponen tiba agar dimensi selaras.
 
 ### 6. Dokumentasi Hasil
-**Foto Kegiatan**
-*(Lampirkan foto implementasi, perakitan, pengujian, atau diskusi tim)*
-Gambar 1. Bundel faktur pembelian komponen elektronik (*e-commerce*) - tercatat di `assets/procurement/`.
-Gambar 2. Bukti layout draf gambar teknik 3D (*screenshot* cad).
-
-**Screenshot Sistem**
-*(Jika proyek berbasis software atau IoT)*
-- *Screenshot* VS Code Workspace dengan inisiasi file server Go dan setup PlatformIO.
+**Lampiran & Penjelasan**
+1. **(Gambar 1 - Zoom Meeting):** Pelaksanaan rapat koordinasi daring internal tim via Zoom Meeting untuk membahas penyusunan dan finalisasi daftar komponen BoM serta pembagian pos pengadaan hardware.
+2. **(Gambar 2 - Asistensi MRPQ):** Sesi bimbingan bersama dosen pembimbing di Gedung MRPQ Lantai 1 untuk meninjau kelayakan arsitektur desain sistem dan konsultasi pengadaan.
+3. **(Gambar 3 - Arsitektur Software):** Screenshot *source code* inisiasi Server Go dan *database* PostgreSQL di repositori GitHub.
 
 ### 7. Pengujian yang Dilakukan
 | Parameter | Target | Hasil | Status |
 |:---|:---|:---|:---|
-| Status Pengadaan Komponen | Minimal 80% komponen tersedia | 15/15 (100%) komponen dipesan | [x] Lulus &nbsp; [ ] Tidak |
-| Lingkungan Pengembangan | IDE dan Server dapat *running* lokal | `esos-server.exe` jalan 0 error | [x] Lulus &nbsp; [ ] Tidak |
-| Sistem Dokumentasi Proyek | Git repo aktif & terhubung | WBS & GitHub diakses publik | [x] Lulus &nbsp; [ ] Tidak |
+| Uji Kompilasi *Backend Server* Go | 0 Error saat *build* binary mandiri | File `esos-server.exe` sukses terbentuk tanpa galat | [x] Lulus &nbsp; [ ] Tidak |
+| *Hardware / Mekanik* | - | Belum ada pengujian fisik yang dilakukan pekan ini | [ ] Lulus &nbsp; [ ] Tidak |
 
 **Analisis Singkat:**
-Hasil pengecekan kesiapan menunjukkan tim telah memenuhi seluruh syarat untuk memulai perakitan perangkat keras dan pengembangan *firmware*. Ketersediaan 100% BoM memastikan tidak ada *bottleneck* pengadaan untuk pekan selanjutnya.
+Pada pekan ini belum dilaksanakan kegiatan pengujian perangkat keras (hardware) dikarenakan fokus tim masih pada perancangan BoM dan komparasi toko daring. Namun, dari sisi perangkat lunak (software), **telah dilakukan pengujian kompilasi pada *backend server* berbasis Go hasil inisiatif awal**, yang berjalan sukses tanpa galat (*error*). Pengujian terintegrasi baru akan dimulai setelah komponen fisik tiba.
 
 ### 8. Kendala dan Solusi
 | Kendala | Dampak | Solusi yang Dilakukan |
 |:---|:---|:---|
-| Fluktuasi stok dan harga sensor gas MQ-137 di beberapa *supplier*. | Risiko keterlambatan penerimaan barang uji. | Langsung membandingkan 3 toko di marketplace pada hari yang sama dan langsung mengeksekusi pembelian kolektif sebelum stok habis. |
+| Proses verifikasi ketersediaan stok, kesesuaian spesifikasi, dan komparasi harga antartoko daring memakan waktu telaah yang cukup lama. | Transaksi pembelian (*checkout*) komponen BoM belum dapat diselesaikan pada pekan ini. | Mengunci tautan produk tervalidasi pada Master BoM, menyiapkan opsi toko cadangan (*backup seller*), dan menjadwalkan *checkout* serentak awal pekan depan. |
 
 ### 9. Deviasi Terhadap Jadwal
 | Aktivitas | Jadwal Awal | Realisasi | Keterangan |
 |:---|:---|:---|:---|
-| Pengadaan BoM | W2 | W2 | Selesai tepat waktu. |
-| Setup IDE & Repo | W2 | W2 | Selesai tepat waktu. |
+| Penyusunan BoM & Listing Toko | Pekan 2 | Pekan 2 | Sesuai jadwal (*on track*). |
+| Inisialisasi Repo GitHub & Logbook | Pekan 2 | Pekan 2 | Sesuai jadwal (*on track*). |
+| **Transaksi Pengadaan (*Checkout*)** | Pekan 2 | Awal Pekan 3 | **Tertunda (*delayed*)**; fokus pada finalisasi toko. |
+| **Pengembangan *Backend* Server** | Pekan 3 | Pekan 2 | **Lebih Cepat (*accelerated*)**; Inisiatif Daffa. |
 
 **Analisis Deviasi:**
-Tidak ada keterlambatan pekerjaan (*zero deviation*). Seluruh capaian persiapan sumber daya tercapai 100% tepat pada Pekan ke-2 sesuai proposal master WBS.
+Keterlambatan pada eksekusi pengadaan disebabkan oleh perlunya proses verifikasi mendalam terhadap kesesuaian spesifikasi teknis dan ketersediaan stok guna memastikan efisiensi anggaran. Sebagai kompensasi *delay* ini, pengembangan *software backend* yang awalnya dijadwalkan pekan depan berhasil **ditarik lebih maju** pada pekan ini. Seluruh daftar komponen berstatus *ready to checkout* untuk awal pekan depan tanpa mengganggu *critical path* proyek.
 
 ### 10. Rencana Kerja Pekan Berikutnya
 | No | Aktivitas | PIC | Target Selesai |
 |:---|:---|:---|:---|
-| 1 | Pencetakan casing IoT dengan printer 3D (filamen PETG) | Darrel Alfath | Pekan 3 |
-| 2 | Solder dan perakitan *wiring harness* tanpa custom PCB | M. Ilman Zuhriy | Pekan 3 |
-| 3 | Penulisan kode integrasi sensor Analog & LoRa | Siti Amalia N. | Pekan 3 |
-| 4 | Sinkronisasi Endpoint API Server dan Ingestion Logic | Daffa Hardhan | Pekan 3 |
-| 5 | Cek kondisi fisik (*Quality Control*) komponen yang tiba | Raka Arrayan M. | Pekan 3 |
+| 1 | Eksekusi transaksi pembelian (*checkout*) seluruh komponen BoM dan pelacakan pengiriman | Seluruh Tim | Awal Pekan Depan |
+| 2 | Kompilasi bukti invoice resmi dan pengajuan administrasi *reimbursement* (batas maks 25 hari) | Seluruh Tim | Pertengahan Pekan |
+| 3 | Penyiapan *environment* pemrograman (IDE), *baseline firmware*, & skematik antarmuka | Seluruh Tim | Akhir Pekan Depan |
 
 ### 11. Persentase Progress Proyek
-| Komponen | Bobot (%) | Progress (%) |
-|:---|:---:|:---:|
-| Perancangan | 15% | 15% |
-| Implementasi Hardware | 25% | 2% |
-| Implementasi Software | 25% | 5% |
-| Integrasi Sistem | 15% | 0% |
-| Pengujian | 10% | 0% |
-| Dokumentasi | 10% | 2% |
-| **Progress Total Proyek** | **100%** | **24%** |
+| Komponen | Bobot (%) | Progress (%) | Kontribusi (%) |
+|:---|:---:|:---:|:---:|
+| Perancangan | 25% | 80% | 20.0% |
+| Implementasi Hardware | 25% | 5% | 1.25% |
+| Implementasi Software | 20% | **15%** | 3.0% |
+| Integrasi Sistem | 15% | 0% | 0.0% |
+| Pengujian | 5% | 0% | 0.0% |
+| Dokumentasi | 10% | 60% | 6.0% |
+| **Progress Total Proyek** | **100%** | | **30.25%** |
+
+*Catatan perhitungan:*
+- **Perancangan (80%):** Konsep sistem, skematik dasar, dan BoM sudah selesai.
+- **Implementasi Hardware (5%):** Hanya mencakup listing dan kesiapan keranjang belanja (*checkout*).
+- **Implementasi Software (15%):** *(Peningkatan)* Inisialisasi GitHub, arsitektur berkas, **ditambah pembuatan prototipe *backend* Go Server & PostgreSQL.**
+- **Dokumentasi (60%):** Repositori, *daily tracker*, dan laporan pekanan.
 
 ### 12. Kesimpulan
-Pada pekan ini tim berfokus penuh dan berhasil menyelesaikan **tahap persiapan proyek dan pengadaan barang (BoM)**. Repositori perangkat lunak dan lingkungan pengembangan sudah aktif, serta seluruh barang dalam perjalanan/telah tiba. Tim sangat siap memasuki tahap Implementasi dan Perakitan Hardware pada Pekan ke-3.
+Pada pekan ini, tim telah menyelesaikan fase inisialisasi awal yang berfokus pada penyusunan dokumen Master BoM, verifikasi spesifikasi komponen di toko daring, pembuatan repositori pada GitHub (DESPRO-4), dan pengaktifan Daily Logbook Tracker. Tim juga telah berkonsultasi langsung dengan dosen pembimbing di MRPQ Lantai 1. Meski transaksi *checkout* perangkat keras bergeser ke awal pekan depan, tim berhasil mengompensasinya dengan kemajuan signifikan di sektor *Software* melalui inisiatif pengembangan *backend server* Go dan skema PostgreSQL.
 
 **Catatan Pembimbing:**
 - Segera tuntaskan seluruh target tugas mingguan dan percepat proses eksekusi pengadaan (*checkout*) komponen BoM agar linimasa perancangan serta perakitan perangkat keras tetap berjalan sesuai jadwal (*on track*).
