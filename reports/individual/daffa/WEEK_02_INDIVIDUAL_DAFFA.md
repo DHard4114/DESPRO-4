@@ -24,14 +24,12 @@
 ### C. Logbook Aktivitas Harian
 | Hari/Tanggal | Uraian Aktivitas | Waktu (Jam) | Bukti/Dokumen |
 |:---|:---|:---:|:---|
-| Jumat, 28 Ags 2026 | Inisialisasi Git, penataan WBS, setup repo GitHub | 3 | URL GitHub |
-| Sabtu, 29 Ags 2026 | (Libur) | 0 | - |
-| Minggu, 30 Ags 2026 | (Libur) | 0 | - |
-| Senin, 31 Ags 2026 | Pemrograman awal Server Go dan konfigurasi SQLite WAL | 4 | `src/server/main.go` |
-| Selasa, 01 Sep 2026 | Pemrograman Endpoint API Ingestion & WebSocket | 4 | `src/server/api/` |
-| Rabu, 02 Sep 2026 | Penulisan UI frontend Dashboard `index.html` dan Tailwind | 4 | `src/server/static/` |
-| Kamis, 03 Sep 2026 | Uji kompilasi menjadi native binary executable | 3 | `src/bin/esos-server.exe` |
-| Jumat, 04 Sep 2026 | Evaluasi capaian pekan 2 dan penyusunan laporan | 2 | Bukti Commit Git |
+| Senin, 31 Ags 2026 | Inisialisasi Git, penataan WBS, setup repo GitHub | 3 | URL GitHub |
+| Selasa, 01 Sep 2026 | Pemrograman awal Server Go dan konfigurasi SQLite WAL | 4 | `src/server/main.go` |
+| Rabu, 02 Sep 2026 | Pemrograman Endpoint API Ingestion & WebSocket | 4 | `src/server/api/` |
+| Kamis, 03 Sep 2026 | Penulisan UI frontend Dashboard `index.html` dan Tailwind | 4 | `src/server/static/` |
+| Jumat, 04 Sep 2026 | Uji kompilasi menjadi native binary executable | 3 | `src/bin/esos-server.exe` |
+| Sabtu, 05 Sep 2026 | Evaluasi capaian pekan 2 dan penyusunan laporan | 2 | Bukti Commit Git |
 
 **Total Jam Kerja Minggu Ini : 20 Jam**
 
