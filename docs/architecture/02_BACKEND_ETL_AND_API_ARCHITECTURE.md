@@ -44,33 +44,32 @@ Server backend eSOS dirancang secara modular dengan mengadopsi prinsip *Clean Ar
 
 ```mermaid
 flowchart TD
-    subgraph IoT_Edge[IoT Edge (Intranet)]
-        Node[ESP32 Node WC] -- LoRa 433MHz --> Gateway[ESP32 Gateway]
-        Gateway -- TCP/IP Wi-Fi --> Mosquitto{MQTT Broker
-Port 1883}
+    subgraph IoT_Edge ["IoT Edge (Intranet)"]
+        Node["ESP32 Node WC"] -- "LoRa 433MHz" --> Gateway["ESP32 Gateway"]
+        Gateway -- "TCP/IP Wi-Fi" --> Mosquitto{"MQTT Broker<br>Port 1883"}
     end
 
-    subgraph Go_Backend[Go Server (Lambda Engine)]
-        Mosquitto -- paho.mqtt Subscribe --> InQueue[Stream: Buffered Go Channel Cap: 1000]
-        Router[HTTP/REST API Router]
-        WSHub[WebSocket Streaming Hub]
+    subgraph Go_Backend ["Go Server (Lambda Engine)"]
+        Mosquitto -- "paho.mqtt Subscribe" --> InQueue["Stream: Buffered Go Channel Cap: 1000"]
+        Router["HTTP/REST API Router"]
+        WSHub["WebSocket Streaming Hub"]
         
-        InQueue --> Worker[Transform: Goroutine ETL Worker]
+        InQueue --> Worker["Transform: Goroutine ETL Worker"]
         
-        subgraph TransformStage[Transform & Anomaly Detection]
-            Worker --> Calib[Data Parsing & Normalisasi JSON]
-            Calib --> Anomaly[Pengecekan Ambang Batas Gas H2S/Amonia]
-            Anomaly --> AlertGen[Pembangkitan Alarm & Aktuasi Otomatis]
+        subgraph TransformStage ["Transform & Anomaly Detection"]
+            Worker --> Calib["Data Parsing & Normalisasi JSON"]
+            Calib --> Anomaly["Pengecekan Ambang Batas Gas H2S/Amonia"]
+            Anomaly --> AlertGen["Pembangkitan Alarm & Aktuasi Otomatis"]
         end
 
-        AlertGen -- 1. Stream (Real-Time) --> WSHub
-        AlertGen -- 2. Batch Buffer --> MemBuffer[Load: Memory Buffer Batch Size=50]
-        MemBuffer -- Transactional Bulk Insert --> DB[(PostgreSQL + TimescaleDB)]
+        AlertGen -- "1. Stream (Real-Time)" --> WSHub
+        AlertGen -- "2. Batch Buffer" --> MemBuffer["Load: Memory Buffer Batch Size=50"]
+        MemBuffer -- "Transactional Bulk Insert" --> DB[("PostgreSQL + TimescaleDB")]
     end
 
-    Dashboard[Web Dashboard Operator] <== WebSocket Push (Live Graph) ==> WSHub
-    Dashboard -- REST API (Polling/History) --> Router
-    Router -- Query Hypertable --> DB
+    Dashboard["Web Dashboard Operator"] <== "WebSocket Push (Live Graph)" ==> WSHub
+    Dashboard -- "REST API (Polling/History)" --> Router
+    Router -- "Query Hypertable" --> DB
 ```
 
 ---
@@ -95,9 +94,9 @@ sequenceDiagram
     activate GoServer
     GoServer->>GoServer: Cek Anomali Gas (H2S > 10ppm?)
     
-    par [Stream] WebSockets Real-Time Push
+    par Stream (WebSockets Real-Time Push)
         GoServer->>Dashboard: Push Live JSON Data (Latency < 1ms)
-    and [Batch] TimescaleDB Insertion
+    and Batch (TimescaleDB Insertion)
         GoServer->>TSDB: Bulk Insert ke Hypertable
     end
     deactivate GoServer
@@ -106,15 +105,6 @@ sequenceDiagram
     GoServer->>TSDB: Query Continuous Aggregates
     TSDB-->>GoServer: Hasil Rata-rata/Batch
     GoServer-->>Dashboard: Response JSON Historis
-    and Micro-Batch Persistence
-        ETL->>ETL: Tambahkan ke Memory Buffer (Cap: 20)
-        opt Buffer Penuh (>=20) atau Timer 3 Detik
-            ETL->>DB: BEGIN TRANSACTION -> Batch Insert -> COMMIT
-        end
-    end
-    deactivate ETL
-
-    Dashboard->>Dashboard: Render Gauge, Update Line Chart & Alarm
 ```
 
 ---
