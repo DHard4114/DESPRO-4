@@ -4,7 +4,7 @@
 Status Dokumen: ARSITEKTUR ANTARMUKA TERKENDALI (CONTROLLED BASELINE)  
 Teknologi: Hypertext Markup Language 5 (HTML5), Tailwind Cascading Style Sheets (Tailwind CSS), Chart.js, Native WebSocket Client  
 Sifat Operasi: Offline-Ready (Dirancang Khusus untuk Jaringan Lokal Posko Bencana Tanpa Internet Publik)  
-Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
+Author: Daffa Hardhan (PM/Backend) & Raka Arrayan (Frontend UI/QA)  
 Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
 
 ---

@@ -3,7 +3,7 @@
 
 Status Dokumen: SPESIFIKASI JARINGAN TERKENDALI (CONTROLLED BASELINE)  
 Perangkat Jaringan: TP-Link CPE220 Outdoor Access Point (2.4GHz High-Power 23 dBm)  
-Protokol Transmisi: Dual-Path Hybrid (TCP/IP HTTP/WebSocket over Wi-Fi AP + LoRa RA-02 433 MHz Fallback)  
+Protokol Transmisi: Intranet TCP/IP (Wi-Fi AP) untuk Komunikasi Gateway ke MQTT Server  
 Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
 Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
 
@@ -36,69 +36,58 @@ Berikut adalah daftar kepanjangan resmi dan definisi istilah teknis jaringan nir
 
 ---
 
-## 2. Arsitektur Jaringan End-to-End (Network Topology)
+## 2. Arsitektur Jaringan Intranet (TCP/IP Topology)
 
-Sistem Smart-Sanitation eSOS mengadopsi **Arsitektur Jaringan Hibrida Jalur Ganda (*Dual-Path Redundant Network*)** untuk menjamin tidak ada data sensor yang hilang (*zero data loss*) pada kondisi ekstrem pasca-bencana:
+Sistem Smart-Sanitation eSOS menggunakan Router **TP-Link CPE220** murni sebagai penyedia jaringan lokal (Intranet) berdaya tinggi. CPE220 TIDAK terhubung ke Internet, melainkan bertindak sebagai tulang punggung (backbone) TCP/IP untuk menghubungkan **ESP32 Gateway (Penerima LoRa)** ke **Laptop Server (Mosquitto & Go)**.
 
-```mermaid
+`mermaid
 flowchart TD
-    subgraph ShelterZone[Bilik Fasilitas Sanitasi Posko Bencana]
-        Sensors[Sensor JSN-SR04T, MQ-137, MQ-136, Baterai 18650, Tombol SOS] -->|GPIO / ADC / SPI| Node[ESP32 DevKitC V4 Sensor Node]
+    subgraph Sisi_Radio_LoRa[Zona Radio Frekuensi (No Wi-Fi)]
+        Node1[ESP32 Node WC 01] -- LoRa 433MHz --> ESPGW[ESP32 Gateway Receiver]
+        Node2[ESP32 Node WC 02] -- LoRa 433MHz --> ESPGW
     end
 
-    Node -->|Jalur Utama: Wi-Fi 2.4GHz 802.11 b/g/n| AP[TP-Link CPE220 Outdoor AP 192.168.0.254]
-    Node -->|Jalur Cadangan: LoRa 433 MHz SX1278| LoRaGW[LoRa Gateway Bridge Receiver]
-
-    AP -->|Ethernet TCP/IP Routing Jarak Jauh| Server[Server Posko Pemantauan 192.168.0.100:8000]
-    LoRaGW -->|USB Serial UART /dev/ttyUSB0 115200| Server
-
-    subgraph ServerPosko[Server Posko Pemantauan Darurat]
-        Server --> Ingest[Go Ingest Endpoint & Serial Worker]
-        Ingest --> ETL[Streaming & Batch ETL Engine]
-        ETL --> DB[(SQLite WAL Mode / PostgreSQL)]
-        ETL --> WSHub[WebSocket Streaming Hub]
-        WSHub --> Dashboard[Web Dashboard Monitoring HTML5/Chart.js]
+    subgraph Sisi_Intranet_CPE220[Zona Intranet TCP/IP (TP-Link CPE220)]
+        ESPGW -- Wi-Fi 2.4GHz / DHCP --> Router[CPE220 Access Point
+192.168.0.254]
+        Router -- Ethernet/Wi-Fi --> Laptop[Laptop Posko / Server
+192.168.0.100]
+        
+        subgraph Laptop[Mesin Server Posko (192.168.0.100)]
+            Mosquitto[Eclipse Mosquitto
+Port 1883]
+            GoServer[Go Backend Engine
+Lambda Architecture]
+            Mosquitto <-->|In-Memory MQTT| GoServer
+        end
     end
-```
+`
 
----
+## 3. Diagram Alur Alokasi Jaringan Intranet (Sequence Diagram)
 
-## 3. Diagram Alur Transmisi Step-by-Step (Sequence Diagram)
+Diagram ini mengilustrasikan proses penentuan alamat IP (DHCP) oleh router hingga paket tiba di MQTT.
 
-```mermaid
+`mermaid
 sequenceDiagram
     autonumber
-    actor Bilik as Node ESP32 Sanitasi
-    participant Router as TP-Link CPE220 AP (192.168.0.254)
-    participant Server as Server Backend Go (192.168.0.100)
-    participant DB as SQLite / PostgreSQL
-    actor Operator as Web Dashboard Posko
+    participant ESPGW as ESP32 Gateway
+    participant Router as TP-Link CPE220 (192.168.0.254)
+    participant Server as Laptop Server Posko (192.168.0.100)
+    participant MQTT as Mosquitto Broker (Port 1883)
 
-    Note over Bilik,Router: Tahap 1: Inisialisasi & Koneksi Nirkabel
-    Bilik->>Router: Probe & Associate (SSID: eSOS_Sanitation_Mesh_Net)
-    Router-->>Bilik: DHCP ACK -> Berikan IP Statis 192.168.0.101
+    Note over ESPGW,Router: Tahap 1: Inisialisasi Jaringan Intranet
+    ESPGW->>Router: Probe & Associate (SSID: eSOS_Intranet)
+    Router-->>ESPGW: DHCP ACK -> Berikan IP 192.168.0.101
+    
+    Server->>Router: Koneksi Kabel LAN / Wi-Fi
+    Router-->>Server: IP Statis 192.168.0.100
 
-    Note over Bilik,Server: Tahap 2: Pengambilan Data & Pengiriman Paket
-    Bilik->>Bilik: Baca JSN-SR04T, MQ-137, MQ-136, Baterai & SOS
-    Bilik->>Bilik: Format JSON Payload (ArduinoJson)
-    Bilik->>Router: Kirim HTTP POST /api/telemetry (Port :8000)
-    Router->>Server: Forward Paket ke 192.168.0.100:8000
-    Server-->>Router: Response 201 Accepted
-    Router-->>Bilik: Transmisi Berhasil
-
-    Note over Server,Operator: Tahap 3: Pemrosesan Data & Visualisasi Real-Time
-    activate Server
-    Server->>Server: Transformasi Kurva Kalibrasi & Filter Anomali
-    par Siaran Langsung
-        Server->>Operator: WebSocket Broadcast TELEMETRY_STREAM (< 1ms)
-    and Batch Persistence
-        Server->>DB: Bulk Batch Insert Transactional Commit
-    end
-    deactivate Server
-
-    Operator->>Operator: Update Gauge Tangki Air, Grafik Gas & Status Baterai
-```
-
+    Note over ESPGW,MQTT: Tahap 2: Transmisi Telemetri (Pasca-LoRa)
+    ESPGW->>MQTT: Buka TCP Socket ke 192.168.0.100:1883
+    MQTT-->>ESPGW: Socket Terhubung
+    ESPGW->>MQTT: Publish MQTT Topic (Payload JSON)
+    MQTT->>Server: Forward ke Go Server (Subscribe)
+`
 ---
 
 ## 4. Konfigurasi Standar Router TP-Link CPE220 (`config/network_cpe220.conf`)
