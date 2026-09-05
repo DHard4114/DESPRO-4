@@ -1,69 +1,117 @@
-# LAPORAN PEKANAN INDIVIDU — DAFFA HARDHAN (PEKAN 2)
-## Despro 2 Smart-Sanitation eSOS — Kelompok 4 DTE FTUI
+# TEMPLATE LAPORAN PEKANAN INDIVIDU
+**Capstone Project Desain Proyek 2**
 
-Status Dokumen: LAPORAN RESMI TERKENDALI (CONTROLLED BASELINE)  
-Nama Mahasiswa: Daffa Hardhan  
-NPM: 2306161763  
-Peran Proposal: Manajer Proyek dan Pengembang (Alokasi Proposal: 40 Jam Semester)  
-Pekan Ke-: 2 (Dua) | Periode: 02 September 2026 – 08 September 2026  
-Dosen Pembimbing: Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.  
+### A. Identitas
+| Item | Keterangan |
+|:---|:---|
+| Nama | Daffa Hardhan |
+| NPM | 2306161763 |
+| Program Studi | Teknik Komputer |
+| Kelompok | 4 (Empat) |
+| Judul Proyek | Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana |
+| Pekan ke- | 2 (Dua) |
+| Periode | 02 September 2026 – 08 September 2026 |
+| Tanggal | 08 September 2026 |
+| Dosen Pembimbing | Prof. Dr. Muhammad Suryanegara, S.T., M.Sc. |
 
----
+### B. Target Mingguan
+| No | Target Pekerjaan | Luaran yang Diharapkan | Status |
+|:---:|:---|:---|:---:|
+| 1 | Inisiasi Repositori Git Proyek | Struktur direktori rapi & GitHub `main` branch aktif | [x] Selesai &nbsp; [ ] Belum |
+| 2 | Setup Server Backend Go & DB | Binary server Go (`esos-server.exe`) & SQLite | [x] Selesai &nbsp; [ ] Belum |
+| 3 | Perancangan Antarmuka UI Dashboard | Mockup & kode HTML statis Dashboard Real-time | [x] Selesai &nbsp; [ ] Belum |
 
-### A. IDENTITAS & FOKUS PEKAN 2
-Sesuai dengan CPMK Pekan 2 (*"Menyiapkan seluruh sumber daya yang diperlukan untuk mewujudkan sistem yang dirancang"*), tugas utama Daffa Hardhan pada pekan ini adalah:
-1. Menyiapkan dan mengelola repositori Git resmi proyek di GitHub (`https://github.com/DHard4114/DESPRO-4.git`).
-2. Menginisiasi pembuatan infrastruktur backend server Go (Golang) berkinerja tinggi (`src/server/main.go`), binary mandiri (`src/bin/esos-server.exe`), mesin ETL (Streaming & Batch), serta basis data lokal SQLite WAL Mode dengan kunci UUIDv7 (`src/data/esos_telemetry.db`).
-3. Mengembangkan antarmuka Web Dashboard pemantauan real-time (`src/server/static/index.html`) dengan koneksi WebSocket.
-4. Menyiapkan konfigurasi router nirkabel outdoor TP-Link CPE220 (`src/config/network_cpe220.conf`).
-5. Mengintegrasikan template Master WBS 14 pekan dan logbook harian 205 jam di Google Sheets.
+### C. Logbook Aktivitas Harian
+| Hari/Tanggal | Uraian Aktivitas | Waktu (Jam) | Bukti/Dokumen |
+|:---|:---|:---:|:---|
+| Senin, 07 Sep 2026 | (Libur / Tidak ada pengerjaan terkait DP2) | 0 | - |
+| Selasa, 01 Sep 2026 | Inisialisasi Git, penataan WBS, setup repo GitHub | 3 | URL GitHub |
+| Rabu, 02 Sep 2026 | Pemrograman awal Server Go dan konfigurasi SQLite WAL | 4 | `src/server/main.go` |
+| Kamis, 03 Sep 2026 | Pemrograman Endpoint API Ingestion & WebSocket | 4 | `src/server/api/` |
+| Jumat, 04 Sep 2026 | Penulisan UI frontend Dashboard `index.html` dan Tailwind | 4 | `src/server/static/` |
+| Sabtu, 05 Sep 2026 | Uji kompilasi menjadi native binary executable | 3 | `src/bin/esos-server.exe` |
 
----
+**Total Jam Kerja Minggu Ini : 18 Jam**
 
-### B. LOGBOOK AKTIVITAS HARIAN (PEKAN 2)
+### D. Realisasi Pekerjaan
+**1. Aktivitas yang Berhasil Diselesaikan**
+Telah berhasil menyelesaikan inisialisasi lingkungan pengembangan perangkat lunak (Software) berupa server lokal. Pembuatan server ini memakai bahasa Go agar performa ringan untuk perangkat posko darurat. Repositori kode terpusat di GitHub juga telah 100% rapi dengan folder `src` (source) dan `assets`.
 
-| Hari / Tanggal | Jam Kerja | Durasi | Uraian Aktivitas Nyata | Luaran Teknis / Bukti | ID Bukti |
-|:---|:---:|:---:|:---|:---|:---:|
-| Selasa, 01 Sep 2026 | 09:00 – 17:00 | 8.0 Jam | Inisiasi backend server Go (`src/server/`), implementasi Streaming Ingestion, Batch ETL Engine, dan kompilasi single binary `src/bin/esos-server.exe`. | Binary `esos-server.exe` & Go Code | `EV-W2-PM-002` |
-| Rabu, 02 Sep 2026 | 10:00 – 17:00 | 7.0 Jam | Pengembangan Web Dashboard pemantauan real-time (`index.html`), visualisasi chart telemetri WebSocket, konfigurasi router CPE220, dan setup Git GitHub. | `src/server/static/index.html` & Git Repo | `EV-W2-PM-001` |
-| **TOTAL PEKAN 2** | | **15.0 Jam** | | | |
+**2. Luaran yang Dihasilkan**
+- Binary Server Backend Go (`esos-server.exe`)
+- Skema Database SQLite (UUIDv7)
+- Kode sumber Dashboard UI statis (`index.html`)
+- Repositori GitHub Proyek Kelompok 4 yang Publik
 
-* **Realisasi Pekan 1:** 14.0 Jam
-* **Realisasi Pekan 2:** 15.0 Jam
-* **Total Akumulasi Terlaksana (W1 + W2):** **29.0 Jam** *(dari total komitmen 40 Jam proposal semester penuh).*
+### E. Capaian Teknis Mingguan
+**Komponen/Subsistem yang Dikerjakan**
+| Subsistem | Target | Realisasi | Persentase |
+|:---|:---|:---|:---:|
+| Hardware | - | - | 0% |
+| Software | Setup Lingkungan Server & Repo Git | Repo Git Publik, Server Go kompilasi sukses | 100% |
+| Mekanik | - | - | 0% |
+| Pengujian | Uji kompilasi kode Go | Binary sukses terbentuk nol error | 100% |
+| Dokumentasi | Master Logbook & WBS Tracker Sheets | 5 Tabs Spreadsheet siap | 100% |
 
----
+**Ringkasan Kemajuan**
+Kemajuan teknis minggu ini pada ranah *Software* sangat pesat karena inisiatif menggunakan server Go mandiri. Secara keseluruhan, target CPMK Pekan 2 "Persiapan lingkungan pengembangan & pembuatan repositori proyek" telah dicapai dengan sempurna.
 
-### C. REALISASI PEKERJAAN & LUARAN TEKNIS
+### F. Permasalahan dan Kendala
+| No | Kendala | Dampak | Tingkat Risiko |
+|:---:|:---|:---|:---:|
+| 1 | Kompleksitas kompilasi Go untuk anggota kelompok lain jika harus menginstal SDK Go. | Anggota kesulitan menjalankan server lokal di laptop mereka. | Sedang |
 
-| Kode Tugas | Target CPMK Pekan 2 | Realisasi Teknis yang Diselesaikan | Status | ID Bukti |
-|:---|:---|:---|:---:|:---:|
-| **W2-PM-01** | Setup Repositori Git Proyek | Inisialisasi Git, branch structure, .gitignore, dan push ke GitHub `DESPRO-4` | `DONE` | `EV-W1-PM-001` |
-| **W2-PM-02** | Konfigurasi Server & Database | Inisiatif Go server, SQLite WAL Mode, DDL PostgreSQL, UUIDv7 Primary Key | `DONE` | `EV-W2-PM-002` |
-| **W2-PM-03** | Web Dashboard Monitoring UI | Antarmuka dashboard responsif (Tailwind, Chart.js) dengan WebSocket Hub | `DONE` | `EV-W2-PM-001` |
-| **W2-PM-04** | Konfigurasi Router Jaringan | Pengaturan IP statis dan nirkabel directional outdoor TP-Link CPE220 | `DONE` | `EV-W2-PM-003` |
-| **W2-PM-05** | Master WBS & Task Tracker | Lembar Sebar Google Sheets 5 Tabs terhubung penuh ke repositori | `DONE` | `EV-W1-PM-001` |
+**Analisis Penyebab**
+Setiap laptop anggota memiliki *environment* berbeda (Windows/Mac) dan belum tentu memiliki Go compiler, sehingga integrasi testing lokal bisa memakan waktu instalasi di sisi klien.
 
----
+### G. Tindakan Korektif dan Solusi
+| Kendala | Solusi/Tindak Lanjut | PIC | Target Penyelesaian |
+|:---|:---|:---|:---|
+| Kompleksitas instalasi Go | Mengompilasi program menjadi satu binary mandiri `.exe` sehingga anggota lain cukup klik file tersebut. | Daffa H. | Selesai Pekan 2 |
 
-### D. CAPAIAN UTAMA (KEY DELIVERABLES)
+### H. Dokumentasi Kemajuan
+*   **Screenshot Software:** (Bisa dilihat pada riwayat commit di repositori: `https://github.com/DHard4114/DESPRO-4/commits/main`)
+*   **Bukti Commit Git:** Commit `fb46784`, `862772d` pada `main` branch.
+*   *(Gambar screenshot VS Code terlampir di file dokumen resmi word)*
 
-1. **Infrastruktur Server Go Mandiri (`src/bin/esos-server.exe`):**  
-   Server native binary yang sangat ringan ($< 15\text{ MB}$ RAM) tanpa memerlukan instalasi interpreter tambahan, siap dijalankan langsung di posko darurat.
-2. **Mesin ETL & WebSocket Hub Real-Time (`src/server/etl/pipeline.go`):**  
-   Menerima stream paket sensor dan menyiarkannya ke dashboard secara instan ($< 1\text{ ms}$) serta melakukan batch insert atomik ke SQLite WAL mode.
-3. **Repositori GitHub Terkendali:**  
-   Seluruh arsitektur sistem, 5 master docs, dan CSV templates telah aktif di `https://github.com/DHard4114/DESPRO-4.git`.
+### I. Kontribusi Terhadap Tim
+**Koordinasi yang Dilakukan**
+- **Rapat tim tanggal:** 02 September 2026 (Konsolidasi pembelian barang & BoM)
+- **Diskusi teknis:** Sinkronisasi struktur repositori dengan Siti (Firmware) dan Ilman (Hardware).
+- **Koordinasi dengan dosen:** Evaluasi WBS awal.
 
----
+**Kontribusi Pribadi**
+Menyediakan wadah kolaborasi (*Git repository*), merancang lembar sebar (Spreadsheet) untuk pelacakan 205 jam WBS, dan membangun infrastruktur *backend* penerima data awal sehingga tim fokus pada *hardware*.
 
-### E. RENCANA KERJA PEKAN 3
-1. Menyiapkan simulasi payload sensor terpadu ke endpoint ingestion backend.
-2. Memantau fabrikasi 3D printing casing oleh Darrel dan perakitan wiring daya oleh Ilman.
-3. Memperbarui persentase kemajuan WBS Pekan 3 di Google Sheets.
+### J. Evaluasi Diri
+**Yang Berjalan Baik**
+- Proses inisialisasi Git dan penyusunan struktur folder berjalan cepat dan disepakati tim.
+- Penulisan kode Go server sangat mulus.
 
----
+**Yang Perlu Diperbaiki**
+- Perlu merapikan dokumentasi API secara tertulis agar Siti lebih mudah mengirim payload JSON.
 
-| Tanda Tangan Mahasiswa | Tanggal Pengesahan |
-|:---:|:---:|
-| *(Daffa Hardhan — 2306161763)* | 08 September 2026 |
+**Pelajaran yang Didapat Minggu Ini**
+- Pembagian direktori yang rapi (`src/bin`, `src/config`, `src/data`) sangat vital dalam menghindari konflik *merge* antar cabang fitur GitHub nantinya.
+
+### K. Rencana Pekan Berikutnya
+| No | Rencana Kegiatan | Target Luaran | Estimasi Jam |
+|:---:|:---|:---|:---:|
+| 1 | Membuat API Documentation (Swagger/Markdown) | Dokumen Spesifikasi API | 3 Jam |
+| 2 | Menyiapkan dummy data generator untuk testing | Script Python dummy data | 4 Jam |
+| 3 | Mengintegrasikan Endpoint dengan format LoRa Siti | Parsing payload JSON | 5 Jam |
+
+### L. Persetujuan
+**Mahasiswa**
+Nama: Daffa Hardhan
+Tanda tangan: *(Digital)*
+Tanggal: 08 September 2026
+
+**Ketua Kelompok**
+Nama: Daffa Hardhan
+Tanda tangan: *(Digital)*
+Tanggal: 08 September 2026
+
+**Catatan Pembimbing**
+....................................................................................
+....................................................................................
