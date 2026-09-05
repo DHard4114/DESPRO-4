@@ -1,106 +1,122 @@
-# LAPORAN KEMAJUAN PEKANAN 2
-## DESAIN PROYEK TEKNIK ELEKTRO, KOMPUTER, BIOMEDIK 2 (DTE FTUI)
+# LAPORAN KEMAJUAN PEKANAN
+## DESAIN PROYEK TEKNIK ELEKTRO, KOMPUTER, BIOMEDIK 2
+
+**Judul Proyek** : Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana
+**Kelompok** : 4 (Empat)
+**Pekan Ke-** : 2 (Dua)
+**Periode** : 28 Agustus 2026 – 04 September 2026
+**Dosen Pembimbing** : Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
+**Ketua Kelompok** : Daffa Hardhan
+**Anggota Kelompok** : 
+1. Daffa Hardhan (2306161763)
+2. Raka Arrayan Muttaqien (2306161800)
+3. Siti Amalia Nurfaidah (2306161851)
+4. Muhammad Ilman Zuhriy (2306266786)
+5. Darrel Alfath (2306266810)
 
 ---
 
-### Informasi Umum Proyek
-- **Mata Kuliah:** Desain Proyek 2 (Gasal 2026/2027)
-- **Judul Proyek:** Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana
-- **Kelompok:** 4 (Empat)
-- **Pekan Ke-:** 2 (Dua) — Fase Pengadaan dan Persiapan Implementasi Sistem
-- **Periode:** 02 September 2026 – 08 September 2026
-- **Dosen Pembimbing:** Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
-- **Ketua Kelompok:** Daffa Hardhan
+### 1. Ringkasan Kemajuan Pekanan
+Pada pekan ke-2 ini, tim berfokus pada penyiapan seluruh sumber daya proyek sesuai target CPMK. Kegiatan meliputi verifikasi spesifikasi 15 komponen kelistrikan dan IoT, eksekusi pemesanan (*checkout*), serta penyusunan register aset dan Bundel Kuitansi Final dengan status hemat. Selain itu, tim juga telah merampungkan pembuatan repositori Git, penyiapan server lokal Go untuk backend, setup IDE PlatformIO untuk ESP32, dan penyusunan draf desain 3D CAD awal untuk *enclosure* tahan cuaca. Secara fisik, komponen sedang dalam proses pengiriman dan beberapa telah tiba untuk dicek.
 
----
+### 2. Target Pekan Ini
+| No | Target | Status |
+|:---|:---|:---|
+| 1 | Pengadaan komponen kelistrikan & BoM final (15 item) | [x] Tercapai &nbsp; [ ] Belum |
+| 2 | Persiapan lingkungan pengembangan firmware (PlatformIO) | [x] Tercapai &nbsp; [ ] Belum |
+| 3 | Persiapan repositori proyek & setup Server Go Backend | [x] Tercapai &nbsp; [ ] Belum |
+| 4 | Finalisasi rancangan gambar teknik 2D dan Draf 3D CAD | [x] Tercapai &nbsp; [ ] Belum |
+| 5 | Setup format laporan, master WBS, dan sistem logbook | [x] Tercapai &nbsp; [ ] Belum |
 
-### 1. Ringkasan Kemajuan Pekanan 2
-Sesuai dengan CPMK Pekan 2 (*"Mahasiswa mampu menyiapkan seluruh sumber daya yang diperlukan untuk mewujudkan sistem yang dirancang"*), fokus utama seluruh anggota Kelompok 4 pada pekan ini adalah **menyiapkan seluruh sumber daya proyek**:
-1. **Pengadaan Komponen & Manajemen Anggaran:** Memverifikasi spesifikasi teknis 15 komponen BoM, memeriksa ketersediaan stok vendor marketplace, mengeksekusi pemesanan secara terdistribusi oleh 5 anggota tim, serta menyusun daftar register aset proyek di bawah plafon Rp2.000.000.
-2. **Persiapan Lingkungan Pengembangan Firmware:** Instalasi IDE PlatformIO pada VS Code, board framework ESP32, dan penyiapan pustaka dependensi (`arduino-LoRa`, `ArduinoJson`, `ESP32Servo`).
-3. **Inisiatif Pengembangan Server Go & Repositori Git:** Daffa Hardhan menginisiasi pembuatan backend server Go berkinerja tinggi (`src/server/main.go`), binary mandiri (`src/bin/esos-server.exe`), basis data lokal SQLite WAL mode dengan kunci UUIDv7 (`src/data/esos_telemetry.db`), serta antarmuka web dashboard pemantauan.
-4. **Persiapan Desain Mekanikal:** Finalisasi gambar teknik 2D dan persiapan berkas desain 3D CAD casing enclosure IoT kustom berstandar IP54 untuk persiapan cetak 3D di Pekan 3.
-5. **Sistem Dokumentasi Proyek:** Repositori GitHub resmi aktif, template master WBS 14 pekan, template logbook harian 205 jam, dan matriks pengujian (TC-RTM) aktif di Google Sheets.
+### 3. Realisasi Kegiatan
+| No | Kegiatan | Penanggung Jawab | Hasil |
+|:---|:---|:---|:---|
+| 1 | Verifikasi & checkout BoM 15 komponen hardware | Raka Arrayan & Tim | Komponen dipesan, anggaran Rp1.828.500 (hemat). |
+| 2 | Setup repositori GitHub, Inisiasi Server Go & DB SQLite | Daffa Hardhan | Git repo siap, server Go lokal dapat dijalankan. |
+| 3 | Instalasi IDE PlatformIO & board package ESP32 | Siti Amalia N. | PlatformIO siap digunakan untuk kompilasi C++. |
+| 4 | Penghitungan daya panel surya 10Wp & topologi 1S4P | M. Ilman Zuhriy | Skema arsitektur perakitan kabel tanpa PCB custom. |
+| 5 | Perancangan gambar teknik 2D mekanikal & 3D Casing | Darrel Alfath | Sketsa CAD 3D enclosure IP54 siap direview. |
 
----
+### 4. Kemajuan Tiap Anggota
+| Nama | Tugas Pekan Ini | Persentase Penyelesaian |
+|:---|:---|:---:|
+| Daffa Hardhan | Setup Git, inisiasi Go server, setup pipeline DB SQLite | 100% |
+| Raka Arrayan M. | Eksekusi BoM, kuitansi invoice, register aset | 100% |
+| Siti Amalia N. | Toolchain IDE, setup framework ESP32 PlatformIO | 100% |
+| M. Ilman Zuhriy | Verifikasi hardware list, rencana topologi & kabel | 100% |
+| Darrel Alfath | Gambar teknik mekanik 2D, rencana desain 3D casing | 100% |
 
-### 2. Target & Realisasi Aktivitas Mahasiswa Pekan 2
+### 5. Hasil Implementasi
+**Hardware**
+*   **Komponen yang telah direalisasikan:** 15 item BoM (ESP32, TP4056, Panel Surya 10Wp, LoRa SX1278, Baterai 18650, dll) telah terverifikasi spesifikasinya dan dieksekusi pesanannya.
+*   **Status integrasi:** Belum diintegrasikan secara fisik; status masih dalam penerimaan barang di lab dan inspeksi kelengkapan visual.
 
-| Bidang | Aktivitas Sesuai Silabus DP2 | Realisasi Capaian Pekan 2 | Penanggung Jawab | Status |
-|:---|:---|:---|:---:|:---:|
-| **Hardware** | 1. Verifikasi spesifikasi seluruh komponen <br> 2. Pengadaan komponen <br> 3. Pemeriksaan ketersediaan stok <br> 4. Pembuatan daftar aset proyek | • Tabel 15 komponen BoM terverifikasi spesifikasinya <br> • Pemesanan dilakukan kolektif oleh 5 anggota <br> • Seluruh tautan toko marketplace dipastikan aktif <br> • Daftar register aset & bundel faktur dibuat | **M. Ilman Zuhriy & Raka Arrayan M.** | **`TERCAPAI`** |
-| **Software** | 1. Instalasi IDE dan tool pengembangan <br> 2. Konfigurasi server/database <br> 3. Persiapan repository Git | • VS Code & PlatformIO terpasang untuk ESP32 <br> • Inisiatif Daffa: Go server, DB SQLite WAL, REST API & Web UI <br> • Repositori Git & remote GitHub aktif | **Daffa Hardhan & Siti Amalia N.** | **`TERCAPAI`** |
-| **Mekanik** | 1. Finalisasi gambar teknik <br> 2. Persiapan desain casing atau fixture | • Gambar teknik kerja 2D dimensi toleransi selesai <br> • Berkas 3D CAD casing IoT modular disiapkan | **Darrel Alfath** | **`TERCAPAI`** |
-| **Dokumentasi** | 1. Menyiapkan format logbook mingguan <br> 2. Menyiapkan template dokumentasi uji | • Tab `Daily_Logbook_Tracking` 14 pekan aktif <br> • Template matriks uji TC-01..06 (RTM) aktif | **Daffa Hardhan & Raka Arrayan M.** | **`TERCAPAI`** |
+**Software**
+*   **Fitur yang telah selesai:** Repositori GitHub, infrastruktur lokal *native binary* Server Go (`esos-server.exe`), konfigurasi database SQLite WAL Mode, kerangka REST API awal.
+*   **Fitur yang masih dikembangkan:** Firmware sensor ESP32, skrip sampling ADC gas, filter debouncing, dan telemetri pengiriman paket via komunikasi serial LoRa.
 
----
+**Mekanik/Biomedik (jika ada)**
+*   Draft dimensi fisik ruang *casing* telah disesuaikan dengan dimensi komponen breakout ESP32 dan modul kelistrikan untuk kesiapan cetak filamen 3D PETG.
 
-### 3. Kemajuan & Alokasi Jam Kerja Anggota Pekan Ini
+### 6. Dokumentasi Hasil
+**Foto Kegiatan**
+*(Lampirkan foto implementasi, perakitan, pengujian, atau diskusi tim)*
+Gambar 1. Bundel faktur pembelian komponen elektronik (*e-commerce*) - tercatat di `assets/procurement/`.
+Gambar 2. Bukti layout draf gambar teknik 3D (*screenshot* cad).
 
-| No | Nama Anggota | Domain Peran | Fokus Aktivitas Pekan 2 | Realisasi Jam Pekan 2 | Akumulasi W1+W2 |
-|:---:|:---|:---|:---|:---:|:---:|
-| 1 | **Daffa Hardhan** | PM & Backend Lead | Setup Git GitHub, inisiasi Go server, pipeline database SQLite WAL UUIDv7, Web Dashboard UI, & koordinasi WBS | 8 Jam | 15 Jam |
-| 2 | **Raka Arrayan M.** | Solution & Finance Lead | Verifikasi BoM 15 komponen, audit anggaran belanja (Hemat Rp72.500), kompilasi faktur kuitansi, cek stok vendor | 6 Jam | 11 Jam |
-| 3 | **Siti Amalia N.** | Firmware Lead | Setup IDE VS Code + PlatformIO, board package ESP32, konfigurasi pinout macros, & uji kompilasi baseline | 8 Jam | 15 Jam |
-| 4 | **Muhammad Ilman Z.** | Hardware & Power Lead | Perhitungan power budget solar 10Wp, topologi baterai 1S4P, skematik kelistrikan, & persiapan wiring harness | 8 Jam | 16 Jam |
-| 5 | **Darrel Alfath** | Mechanical & QA Lead | Pembuatan gambar teknik 2D, finalisasi model 3D CAD casing enclosure IP54, & persiapan slicer cetak 3D | 7 Jam | 14 Jam |
-| | **TOTAL TIM** | | | **37 Jam** | **71 Jam** |
+**Screenshot Sistem**
+*(Jika proyek berbasis software atau IoT)*
+- *Screenshot* VS Code Workspace dengan inisiasi file server Go dan setup PlatformIO.
 
-> *Catatan:* Target 205 jam adalah pagu komitmen seluruh semester (14 pekan). Akumulasi 71 jam pada Pekan 2 menunjukkan alokasi jam kerja tim berjalan tepat waktu dan proporsional.
+### 7. Pengujian yang Dilakukan
+| Parameter | Target | Hasil | Status |
+|:---|:---|:---|:---|
+| Status Pengadaan Komponen | Minimal 80% komponen tersedia | 15/15 (100%) komponen dipesan | [x] Lulus &nbsp; [ ] Tidak |
+| Lingkungan Pengembangan | IDE dan Server dapat *running* lokal | `esos-server.exe` jalan 0 error | [x] Lulus &nbsp; [ ] Tidak |
+| Sistem Dokumentasi Proyek | Git repo aktif & terhubung | WBS & GitHub diakses publik | [x] Lulus &nbsp; [ ] Tidak |
 
----
+**Analisis Singkat:**
+Hasil pengecekan kesiapan menunjukkan tim telah memenuhi seluruh syarat untuk memulai perakitan perangkat keras dan pengembangan *firmware*. Ketersediaan 100% BoM memastikan tidak ada *bottleneck* pengadaan untuk pekan selanjutnya.
 
-### 4. Evaluasi Penugasan Pekan 2
+### 8. Kendala dan Solusi
+| Kendala | Dampak | Solusi yang Dilakukan |
+|:---|:---|:---|
+| Fluktuasi stok dan harga sensor gas MQ-137 di beberapa *supplier*. | Risiko keterlambatan penerimaan barang uji. | Langsung membandingkan 3 toko di marketplace pada hari yang sama dan langsung mengeksekusi pembelian kolektif sebelum stok habis. |
 
-#### Penugasan 1: Bill of Materials (BoM) Final
-* **Pagu Maksimum Proposal (*Budget Ceiling*):** Rp2.000.000
-* **Target RAB Proposal (15 Komponen):** Rp1.901.000
-* **Total Realisasi Belanja Aktual Toko:** **Rp1.828.500**
-* **Status Finansial:** **`HEMAT Rp72.500`** (Sisa saldo kas surplus: **Rp171.500**).
-* **Tabel Komponen:** 15 item lengkap dengan spesifikasi teknis minimum, vendor, dan tautan belanja aktif di [`02_BOM_PROCUREMENT.md`](https://github.com/DHard4114/DESPRO-4/blob/main/02_BOM_PROCUREMENT.md).
+### 9. Deviasi Terhadap Jadwal
+| Aktivitas | Jadwal Awal | Realisasi | Keterangan |
+|:---|:---|:---|:---|
+| Pengadaan BoM | W2 | W2 | Selesai tepat waktu. |
+| Setup IDE & Repo | W2 | W2 | Selesai tepat waktu. |
 
-#### Penugasan 2: Laporan Status Pengadaan
-* Pengadaan 15 komponen dieksekusi secara **kolektif terdistribusi oleh 5 anggota tim** sesuai domain masing-masing.
-* **100% komponen (15 dari 15 item)** telah dipesan dan dialokasikan ke anggota penanggung jawab.
-* Sistem **TIDAK MENGGUNAKAN PCB CUSTOM KELOMPOK (*No custom group PCB*)**, melainkan menggunakan modul breakout board standar industri yang dihubungkan dengan *perfboard wiring harness* terisolasi oleh Muhammad Ilman Zuhriy.
+**Analisis Deviasi:**
+Tidak ada keterlambatan pekerjaan (*zero deviation*). Seluruh capaian persiapan sumber daya tercapai 100% tepat pada Pekan ke-2 sesuai proposal master WBS.
 
-#### Penugasan 3: Dokumentasi Setup Lingkungan Pengembangan
-* **Firmware ESP32:** VS Code + PlatformIO Core (`src/firmware/platformio.ini`), Arduino Framework Espressif 32.
-* **Backend Server (Inisiatif Daffa):** Go v1.22+, Streaming Ingestion & Batch ETL Pipeline, basis data SQLite WAL Mode dengan primary key UUIDv7 (`src/data/esos_telemetry.db`), WebSocket Hub, dan binary executable mandiri (`src/bin/esos-server.exe`).
-* **Panduan Operasional:** Tercatat lengkap pada `00_MASTER_README.md` Bab 4.
+### 10. Rencana Kerja Pekan Berikutnya
+| No | Aktivitas | PIC | Target Selesai |
+|:---|:---|:---|:---|
+| 1 | Pencetakan casing IoT dengan printer 3D (filamen PETG) | Darrel Alfath | Pekan 3 |
+| 2 | Solder dan perakitan *wiring harness* tanpa custom PCB | M. Ilman Zuhriy | Pekan 3 |
+| 3 | Penulisan kode integrasi sensor Analog & LoRa | Siti Amalia N. | Pekan 3 |
+| 4 | Sinkronisasi Endpoint API Server dan Ingestion Logic | Daffa Hardhan | Pekan 3 |
+| 5 | Cek kondisi fisik (*Quality Control*) komponen yang tiba | Raka Arrayan M. | Pekan 3 |
 
----
+### 11. Persentase Progress Proyek
+| Komponen | Bobot (%) | Progress (%) |
+|:---|:---:|:---:|
+| Perancangan | 15% | 15% |
+| Implementasi Hardware | 25% | 2% |
+| Implementasi Software | 25% | 5% |
+| Integrasi Sistem | 15% | 0% |
+| Pengujian | 10% | 0% |
+| Dokumentasi | 10% | 2% |
+| **Progress Total Proyek** | **100%** | **24%** |
 
-### 5. Evaluasi 3 Luaran Pekan 2 (*Exit Criteria*)
+### 12. Kesimpulan
+Pada pekan ini tim berfokus penuh dan berhasil menyelesaikan **tahap persiapan proyek dan pengadaan barang (BoM)**. Repositori perangkat lunak dan lingkungan pengembangan sudah aktif, serta seluruh barang dalam perjalanan/telah tiba. Tim sangat siap memasuki tahap Implementasi dan Perakitan Hardware pada Pekan ke-3.
 
-| No | Luaran Wajib Pekan 2 | Target Silabus | Realisasi Kelompok 4 | Status |
-|:---:|:---|:---|:---|:---:|
-| 1 | **Ketersediaan Komponen** | Minimal 80% komponen telah tersedia | 15 dari 15 item BoM (100%) telah dipesan & tersedia | **`TERCAPAI (100%)`** |
-| 2 | **Lingkungan Pengembangan** | Lingkungan pengembangan siap digunakan | Toolchain PlatformIO ESP32 siap, dan server Go mandiri aktif | **`TERCAPAI (100%)`** |
-| 3 | **Sistem Dokumentasi** | Sistem dokumentasi proyek aktif | Repositori GitHub aktif, 5 master docs terkendali, 5 tabs sheets | **`TERCAPAI (100%)`** |
-
----
-
-### 6. Kendala dan Solusi Pekan 2
-| No | Kendala yang Dihadapi | Dampak Terhadap Proyek | Solusi dan Tindakan Korektif yang Dilakukan |
-|:---:|:---|:---|:---|
-| 1 | Variasi harga sensor gas MQ-137 antar toko marketplace | Potensi pembengkakan anggaran | Raka membandingkan 3 vendor resmi dan mengunci harga terbaik (Rp155.000) sehingga tetap hemat. |
-| 2 | Keterbatasan waktu kompilasi jika anggota lain belum menginstal Go SDK | Ketergantungan dependensi runtime | Daffa mengompilasi backend menjadi *single native binary* (`src/bin/esos-server.exe`) sehingga dapat langsung dijalankan tanpa instalasi Go. |
-
----
-
-### 7. Rencana Kerja Pekan Berikutnya (Pekan 3: Awal Fabrikasi & Perakitan Hardware)
-1. **Mekanikal (Darrel):** Memulai proses cetak 3D printing casing IoT menggunakan filamen PETG di lab/workshop.
-2. **Hardware (Ilman):** Memulai perakitan rangkaian daya solar 10Wp, modul TP4056 BMS, dan wiring harness perfboard (tanpa custom PCB).
-3. **Firmware (Siti):** Mengembangkan driver sampling pembacaan ADC sensor gas dan filter digital jarak ultrasonik.
-4. **Backend (Daffa):** Menyiapkan skenario integrasi API ingest telemetri dan WebSocket stream dengan format paket data sensor.
-5. **Finansial & Standar (Raka):** Mengarsipkan fisik faktur pembelian dan menyinkronkan status pengadaan di Google Sheets.
-
----
-
-### Lembar Pengesahan Laporan Pekan 2
-
-| Jabatan | Nama Mahasiswa / Dosen | Status Tanda Tangan | Tanggal Pengesahan |
-|:---|:---|:---:|:---:|
-| **Ketua Kelompok** | Daffa Hardhan (NPM 2306161763) | *(Disahkan secara digital)* | 08 September 2026 |
-| **Dosen Pembimbing** | Prof. Dr. Muhammad Suryanegara, S.T., M.Sc. | ........................................ | ........................................ |
+### Persetujuan
+| Jabatan | Nama | Tanda Tangan |
+|:---|:---|:---:|
+| Ketua Kelompok | Daffa Hardhan | *(Digital)* |
+| Pembimbing | Prof. Dr. Muhammad Suryanegara, S.T., M.Sc. | ..................... |
