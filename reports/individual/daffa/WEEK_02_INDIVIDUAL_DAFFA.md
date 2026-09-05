@@ -25,7 +25,7 @@
 | Hari/Tanggal | Uraian Aktivitas | Waktu (Jam) | Bukti/Dokumen |
 |:---|:---|:---:|:---|
 | Senin, 31 Ags 2026 | Inisialisasi Git, penataan WBS, setup repo GitHub | 3 | URL GitHub |
-| Selasa, 01 Sep 2026 | Pemrograman awal Server Go dan konfigurasi SQLite WAL | 4 | `src/server/main.go` |
+| Selasa, 01 Sep 2026 | Pemrograman awal Server Go, integrasi PostgreSQL 16 & SQLite WAL | 4 | `src/server/main.go` |
 | Rabu, 02 Sep 2026 | Pemrograman Endpoint API Ingestion & WebSocket | 4 | `src/server/api/` |
 | Kamis, 03 Sep 2026 | Penulisan UI frontend Dashboard `index.html` dan Tailwind | 4 | `src/server/static/` |
 | Jumat, 04 Sep 2026 | Uji kompilasi menjadi native binary executable | 3 | `src/bin/esos-server.exe` |
@@ -39,7 +39,7 @@ Telah berhasil menyelesaikan inisialisasi lingkungan pengembangan perangkat luna
 
 **2. Luaran yang Dihasilkan**
 - Binary Server Backend Go (`esos-server.exe`)
-- Skema Database SQLite (UUIDv7)
+- Skema Database PostgreSQL 16 & Edge SQLite (UUIDv7)
 - Kode sumber Dashboard UI statis (`index.html`)
 - Repositori GitHub Proyek Kelompok 4 yang Publik
 

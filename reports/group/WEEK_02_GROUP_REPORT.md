@@ -32,7 +32,7 @@ Pada pekan ke-2 ini, tim berfokus pada penyiapan seluruh sumber daya proyek sesu
 | No | Kegiatan | Penanggung Jawab | Hasil |
 |:---|:---|:---|:---|
 | 1 | Verifikasi & checkout BoM 15 komponen hardware | Raka Arrayan & Tim | Komponen dipesan, anggaran Rp1.828.500 (hemat). |
-| 2 | Setup repositori GitHub, Inisiasi Server Go & DB SQLite | Daffa Hardhan | Git repo siap, server Go lokal dapat dijalankan. |
+| 2 | Setup repositori GitHub, Inisiasi Server Go & PostgreSQL/SQLite | Daffa Hardhan | Git repo siap, server Go lokal dapat dijalankan. |
 | 3 | Instalasi IDE PlatformIO & board package ESP32 | Siti Amalia N. | PlatformIO siap digunakan untuk kompilasi C++. |
 | 4 | Penghitungan daya panel surya 10Wp & topologi 1S4P | M. Ilman Zuhriy | Skema arsitektur perakitan kabel tanpa PCB custom. |
 | 5 | Perancangan gambar teknik 2D mekanikal & 3D Casing | Darrel Alfath | Sketsa CAD 3D enclosure IP54 siap direview. |
@@ -40,7 +40,7 @@ Pada pekan ke-2 ini, tim berfokus pada penyiapan seluruh sumber daya proyek sesu
 ### 4. Kemajuan Tiap Anggota
 | Nama | Tugas Pekan Ini | Persentase Penyelesaian |
 |:---|:---|:---:|
-| Daffa Hardhan | Setup Git, inisiasi Go server, setup pipeline DB SQLite | 100% |
+| Daffa Hardhan | Setup Git, inisiasi Go server, setup pipeline DB PostgreSQL/SQLite | 100% |
 | Raka Arrayan M. | Eksekusi BoM, kuitansi invoice, register aset | 100% |
 | Siti Amalia N. | Toolchain IDE, setup framework ESP32 PlatformIO | 100% |
 | M. Ilman Zuhriy | Verifikasi hardware list, rencana topologi & kabel | 100% |
@@ -52,7 +52,7 @@ Pada pekan ke-2 ini, tim berfokus pada penyiapan seluruh sumber daya proyek sesu
 *   **Status integrasi:** Belum diintegrasikan secara fisik; status masih dalam penerimaan barang di lab dan inspeksi kelengkapan visual.
 
 **Software**
-*   **Fitur yang telah selesai:** Repositori GitHub, infrastruktur lokal *native binary* Server Go (`esos-server.exe`), konfigurasi database SQLite WAL Mode, kerangka REST API awal.
+*   **Fitur yang telah selesai:** Repositori GitHub, infrastruktur lokal *native binary* Server Go (`esos-server.exe`), konfigurasi database PostgreSQL 16 & SQLite Edge, kerangka REST API awal.
 *   **Fitur yang masih dikembangkan:** Firmware sensor ESP32, skrip sampling ADC gas, filter debouncing, dan telemetri pengiriman paket via komunikasi serial LoRa.
 
 **Mekanik/Biomedik (jika ada)**
