@@ -113,5 +113,6 @@ Tanda tangan: *(Digital)*
 Tanggal: 05 September 2026
 
 **Catatan Pembimbing**
-....................................................................................
-....................................................................................
+- Segera tuntaskan seluruh target tugas mingguan dan percepat proses eksekusi pengadaan (*checkout*) komponen BoM agar linimasa perancangan serta perakitan perangkat keras tetap berjalan sesuai jadwal (*on track*).
+- Perhatikan secara ketat tenggat waktu administratif pengajuan dana; pastikan proses klaim *reimbursement* beserta kelengkapan bukti transaksi diselesaikan sebelum batas maksimal 25 hari.
+- Untuk agenda asistensi dan bimbingan progres rutin tiap pekan, koordinasi dapat disepakati dan dilaksanakan secara daring (*online*).

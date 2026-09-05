@@ -115,6 +115,11 @@ Tidak ada keterlambatan pekerjaan (*zero deviation*). Seluruh capaian persiapan 
 ### 12. Kesimpulan
 Pada pekan ini tim berfokus penuh dan berhasil menyelesaikan **tahap persiapan proyek dan pengadaan barang (BoM)**. Repositori perangkat lunak dan lingkungan pengembangan sudah aktif, serta seluruh barang dalam perjalanan/telah tiba. Tim sangat siap memasuki tahap Implementasi dan Perakitan Hardware pada Pekan ke-3.
 
+**Catatan Pembimbing:**
+- Segera tuntaskan seluruh target tugas mingguan dan percepat proses eksekusi pengadaan (*checkout*) komponen BoM agar linimasa perancangan serta perakitan perangkat keras tetap berjalan sesuai jadwal (*on track*).
+- Perhatikan secara ketat tenggat waktu administratif pengajuan dana; pastikan proses klaim *reimbursement* beserta kelengkapan bukti transaksi diselesaikan sebelum batas maksimal 25 hari.
+- Untuk agenda asistensi dan bimbingan progres rutin tiap pekan, koordinasi dapat disepakati dan dilaksanakan secara daring (*online*).
+
 ### Persetujuan
 | Jabatan | Nama | Tanda Tangan |
 |:---|:---|:---:|
