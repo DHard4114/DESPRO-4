@@ -2,7 +2,7 @@
 ## Smart-Sanitation eSOS (Emergency Sanitation Operating System) — Sistem Pemantauan Sanitasi Darurat Pasca-Bencana
 
 Status Dokumen: ARSITEKTUR BASIS DATA TERKENDALI (CONTROLLED BASELINE)  
-Database Engine: PostgreSQL 15+ (Dual-Support: SQLite WAL Mode untuk Edge Server)  
+Database Engine: PostgreSQL 15+ dengan Ekstensi **TimescaleDB** (Time-Series Database)  
 Standar Kepatuhan: ACID (Atomicity, Consistency, Isolation, Durability)  
 Strategi Kunci Utama: **Universally Unique Identifier Versi 7 (UUIDv7 Time-Ordered / RFC 9562)**  
 Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
@@ -48,9 +48,27 @@ Dalam arsitektur sistem IoT terdistribusi di wilayah posko pasca-bencana, pemili
 2. **Sinkronisasi Tanpa Konflik (*Seamless Uplink Replication*):** Ketika koneksi satelit/seluler pulih, jutaan data dari seluruh posko pengungsian di Indonesia dapat langsung digabungkan ke basis data pusat tanpa perlu re-mapping ID.
 3. **Keamanan Data (*Anti-Enumeration Attack*):** Mencegah pihak luar menebak volume atau jumlah insiden posko secara sekuensial.
 
+
 ---
 
-## 3. Entity Relationship Diagram (ERD) — Skema Berbasis UUID
+## 3. Arsitektur Pemrosesan Big Data (Lambda Architecture & TimescaleDB)
+
+Karena sistem memproses data sensor (*telemetry*) secara konstan 24 jam nonstop dari banyak node, eSOS menerapkan pola **Lambda Architecture** pada backend Go dan menggunakan **TimescaleDB** pada sisi basis data untuk mengelola skala *Big Data*.
+
+### 3.1. Jalur Stream Processing (Event-Driven / Real-Time via Go)
+*   **Mekanisme:** Saat paket MQTT masuk ke Server Go, *Goroutines* secara konkuren menangkap data tersebut ke dalam *Channel* memori (RAM).
+*   **Fungsi:** Data tidak menunggu disimpan ke *hardisk*. *Goroutines* langsung melakukan pengecekan batas bahaya (*Threshold Checking*). Jika amonia > 300ppm, server seketika menembakkan notifikasi via **WebSockets** ke Dashboard dan mengirim *Command* MQTT ke Aktuator.
+*   **Keunggulan:** Latensi sub-milidetik untuk peringatan bahaya (*Alerting*).
+
+### 3.2. Jalur Batch Processing (Historical / Aggregation via TimescaleDB)
+Alih-alih menggunakan *Batch script Go* manual (CRON/Ticker) untuk menghitung rata-rata harian, eSOS mendelegasikan tugas *Batch* sepenuhnya ke tingkat *Database* (PostgreSQL + TimescaleDB).
+
+*   **Hypertables (Partisi Otomatis):** Tabel TELEMETRY_RECORDS diubah menjadi *Hypertable*. Walaupun berisi jutaan baris, TimescaleDB secara transparan memecah data berdasarkan dimensi waktu (*time-chunks* per hari/minggu), sehingga pembacaan grafik setahun terakhir tetap sedetik.
+*   **Continuous Aggregates (Batch Otomatis):** Fitur bawaan TimescaleDB yang secara otomatis berjalan di *background* merangkum rata-rata nilai H2S dan Amonia per jam dan per hari. Tidak perlu *coding* rekap harian di Golang, cukup baca hasil dari materialized view.
+*   **Kompresi (Native Compression):** Algoritma kompresi khusus data deret waktu yang menghemat ruang SSD hingga 90%, memastikan *storage* posko tidak cepat penuh.
+---
+
+## 4. Entity Relationship Diagram (ERD) — Skema Berbasis UUID
 
 ```mermaid
 erDiagram
