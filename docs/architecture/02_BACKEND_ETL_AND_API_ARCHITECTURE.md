@@ -3,7 +3,7 @@
 
 Status Dokumen: ARSITEKTUR BACKEND TERKENDALI (CONTROLLED BASELINE)  
 Bahasa Pemrograman: Go (Golang 1.25+)  
-Arsitektur Sistem: Dual-Engine (Real-Time Event Streaming + Micro-Batch ETL)  
+Arsitektur Sistem: Lambda Architecture (MQTT Stream Ingestion + TimescaleDB Batch + WebSockets)  
 Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
 Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
 
@@ -32,6 +32,10 @@ Berikut adalah daftar kepanjangan resmi dan definisi istilah teknis rekayasa per
 | **Goroutine** | *Go Lightweight Thread* (Utas Ringan Go) | Unit eksekusi independen berdaya sangat ringan ($\approx 2\text{ KB}$ per utas) yang memungkinkan ribuan tugas paralel dijalankan secara bersamaan. |
 | **Channel** | *Go Synchronization Channel* (Saluran Sinkronisasi Go) | Pipa transmisi data internal Go yang aman digunakan antar-goroutine (*thread-safe*) tanpa membutuhkan penguncian manual yang rumit. |
 
+| **MQTT** | *Message Queuing Telemetry Transport* | Protokol ringan berbasis *publish-subscribe* berstandar industri IoT untuk penerimaan jutaan paket data dari ESP32 Gateway. |
+| **Mosquitto** | *Eclipse Mosquitto MQTT Broker* | *Service background* penengah yang berlari di RAM PC Server untuk meneruskan lalu lintas MQTT ke Server Go secara seketika (*zero-delay*). |
+| **Lambda Architecture** | *Big Data Lambda Architecture* | Pola desain sistem terdistribusi yang menangani data massal melalui dua jalur simultan: *Streaming* (real-time) dan *Batch* (historis). |
+| **TimescaleDB** | *Time-Series PostgreSQL Extension* | *Database Engine* berkinerja tinggi penyimpan *Hypertable* yang melakukan *Continuous Aggregates* secara transparan. |
 ---
 
 ## 2. Arsitektur Internal Server Go (High-Level Architecture)
@@ -40,25 +44,33 @@ Server backend eSOS dirancang secara modular dengan mengadopsi prinsip *Clean Ar
 
 ```mermaid
 flowchart TD
-    Client[Perangkat Sensor ESP32 / Gateway LoRa] -->|HTTP POST Telemetry| Router[HTTP REST API Router Mux]
-    Dashboard[Web Dashboard Operator] <-->|WebSocket Stream Link| WSHub[WebSocket Streaming Hub]
-    Dashboard -->|REST API Query| Router
-
-    Router -->|Non-blocking Ingest| InQueue[Extract: Buffered Go Channel Cap: 1000]
-
-    InQueue --> Worker[Transform: Goroutine ETL Worker]
-
-    subgraph TransformStage[Transform & Enrichment Stage]
-        Worker --> Calib[Kalibrasi Kurva Daya Gas & Level Air]
-        Calib --> Anomaly[Deteksi Anomali & AQI Category]
-        Anomaly --> AlertGen[Pembangkitan Alarm Insiden Otomatis]
+    subgraph IoT_Edge[IoT Edge (Intranet)]
+        Node[ESP32 Node WC] -- LoRa 433MHz --> Gateway[ESP32 Gateway]
+        Gateway -- TCP/IP Wi-Fi --> Mosquitto{MQTT Broker
+Port 1883}
     end
 
-    AlertGen -->|Real-Time Event Broadcast| WSHub
-    AlertGen -->|Micro-Batch Buffer| MemBuffer[Load: Batch Buffer Memori Cap: 20]
+    subgraph Go_Backend[Go Server (Lambda Engine)]
+        Mosquitto -- paho.mqtt Subscribe --> InQueue[Stream: Buffered Go Channel Cap: 1000]
+        Router[HTTP/REST API Router]
+        WSHub[WebSocket Streaming Hub]
+        
+        InQueue --> Worker[Transform: Goroutine ETL Worker]
+        
+        subgraph TransformStage[Transform & Anomaly Detection]
+            Worker --> Calib[Data Parsing & Normalisasi JSON]
+            Calib --> Anomaly[Pengecekan Ambang Batas Gas H2S/Amonia]
+            Anomaly --> AlertGen[Pembangkitan Alarm & Aktuasi Otomatis]
+        end
 
-    MemBuffer -->|Batch Size >= 20 ATAU Timer 3s| BulkInsert[Load: Transactional Bulk Commit]
-    BulkInsert --> DB[(SQLite WAL Mode / PostgreSQL)]
+        AlertGen -- 1. Stream (Real-Time) --> WSHub
+        AlertGen -- 2. Batch Buffer --> MemBuffer[Load: Memory Buffer Batch Size=50]
+        MemBuffer -- Transactional Bulk Insert --> DB[(PostgreSQL + TimescaleDB)]
+    end
+
+    Dashboard[Web Dashboard Operator] <== WebSocket Push (Live Graph) ==> WSHub
+    Dashboard -- REST API (Polling/History) --> Router
+    Router -- Query Hypertable --> DB
 ```
 
 ---
@@ -68,26 +80,32 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     autonumber
-    actor SensorNode as ESP32 Sensor Node
-    participant Router as Router TP-Link CPE220
-    participant IngestAPI as Go Ingest API (:8000)
-    participant ETL as Mesin ETL Pipeline
-    participant WSHub as WebSocket Hub
-    participant DB as SQLite / PostgreSQL
+    actor ESPNode as ESP32 Node WC (LoRa)
+    participant ESPGateway as ESP32 Gateway (WiFi)
+    participant MQTT as Mosquitto Broker (1883)
+    participant GoServer as Go Server (Goroutines)
+    participant TSDB as PostgreSQL + TimescaleDB
     actor Dashboard as Web Dashboard Operator
 
-    SensorNode->>Router: Kirim Paket Data JSON (Wi-Fi 2.4GHz)
-    Router->>IngestAPI: Forward HTTP POST /api/telemetry
-    IngestAPI-->>Router: Response 201 Accepted
-    IngestAPI->>ETL: Ingest() via Buffered Channel
+    ESPNode->>ESPGateway: Transmisi Radio LoRa (JSON Payload)
+    ESPGateway->>MQTT: Publish 'esos/septic/telemetry'
+    MQTT->>GoServer: Push via MQTT Subscribe
+    GoServer->>GoServer: Goroutine ETL: Extract & Transform
 
-    activate ETL
-    ETL->>ETL: Transformasi Kalibrasi Gas, Volume Air & Baterai
-    ETL->>ETL: Evaluasi Ambang Batas & Deteksi Anomali
+    activate GoServer
+    GoServer->>GoServer: Cek Anomali Gas (H2S > 10ppm?)
     
-    par Real-Time Streaming Broadcast
-        ETL->>WSHub: Broadcast(TELEMETRY_STREAM)
-        WSHub->>Dashboard: Push JSON Frame (Latency < 1ms)
+    par [Stream] WebSockets Real-Time Push
+        GoServer->>Dashboard: Push Live JSON Data (Latency < 1ms)
+    and [Batch] TimescaleDB Insertion
+        GoServer->>TSDB: Bulk Insert ke Hypertable
+    end
+    deactivate GoServer
+    
+    Dashboard->>GoServer: GET /api/history (REST API)
+    GoServer->>TSDB: Query Continuous Aggregates
+    TSDB-->>GoServer: Hasil Rata-rata/Batch
+    GoServer-->>Dashboard: Response JSON Historis
     and Micro-Batch Persistence
         ETL->>ETL: Tambahkan ke Memory Buffer (Cap: 20)
         opt Buffer Penuh (>=20) atau Timer 3 Detik
