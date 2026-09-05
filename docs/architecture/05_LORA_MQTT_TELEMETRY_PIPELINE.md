@@ -12,26 +12,22 @@ Sistem ini secara tegas **TIDAK menggunakan topologi Mesh**. Untuk memastikan ke
 
 *   **Mengapa Bintang (Star)?** Jangkauan frekuensi LoRa 433MHz sangat jauh (ratusan meter hingga kilometer) dan mampu menembus tembok/beton *septic tank*. Oleh karena itu, Node WC di lapangan tidak perlu saling menitip pesan (*hopping/mesh*). Semua Node langsung memancarkan data (*broadcast*) lurus ke satu titik pusat (Menara Posko).
 
-`mermaid
+```mermaid
 flowchart BT
-    subgraph Edge_Nodes[Wilayah Sanitasi (Blank Spot)]
-        WC1[ESP32 Node WC 01
-LoRa 433MHz]
-        WC2[ESP32 Node WC 02
-LoRa 433MHz]
-        WC3[ESP32 Node WC 03
-LoRa 433MHz]
+    subgraph Edge_Nodes[Wilayah Sanitasi - Blank Spot]
+        WC1[ESP32 Node WC 01<br>LoRa 433MHz]
+        WC2[ESP32 Node WC 02<br>LoRa 433MHz]
+        WC3[ESP32 Node WC 03<br>LoRa 433MHz]
     end
 
     subgraph Central_Gateway[Posko Pusat eSOS]
-        GW[ESP32 Gateway
-Receiver]
+        GW[ESP32 Gateway<br>Receiver]
     end
     
     WC1 -- RF Telemetry --> GW
     WC2 -- RF Telemetry --> GW
     WC3 -- RF Telemetry --> GW
-`
+```
 
 *   **Kelebihan:** Menghemat baterai Node (karena tidak perlu terus menyala untuk mem-*forward* pesan orang lain) dan membebaskan mikrokontroler dari algoritma *routing* yang rawan *error*.
 
@@ -62,7 +58,7 @@ Sistem ini dibangun oleh 3 entitas (aktor) utama yang bekerja secara terpisah na
 
 Berikut adalah perjalanan satu paket data dari kotoran limbah hingga menjadi grafik di layar:
 
-`mermaid
+```mermaid
 sequenceDiagram
     autonumber
     participant Sensor as MQ-137 / JSN-SR04T
@@ -85,7 +81,7 @@ sequenceDiagram
         Go->>UI: 7. Push via WebSocket
     end
     UI->>UI: 8. Render Grafik Chart.js secara Real-Time
-`
+```
 
 **Penjelasan Sekuensial:**
 1. **[Fisik]** Sensor Gas membaca konsentrasi.

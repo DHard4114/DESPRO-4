@@ -47,7 +47,7 @@ Antarmuka Web Dashboard [src/server/static/index.html](file:///c:/Users/dapah/Do
 Dashboard eSOS dirancang untuk melakukan *rendering* secepat kilat menggunakan *Vanilla JavaScript* dan *WebSockets*. 
 
 ### 3.1. Diagram Sekuensial: Pembaruan DOM Real-Time
-`mermaid
+```mermaid
 sequenceDiagram
     autonumber
     participant Browser as Web Browser (DOM)
@@ -65,12 +65,12 @@ sequenceDiagram
         JS->>Chart: chart.update(150)
         Chart-->>Browser: Render Ulang Kanvas Grafik
     end
-`
+```
 
 ### 3.2. Pemenuhan Prinsip ACID di Sisi Klien (Frontend)
 Meskipun ACID adalah konsep inti *Database*, UI Dashboard meniru logika keandalan tersebut untuk menghindari *glitch* visual:
 1. **Atomicity:** Pembaruan UI dilakukan secara serentak (Nilai Teks dan Grafik diperbarui dalam satu fungsi JS atomic). Jika JSON gagal di- *parse*, seluruh visualisasi untuk detik tersebut dibatalkan (tidak ada UI setengah-*update*).
-2. **Consistency:** Skema JSON selalu divalidasi oleh blok 	ry...catch di JavaScript sebelum elemen HTML DOM diubah, mencegah angka NaN atau *layout* rusak.
+2. **Consistency:** Skema JSON selalu divalidasi oleh blok `try...catch` di JavaScript sebelum elemen HTML DOM diubah, mencegah angka `NaN` atau *layout* rusak.
 3. **Isolation:** Komunikasi WebSockets untuk Node WC 1 diisolasi ke dalam blok fungsi spesifik WC 1, sehingga ledakan data dari WC 2 tidak akan menyilang dan merusak grafik WC 1.
 4. **Durability:** Jika koneksi WebSocket terputus akibat router/Wi-Fi mati, fungsi *Auto-Reconnect JS* (berjalan setiap 3 detik) memastikan UI akan memulihkan *state* visual secara otomatis begitu jaringan pulih tanpa intervensi petugas.
 
