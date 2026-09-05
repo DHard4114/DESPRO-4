@@ -4,7 +4,7 @@
 **Judul Proyek** : Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana
 **Kelompok** : 4 (Empat)
 **Pekan Ke-** : 2 (Dua)
-**Periode** : 28 Agustus 2026 – 04 September 2026
+**Periode** : 31 Agustus 2026 – 05 September 2026
 **Dosen Pembimbing** : Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.
 **Ketua Kelompok** : Daffa Hardhan
 **Anggota Kelompok** : 
