@@ -149,3 +149,15 @@ Koneksi: `ws://192.168.0.100:8000/ws`
 | `409` | Konflik (duplikat idempotency key / node_code) | POST /nodes, POST /actuator |
 | `429` | Rate limit terlampaui | Semua endpoint |
 | `500` | Internal server error | Semua endpoint |
+
+
+---
+
+## 6. Pemenuhan Kepatuhan ACID pada Lapis REST API
+
+Seluruh interaksi API mematuhi prinsip ACID untuk mencegah korupsi data akibat koneksi klien yang terputus di tengah jalan (misal: petugas menekan tombol servo tapi kehilangan sinyal Wi-Fi):
+
+1. **Atomicity (Keutuhan):** Endpoint POST dan PUT dibungkus dalam satu blok transaksi database (BEGIN...COMMIT). Pembuatan *Actuation Command* tidak akan tersimpan jika validasi payload gagal di tengah jalan.
+2. **Consistency (Konsistensi):** Idempotency-Key menjamin keamanan *retry*. Jika klien menekan tombol "Buka Katup" berulang kali akibat sinyal lag, server akan mengidentifikasinya sebagai satu perintah tunggal (menolak duplikasi).
+3. **Isolation (Isolasi):** *Rate Limiting* per API Key diisolasi secara ketat sehingga lonjakan request dari satu klien tidak memblokir antrean request klien lain pada *Router* HTTP Go.
+4. **Durability (Ketahanan):** *Error Envelope* yang dikembalikan ke klien mencantumkan 	race_id UUIDv7 yang telah **selesai** ditulis (*flushed*) secara permanen ke dalam tabel SYSTEM_AUDIT_LOGS pada media penyimpanan *TimescaleDB* sebelum HTTP 500 dikirimkan kembali ke peramban.
