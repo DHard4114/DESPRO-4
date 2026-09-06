@@ -172,13 +172,12 @@ async function triggerValve(command) {
     tombol.disabled = true;
     tombol.innerText = 'Mengirim Perintah...';
     
-    // Kirim request ke REST API dengan JWT Auth dan Idempotency Key
+    // Kirim request ke REST API dengan Idempotency Key
     const response = await fetch('/api/v1/actuator/commands', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization':  + "Bearer " + ,
-            'Idempotency-Key': crypto.randomUUID()
+                        'Idempotency-Key': crypto.randomUUID()
         },
         body: JSON.stringify({
             node_code: 'WC_01',
@@ -206,3 +205,4 @@ Dashboard dilengkapi simulator internal di bagian bawah layar untuk memvalidasi 
    - Sesuai standar, Server Go (jika diizinkan mode uji coba) akan menerima HTTP ini lalu menerbitkan pesan uji ke Mosquitto MQTT Broker, sebelum akhirnya diolah normal oleh Goroutine *Subscriber*.
    - WebSocket Hub akan memancarkan data secara instan kembali ke layar dashboard.
    - Banner darurat merah akan berkedip dan baris data baru akan muncul pada tabel log.
+

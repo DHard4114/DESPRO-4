@@ -144,8 +144,7 @@ Koneksi: `ws://192.168.0.100:8000/ws`
 | `201` | Berhasil dibuat | POST /nodes, POST /telemetry/ingest |
 | `202` | Diterima, diproses asinkron | POST /actuator/commands |
 | `400` | Validasi gagal | PUT config dengan nilai di luar rentang |
-| `401` | API Key / JWT tidak valid | Semua endpoint |
-| `404` | Resource tidak ditemukan | GET by ID |
+| `| `404` | Resource tidak ditemukan | GET by ID |
 | `409` | Konflik (duplikat idempotency key / node_code) | POST /nodes, POST /actuator |
 | `429` | Rate limit terlampaui | Semua endpoint |
 | `500` | Internal server error | Semua endpoint |
@@ -161,3 +160,5 @@ Seluruh interaksi API mematuhi prinsip ACID untuk mencegah korupsi data akibat k
 2. **Consistency (Konsistensi):** Idempotency-Key menjamin keamanan *retry*. Jika klien menekan tombol "Buka Katup" berulang kali akibat sinyal lag, server akan mengidentifikasinya sebagai satu perintah tunggal (menolak duplikasi).
 3. **Isolation (Isolasi):** *Rate Limiting* per API Key diisolasi secara ketat sehingga lonjakan request dari satu klien tidak memblokir antrean request klien lain pada *Router* HTTP Go.
 4. **Durability (Ketahanan):** *Error Envelope* yang dikembalikan ke klien mencantumkan 	race_id UUIDv7 yang telah **selesai** ditulis (*flushed*) secara permanen ke dalam tabel SYSTEM_AUDIT_LOGS pada media penyimpanan *TimescaleDB* sebelum HTTP 500 dikirimkan kembali ke peramban.
+
+
