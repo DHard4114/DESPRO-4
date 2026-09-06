@@ -58,6 +58,21 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 *Standar format pengemasan data harus dibedakan antara transmisi Radio dan transmisi Wi-Fi.*
 
 *   **Node WC (LoRa Tx):** TIDAK MENGGUNAKAN JSON. Menggunakan struktur data C standar (struct Payload { ... }) yang dikirim mentah (*raw memory copy*) untuk efisiensi SRAM dan *airtime* di udara. **Seluruh struktur data (C-Struct) payload biner yang ditransmisikan via LoRa WAJIB menggunakan atribut __attribute__((packed)) untuk mencegah kompilator C++ menyisipkan byte kosong (Memory Alignment Padding). Ukuran struct maksimal dibatasi 50 bytes. Gateway akan membaca memory block ini secara langsung (raw memory cast).**
+
+`cpp
+// KONTRAK PAYLOAD BINER MUTLAK (Max 50 Bytes)
+struct __attribute__((packed)) TelemetryPayload {
+    uint8_t schema_version; // Selalu 1
+    char node_code[8];      // Contoh: "WC_01" (Null terminated)
+    uint32_t sequence_no;   // Counter pesan
+    float water_level_cm;
+    float ammonia_ppm;
+    float h2s_ppm;
+    float battery_voltage;
+    uint8_t sos_triggered;  // 1 = True, 0 = False
+};
+`
+
 *   **Gateway (Wi-Fi Tx):** Menggunakan library **ArduinoJson** untuk men-*deserialize* struct biner tadi dan merakitnya menjadi String JSON Envelope utuh sebelum dikirim ke Server Mosquitto.
 
 ---
@@ -131,3 +146,10 @@ lib_deps =
     jgromes/RadioLib
     knolleary/PubSubClient
 `
+
+
+---
+
+## 8. Konfigurasi Global (config.h)
+
+Dilarang melakukan hardcode identitas node (seperti "WC_01") menyebar di dalam file .cpp. Seluruh identitas node, pin GPIO, dan parameter LoRa (Frekuensi 433E6, Spreading Factor, dll) WAJIB dipusatkan di dalam file src/firmware/include/config.h.
