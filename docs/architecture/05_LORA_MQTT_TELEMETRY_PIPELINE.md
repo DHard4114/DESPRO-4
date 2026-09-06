@@ -46,7 +46,7 @@ Berikut adalah perjalanan satu paket data telemetri dari kotoran limbah hingga m
 ### Aktor 1: Sang Wartawan Lapangan (ESP32 Node WC)
 *   **Perangkat:** ESP32 + Sensor Gas + Sensor Ultrasonik + Antena LoRa RA-02.
 *   **Koneksi:** **Hanya Radio LoRa** (Wi-Fi ESP32 dimatikan total untuk menghemat baterai panel surya).
-*   **Tugas:** Membaca sensor, meracik string JSON (cth: `{"node_id": "WC_01", "gas": 150}`), dan memancarkannya ke udara lewat frekuensi 433MHz.
+*   **Tugas:** Membaca sensor, menyusun **C-Struct Biner berukuran kecil (< 50 bytes)** (BUKAN JSON, demi efisiensi airtime LoRa), dan memancarkannya ke udara lewat frekuensi 433MHz.
 
 ### Aktor 2: Sang Jembatan Posko (ESP32 Gateway)
 *   **Perangkat:** ESP32 + Antena LoRa RA-02. (Diletakkan di dalam Posko, dicolok ke sumber listrik PLN/Genset stabil).
