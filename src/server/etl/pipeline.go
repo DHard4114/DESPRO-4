@@ -83,6 +83,11 @@ func (p *Pipeline) StartWorkers(workerCount int) {
 				// Di sini logika anomaly detection memicu Insert ke incident_alerts
 				// ...
 
+				receivedTime := time.Now()
+				if payload.Timestamp > 0 {
+					receivedTime = time.Unix(int64(payload.Timestamp), 0)
+				}
+
 				record := models.TelemetryRecord{
 					NodeID:         nodeID,
 					NodeCode:       payload.NodeCode,
@@ -92,7 +97,7 @@ func (p *Pipeline) StartWorkers(workerCount int) {
 					H2SPPM:         payload.H2SPPM,
 					BatteryVoltage: payload.BatteryVoltage,
 					SOSTriggered:   payload.SOSTriggered == 1,
-					ReceivedAt:     time.Now(),
+					ReceivedAt:     receivedTime,
 				}
 
 				p.OutStream <- record

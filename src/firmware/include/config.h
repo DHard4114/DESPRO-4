@@ -46,6 +46,7 @@ struct __attribute__((packed)) TelemetryPayload {
     uint8_t schema_version; // Selalu 1
     char node_code[8];      // "WC_01"
     uint32_t sequence_no;
+    uint32_t timestamp;
     float water_level_cm;
     float ammonia_ppm;
     float h2s_ppm;

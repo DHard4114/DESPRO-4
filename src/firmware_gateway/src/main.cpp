@@ -10,6 +10,8 @@
 #include <RadioLib.h>
 #include "esp_pm.h"
 #include "esp_sleep.h"
+#include <Wire.h>
+#include <RTClib.h>
 
 // ==========================================
 // KREDENSIAL & PARAMETER
@@ -44,12 +46,15 @@ struct __attribute__((packed)) TelemetryPayload {
     uint8_t schema_version;
     char node_code[8];
     uint32_t sequence_no;
+    uint32_t timestamp;
     float water_level_cm;
     float ammonia_ppm;
     float h2s_ppm;
     float battery_voltage;
     uint8_t sos_triggered;
 };
+
+RTC_DS3231 rtc;
 
 struct __attribute__((packed)) ActuatorCommand {
     uint8_t command_id; // 1 = OPEN, 2 = CLOSE, 3 = FLUSH
@@ -159,6 +164,14 @@ void IRAM_ATTR isr_lora_rx() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    if (strstr(topic, "time_sync") != nullptr) {
+        String ts = "";
+        for (int i = 0; i < length; i++) ts += (char)payload[i];
+        rtc.adjust(DateTime(ts.toInt()));
+        Serial.printf("RTC Synced: %s\n", ts.c_str());
+        return;
+    }
+
     StaticJsonDocument<256> doc;
     DeserializationError err = deserializeJson(doc, payload, length);
     if (err) return;
@@ -189,6 +202,8 @@ void vTaskLoRaRx(void *pvParameters) {
         int state = radio.readData((uint8_t*)&rxData, sizeof(TelemetryPayload));
 
         if (state == RADIOLIB_ERR_NONE) {
+            rxData.timestamp = rtc.now().unixtime();
+            
             if (xQueueSend(xQueueTelemetry, &rxData, 0) != pdPASS) {
                 pushToBuffer(rxData);
             }
@@ -246,6 +261,7 @@ void vTaskMqttTx(void *pvParameters) {
                 doc["schema_version"] = data.schema_version;
                 doc["node_code"] = data.node_code;
                 doc["sequence_no"] = data.sequence_no;
+                doc["timestamp"] = data.timestamp;
                 doc["water_level_cm"] = data.water_level_cm;
                 doc["ammonia_ppm"] = data.ammonia_ppm;
                 doc["h2s_ppm"] = data.h2s_ppm;
@@ -293,6 +309,7 @@ void vTaskWiFiSupervisor(void *pvParameters) {
                 Serial.println("MQTT Terhubung!");
                 mqtt.publish("esos/gateway_01/status", "ONLINE", true);
                 mqtt.subscribe(MQTT_TOPIC_RX, 1);
+                mqtt.subscribe("esos/gateway_01/time_sync", 1);
                 backoff = 3000;
             } else {
                 Serial.printf("MQTT Gagal (rc=%d). Backoff %d ms\n", mqtt.state(), backoff);
@@ -314,6 +331,11 @@ void vTaskWiFiSupervisor(void *pvParameters) {
 // ==========================================
 void setup() {
     Serial.begin(115200);
+
+    Wire.begin(21, 22);
+    if (!rtc.begin()) {
+        Serial.println("RTC tidak ditemukan");
+    }
 
     // Power Management
     esp_pm_config_t pm_config = {

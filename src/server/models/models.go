@@ -8,6 +8,7 @@ type TelemetryPayload struct {
 	SchemaVersion  uint8   `json:"schema_version"`
 	NodeCode       string  `json:"node_code"` // Contoh: "WC_01"
 	SequenceNo     uint32  `json:"sequence_no"`
+	Timestamp      uint32  `json:"timestamp"`
 	WaterLevelCM   float32 `json:"water_level_cm"`
 	AmmoniaPPM     float32 `json:"ammonia_ppm"`
 	H2SPPM         float32 `json:"h2s_ppm"`

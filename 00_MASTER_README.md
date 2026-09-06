@@ -47,7 +47,7 @@ Untuk memastikan kemudahan pemahaman bagi seluruh penguji dan anggota tim, berik
 1. **Penginderaan Lingkungan Otomatis:** Sensor gas amonia ($NH_3$) MQ-137, hidrogen sulfida ($H_2S$) MQ-136, dan sensor jarak ultrasonik kedap air JSN-SR04T.
 2. **Kendali Aktuasi Higienis:** Mikrokontroler ESP32 DevKitC V4 dan motor servo logam MG996R untuk mekanisme buka-tutup katup nirsentuh (*touchless*).
 3. **Komunikasi Nirkabel Jarak Jauh Jalur Ganda (*Dual-Path*):** Jalur Utama Wi-Fi 2.4GHz via Access Point TP-Link CPE220 dan Jalur Cadangan LoRa RA-02 433 MHz SX1278.
-4. **Kemandirian Daya Surya Mandiri:** Panel surya 10 Wp, modul manajemen pengisian baterai TP4056 BMS, dan sel Li-ion 18650 1S4P terproteksi (operasi 24 jam kontinu).
+4. **Kemandirian Daya Surya Mandiri:** Panel surya 20 Wp, modul manajemen pengisian baterai TP4056 BMS, sel Li-ion 18650 1S4P terproteksi, Master DC Switch, dan Inline Fuse 2A (operasi 24 jam kontinu).
 5. **Casing 3D IoT Modular (Weatherproof):** Enclosure kustom hasil cetak 3D PETG dengan proteksi standar setara IP54 (dirancang khusus oleh Darrel Alfath).
 6. **Firmware FreeRTOS Multi-Task & Ultra-Low Power:** Menggunakan *Light-Sleep*, *Tickless Idle*, dan *Power Management Locks* untuk menghemat baterai tanpa mengorbankan RAM, disertai mitigasi hardware (*Blind Zone* & *Debouncing*).
 7. **Infrastruktur Backend Zero-Trust:** Backend Go dengan Worker Pool MQTT, PostgreSQL UUIDv7 (ACID compliant), Threshold Cache (LISTEN/NOTIFY), dan Web Dashboard WebSocket *offline-ready* dengan *Idempotency-Key*.
@@ -158,7 +158,7 @@ Setelah server aktif, buka peramban web pada alamat:
 | 1 | **Daffa Hardhan** | 2306161763 | Manajer Proyek dan Pengembang | Manajemen proyek, master WBS, arsitektur sistem, Go backend server (Batch & Streaming ETL), Web Dashboard UI, integrasi CPE220 | **40 Jam** |
 | 2 | **Raka Arrayan Muttaqien** | 2306161800 | Analis Solusi dan Integrasi Layanan | Requirement analysis, verifikasi standar sanitasi, evaluasi vendor BoM, koordinasi pengadaan, feasibility review | **35 Jam** |
 | 3 | **Siti Amalia Nurfaidah** | 2306161851 | Pengembang Perangkat Lunak | Firmware mikrokontroler ESP32, pengolahan ADC/PWM, stack protokol LoRa RA-02, logika kendali servo | **45 Jam** |
-| 4 | **Muhammad Ilman Zuhriy** | 2306266786 | Perancang Perangkat Keras | Arsitektur daya solar 10Wp + baterai 18650, modul TP4056, wiring harness daya & sensor (No Custom PCB), kalibrasi gas analog | **45 Jam** |
+| 4 | **Muhammad Ilman Zuhriy** | 2306266786 | Perancang Perangkat Keras | Arsitektur daya solar 20 Wp + baterai 18650, modul TP4056, perakitan Fuse 2A & Switch, wiring harness daya & sensor (No Custom PCB), kalibrasi gas analog | **45 Jam** |
 | 5 | **Darrel Alfath** | 2306266810 | Desainer Mekanis dan Penguji Kualitas | Desain 3D CAD casing/enclosure IoT modular, weatherproofing IP54, perakitan fixture mekanik, Master Test Plan, QA | **40 Jam** |
 | | **TOTAL AKUMULASI** | | | | **205 Jam** |
 

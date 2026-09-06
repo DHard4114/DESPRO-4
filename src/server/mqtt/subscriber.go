@@ -3,6 +3,8 @@ package mqtt
 import (
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"smart-sanitation-esos/server/config"
 	"smart-sanitation-esos/server/etl"
@@ -26,6 +28,12 @@ func SubscribeToTelemetry(cfg *config.AppConfig, pipeline *etl.Pipeline) (paho.C
 	// MUTLAK: Handler ini DILARANG memproses JSON.
 	// Tugasnya hanya mendorong raw byte ke channel InStream.
 	opts.SetDefaultPublishHandler(func(client paho.Client, msg paho.Message) {
+		if strings.HasSuffix(msg.Topic(), "/status") && string(msg.Payload()) == "ONLINE" {
+			// Jika Gateway Online, suntikkan waktu server saat ini ke RTC Gateway
+			client.Publish("esos/gateway_01/time_sync", 1, false, fmt.Sprintf("%d", time.Now().Unix()))
+			return
+		}
+
 		rawMsg := models.RawMQTTMessage{
 			Topic:   msg.Topic(),
 			Payload: msg.Payload(),
@@ -46,6 +54,7 @@ func SubscribeToTelemetry(cfg *config.AppConfig, pipeline *etl.Pipeline) (paho.C
 		if token := c.Subscribe(topic, 1, nil); token.Wait() && token.Error() != nil {
 			log.Fatalf("Gagal subscribe ke %s: %v", topic, token.Error())
 		}
+		c.Subscribe("esos/+/status", 1, nil)
 		log.Printf("Berhasil subscribe ke topik: %s", topic)
 	}
 

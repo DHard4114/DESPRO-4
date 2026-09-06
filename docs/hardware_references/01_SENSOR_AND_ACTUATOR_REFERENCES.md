@@ -34,6 +34,11 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 
 ---
 
+### 2.5 Modul RTC (Real-Time Clock) Gateway
+*Modul RTC DS3231 (I2C) digunakan eksklusif pada ESP32 Gateway untuk memberikan True Timestamping pada data sensor saat Wi-Fi terputus. Menggunakan library `adafruit/RTClib`. Go Server secara periodik mensinkronkan jam RTC ini via topik MQTT `time_sync`.*
+
+---
+
 ## 3. Modul Transceiver Telemetri (LoRa RA-02 433MHz / SX1278)
 *Sistem komunikasi jarak jauh bebas kuota internet.*
 *   **Library Referensi:** [LoRa by Sandeep Mistry](https://github.com/sandeepmistry/arduino-LoRa) (Standard & Mudah) atau [RadioLib by jgromes](https://github.com/jgromes/RadioLib) (Lebih *Advanced* untuk tuning *Spreading Factor*).
@@ -59,19 +64,20 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 
 *   **Node WC (LoRa Tx):** TIDAK MENGGUNAKAN JSON. Menggunakan struktur data C standar (struct Payload { ... }) yang dikirim mentah (*raw memory copy*) untuk efisiensi SRAM dan *airtime* di udara. **Seluruh struktur data (C-Struct) payload biner yang ditransmisikan via LoRa WAJIB menggunakan atribut __attribute__((packed)) untuk mencegah kompilator C++ menyisipkan byte kosong (Memory Alignment Padding). Ukuran struct maksimal dibatasi 50 bytes. Gateway akan membaca memory block ini secara langsung (raw memory cast).**
 
-`cpp
+```cpp
 // KONTRAK PAYLOAD BINER MUTLAK (Max 50 Bytes)
 struct __attribute__((packed)) TelemetryPayload {
     uint8_t schema_version; // Selalu 1
-    char node_code[8];      // Contoh: "WC_01" (Null terminated)
-    uint32_t sequence_no;   // Counter pesan
+    char node_code[8];      // C-String
+    uint32_t sequence_no;
+    uint32_t timestamp;     // BARU: Unix Epoch Time (Gateway yg isi, Node WC biarkan 0)
     float water_level_cm;
     float ammonia_ppm;
     float h2s_ppm;
     float battery_voltage;
-    uint8_t sos_triggered;  // 1 = True, 0 = False
-};
-`
+    uint8_t sos_triggered;
+}; // Total presisi: 34 Bytes
+```
 
 *   **Gateway (Wi-Fi Tx):** Menggunakan library **ArduinoJson** untuk men-*deserialize* struct biner tadi dan merakitnya menjadi String JSON Envelope utuh sebelum dikirim ke Server Mosquitto.
 
