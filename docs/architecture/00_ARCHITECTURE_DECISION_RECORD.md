@@ -25,10 +25,10 @@ Dokumen ini adalah **Architecture Decision Record (ADR)** utama yang mencatat se
 *   **Keputusan:** Seluruh firmware ESP32 (Node dan Gateway) wajib menggunakan **FreeRTOS multi-task, non-blocking**, dengan pemetaan task/priority/core eksplisit sesuai `docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md`.
 *   **Konsekuensi:** Sensor, radio LoRa, dan aktuator berjalan di *Task* terpisah tanpa saling memblokir. Tidak ada satupun `delay()` blocking di source code.
 
-### ADR-05: Kontrak REST API Enterprise-Grade (Versioned `/api/v1`)
+### ADR-05: Kontrak REST API Enterprise-Grade (Versioned /api/v1)
 *   **Konteks:** Pengujian manual via Postman melelahkan dan rentan miskomunikasi antara Backend dan Frontend/QA.
-*   **Keputusan:** Kontrak REST API mengikuti konvensi enterprise IoT: **versioned path `/api/v1`**, autentikasi **API Key + JWT**, **idempotency key**, **cursor pagination**, dan **error envelope standar**.
-*   **Konsekuensi:** Swagger UI (`swaggo/swag`) ter-generate otomatis. QA cukup membuka URL dan klik "Try it out".
+*   **Keputusan:** Kontrak REST API berjalan pada mode Open Intranet (Tanpa Autentikasi/Login) untuk kemudahan operasional posko darurat, namun tetap mempertahankan versioned path /api/v1, idempotency key, dan error envelope standar.
+*   **Konsekuensi:** Swagger UI (swaggo/swag) ter-generate otomatis tanpa perlu manajemen API Key, QA cukup membuka URL dan klik "Try it out".
 
 ### ADR-06: Primary Key UUIDv7 Konsisten di Seluruh Tabel
 *   **Konteks:** `Auto-Increment ID` berbahaya untuk sinkronisasi multi-posko. UUIDv4 murni acak menyebabkan *B-Tree index fragmentation*.

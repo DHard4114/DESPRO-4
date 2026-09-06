@@ -33,20 +33,20 @@ $$\text{Format Baku: } \mathbf{EV-W[PEKAN]-[DOMAIN]-[NOMOR\_URUT]}$$
 |:---|:---|:---:|:---|:---|:---:|
 | **EV-W1-PM-001** | Master Work Breakdown Structure (WBS) 14 Pekan | Daffa Hardhan | Dokumen WBS 14 Pekan & link Google Sheets | `03_MASTER_SEMESTER_WBS.md` | Kuat (*Strong*) |
 | **EV-W1-PM-002** | Matriks Alokasi Tanggung Jawab Tetap (Fixed RACI) | Daffa Hardhan | Matriks 205 jam kerja mengikat seluruh anggota | `01_MASTER_TASK_ALLOCATION.md` | Kuat (*Strong*) |
-| **EV-W1-PM-003** | **[BARU] Architecture Decision Record (ADR)** | **Daffa Hardhan** | **Dokumen pemersatu 8 keputusan arsitektur (MQTT, FreeRTOS, REST v1, UUIDv7) yang mengikat seluruh implementasi berikutnya** | `docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md` | **Kuat (*Strong*)** |
+| **EV-W1-PM-003** | **Architecture Decision Record (ADR)** | **Daffa Hardhan** | **Dokumen pemersatu 8 keputusan arsitektur (MQTT, FreeRTOS, REST v1, UUIDv7) yang mengikat seluruh implementasi berikutnya** | `docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md` | **Kuat (*Strong*)** |
 | **EV-W2-PM-001** | **Web Dashboard Monitoring Real-Time** | **Daffa Hardhan** | **Antarmuka web interaktif HTML5/Tailwind/Chart.js & WebSocket, menampilkan event `TELEMETRY_STREAM`, `EMERGENCY_ALERT`, `GATEWAY_STATUS`, `ACTUATOR_STATUS`** | `src/server/static/index.html`, `docs/architecture/03_FRONTEND_DASHBOARD_ARCHITECTURE.md` | **Kuat (*Strong*)** |
 | **EV-W2-PM-002** | **Backend Server Go — MQTT Subscriber & ETL Engine** | **Daffa Hardhan** | **Klien MQTT persisten (paho.mqtt.golang), Worker Pool ETL, Threshold Cache (LISTEN/NOTIFY), REST API v1** | `src/server/mqtt/subscriber.go`, `src/server/etl/pipeline.go`, `docs/architecture/02_BACKEND_ETL_AND_API_ARCHITECTURE.md` | **Kuat (*Strong*)** |
 | **EV-W2-PM-003** | **Konfigurasi Jaringan Outdoor TP-Link CPE220** | **Daffa Hardhan** | **Konfigurasi IP statis, AP SSID & port mapping (radio WiFi eksklusif untuk Gateway)** | `src/config/network_cpe220.conf`, `docs/architecture/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md` | **Kuat (*Strong*)** |
-| **EV-W2-PM-004** | **[BARU] Konfigurasi Mosquitto MQTT Broker & ACL** | **Daffa Hardhan** | **`mosquitto.conf` (auth wajib, persistence, keep-alive) & `mosquitto_acl` (isolasi topik per node)** | `src/config/mosquitto.conf`, `src/config/mosquitto_acl`, `docs/architecture/05_LORA_MQTT_TELEMETRY_PIPELINE.md` §7 | **Kuat (*Strong*)** |
+| **EV-W2-PM-004** | **Konfigurasi Mosquitto MQTT Broker & ACL** | **Daffa Hardhan** | **`mosquitto.conf` (auth wajib, persistence, keep-alive) & `mosquitto_acl` (isolasi topik per node)** | `src/config/mosquitto.conf`, `src/config/mosquitto_acl`, `docs/architecture/05_LORA_MQTT_TELEMETRY_PIPELINE.md` §7 | **Kuat (*Strong*)** |
 | **EV-W1-SA-001** | Master Bill of Materials (BoM) & RAB | Raka Arrayan M. | Tabel 15 komponen, RAB proposal, dan vendor | `02_BOM_PROCUREMENT.md` | Kuat (*Strong*) |
 | **EV-W1-SA-002** | Datasheet Resmi MQ-137 ($NH_3$) & MQ-136 ($H_2S$) | Raka / Ilman | Datasheet PDF resmi pabrikan Hanwei | `assets/docs/datasheet_mq137.pdf` | Kuat (*Strong*) |
 | **EV-W2-PROC-001** | Faktur & Kuitansi Pengadaan 15 Komponen | Raka Arrayan M. | Bundel faktur pembelian resmi dan nomor resi | `assets/procurement/receipts_bundle.pdf` | Kuat (*Strong*) |
 | **EV-W2-PROC-002** | Buku Register Aset & Foto Unboxing Komponen | Raka / Ilman | Foto fisik unboxing dan kode aset inventaris | `assets/procurement/asset_photos/` | Kuat (*Strong*) |
 | **EV-W2-PROC-003** | Master BoM & Link Checkout 15 Komponen | Raka Arrayan M. | Dokumen BoM terpadu & Google Sheets Live | `02_BOM_PROCUREMENT.md` | Kuat (*Strong*) |
 | **EV-W2-SW-001** | Konfigurasi Toolchain & IDE PlatformIO | Siti Amalia N. | Berkas konfigurasi PlatformIO & board ESP32 (Node + Gateway) | `src/firmware/platformio.ini`, `src/firmware_gateway/platformio.ini` | Kuat (*Strong*) |
-| **EV-W2-SW-002** | **[REVISI] Source Code Firmware FreeRTOS Multi-Task** | Siti Amalia N. | **Kode C++ dengan `xTaskCreatePinnedToCore` sesuai tabel task di `01_SENSOR_AND_ACTUATOR_REFERENCES.md` (bukan lagi single-loop Arduino)** | `src/firmware/src/main.cpp`, `src/firmware_gateway/src/main.cpp` | Kuat (*Strong*) |
+| **EV-W2-SW-002** | **Source Code Firmware FreeRTOS Multi-Task** | Siti Amalia N. | **Kode C++ dengan `xTaskCreatePinnedToCore` sesuai tabel task di `01_SENSOR_AND_ACTUATOR_REFERENCES.md` (bukan lagi single-loop Arduino)** | `src/firmware/src/main.cpp`, `src/firmware_gateway/src/main.cpp` | Kuat (*Strong*) |
 | **EV-W2-SW-003** | Konfigurasi Pinout & Parameter LoRa 433 MHz | Siti Amalia N. | Berkas header pinout dan parameter RF LoRa (migrasi ke RadioLib non-blocking) | `src/firmware/include/config.h`, `src/config/lora_config.json` | Kuat (*Strong*) |
-| **EV-W2-SW-004** | **[BARU] Arsitektur Firmware FreeRTOS (Task/Queue/Priority)** | Siti Amalia N. | **Tabel task lengkap: priority, core affinity, stack size, mekanisme antar-task (Queue/Notify)** | `docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md` §1–§2 | Kuat (*Strong*) |
+| **EV-W2-SW-004** | **Arsitektur Firmware FreeRTOS (Task/Queue/Priority)** | Siti Amalia N. | **Tabel task lengkap: priority, core affinity, stack size, mekanisme antar-task (Queue/Notify)** | `docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md` §1–§2 | Kuat (*Strong*) |
 | **EV-W2-HW-001** | Skematik Sirkuit Kelistrikan Sistem | M. Ilman Zuhriy | Berkas skematik sirkuit daya dan regulator | `assets/schematics/schematic_v1.pdf` | Kuat (*Strong*) |
 | **EV-W2-HW-002** | Kalkulasi Power Budget Panel Surya 10 Wp | M. Ilman Zuhriy | Lembar perhitungan power budget 24 jam kontinu | `assets/docs/solar_power_budget.pdf` | Kuat (*Strong*) |
 | **EV-W2-HW-003** | Diagram Topologi Baterai 18650 1S4P & TP4056 | M. Ilman Zuhriy | Skema konfigurasi 1S4P dan dual TP4056 BMS | `assets/schematics/battery_topology.png`| Kuat (*Strong*) |
@@ -69,7 +69,7 @@ $$\text{Format Baku: } \mathbf{EV-W[PEKAN]-[DOMAIN]-[NOMOR\_URUT]}$$
 
 ## 4. Rantai Ketertelusuran Teknis Daffa Hardhan (*Data Pipeline & Web Dashboard*) — REVISI
 
-> **Koreksi Penting:** Baseline sebelumnya keliru menyebut "FastAPI Ingest API" dan implikasi database "SQLite-only" pada rantai ketertelusuran. Dokumen ini mengoreksi ke arsitektur final yang berlaku (ADR-01, ADR-06):
+> **Jalur Ketertelusuran Resmi:** Mengacu pada arsitektur final (ADR-01, ADR-06) yang diimplementasikan:
 
 $$\text{Sensor Node (FreeRTOS)} \xrightarrow[\text{LoRa 433MHz}]{\text{JSON Envelope}} \text{ESP32 Gateway (Buffer)} \xrightarrow[\text{Wi-Fi via CPE220}]{\text{MQTT Publish QoS 1/2}} \text{Mosquitto Broker} \xrightarrow[\text{paho.mqtt.golang}]{\text{Subscribe}} \text{Go ETL Worker Pool} \xrightarrow[\text{Bulk Insert}]{\text{UUIDv7}} \text{PostgreSQL + TimescaleDB} \xrightarrow[\text{WebSocket}]{\text{Push}} \text{Live Web Dashboard UI}$$
 
@@ -77,3 +77,4 @@ $$\text{Sensor Node (FreeRTOS)} \xrightarrow[\text{LoRa 433MHz}]{\text{JSON Enve
 - **Luaran Backend & Pipeline:** `src/server/mqtt/subscriber.go`, `src/server/etl/pipeline.go`, `src/server/database/postgres_schema.sql`.
 - **Luaran Jaringan:** `src/config/network_cpe220.conf`, `src/config/mosquitto.conf`, `src/config/mosquitto_acl`.
 - **Dokumen Arsitektur Rujukan:** `docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md`, `05_LORA_MQTT_TELEMETRY_PIPELINE.md`, `02_BACKEND_ETL_AND_API_ARCHITECTURE.md`.
+

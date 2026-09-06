@@ -18,7 +18,7 @@ Sistem eSOS mengadopsi standar **OpenAPI 3.0 (Swagger)** dengan pendekatan *Code
 
 *   **Base URL:** `http://192.168.0.100:8000/api/v1`
 *   **Format Respons:** `application/json`
-*   **Autentikasi:** Dua lapis — **API Key** (header `X-API-Key`) untuk identifikasi klien, **JWT Bearer** (header `Authorization: Bearer <token>`) untuk otorisasi role.
+*   **Autentikasi:** Mode Open Intranet (Tanpa Autentikasi/Login). API dapat diakses publik di jaringan lokal posko darurat.
 
 ---
 

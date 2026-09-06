@@ -179,16 +179,6 @@ erDiagram
         timestamptz created_at
     }
 
-    API_KEYS {
-        uuid key_id PK "UUIDv7"
-        uuid node_id FK
-        string key_hash "SHA-256 hash, bukan plaintext"
-        string scope "INGEST_ONLY"
-        boolean is_active
-        timestamptz created_at
-        timestamptz revoked_at
-    }
-
     SYSTEM_AUDIT_LOGS {
         uuid log_id PK "UUIDv7"
         string action_type

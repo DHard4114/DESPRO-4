@@ -39,25 +39,25 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
 ├── 1.0 INITIATION & RE-PLANNING (Pekan 1 — 20h Daffa, 18h Raka, 22h Siti, 26h Ilman, 20h Darrel)
 │     ├── 1.1 Evaluasi Proposal, Target Kinerja, dan Batasan Sistem (W1-PM, W1-SA)
 │     ├── 1.2 Master Schedule 14 Pekan, RACI, dan Repositori Governance (W1-PM, W1-SW, W1-HW, W1-MQ)
-│     └── 1.3 [BARU] Architecture Decision Record (ADR): kunci 8 keputusan arsitektur final (W1-PM: Daffa)
+│     └── 1.3 Architecture Decision Record (ADR): kunci 8 keputusan arsitektur final (W1-PM: Daffa)
 │
 ├── 2.0 PROCUREMENT & IMPLEMENTATION READINESS (Pekan 2 — Jendela Pengadaan 31 Agt – 05 Sep)
 │     ├── 2.1 Eksekusi BoM 15 Komponen & Verifikasi Fisik Kedatangan (W2-PROC: Raka)
 │     ├── 2.2 Penyiapan Toolchain Firmware & Baseline Code ESP32 [REVISI: baseline FreeRTOS task skeleton] (W2-SW: Siti)
 │     ├── 2.3 Validasi Kelistrikan Daya Surya 10Wp & Topologi 1S4P (W2-HW: Ilman)
 │     ├── 2.4 Finalisasi Model 3D CAD Casing IoT & Gambar Teknik 2D (W2-MECH: Darrel)
-│     └── 2.5 Setup Repositori Git, Task Tracker, Server Lokal & [BARU] Mosquitto MQTT Broker (W2-PM: Daffa)
+│     └── 2.5 Setup Repositori Git, Task Tracker, Server Lokal & Mosquitto MQTT Broker (W2-PM: Daffa)
 │
 ├── 3.0 SUBSYSTEM FABRICATION & HARDWARE PREPARATION (Pekan 3 – Pekan 4)
 │     ├── 3.1 Fabrikasi 3D Printing Casing PETG & Sealing Gasket RTV IP54 (Darrel)
 │     ├── 3.2 Perakitan Modul Daya & Perfboard Wiring Harness Terisolasi (Ilman — No Custom PCB)
 │     ├── 3.3 Kalibrasi Sensor Gas Analog MQ-137/136 & Sensor Jarak JSN-SR04T (Ilman, Siti)
-│     └── 3.4 [REVISI] Pengembangan Task FreeRTOS Modular (vTaskUltrasonic, vTaskGasSensors, vTaskSOSButton) & Migrasi Library LoRa ke RadioLib (Siti)
+│     └── 3.4 Pengembangan Task FreeRTOS Modular (vTaskUltrasonic, vTaskGasSensors, vTaskSOSButton) & Migrasi Library LoRa ke RadioLib (Siti)
 │
 ├── 4.0 WIRELESS TELEMETRY & SYSTEM INTEGRATION (Pekan 5 – Pekan 6)
-│     ├── 4.1 [REVISI] Implementasi Stack MQTT Publisher/Subscriber (vTaskMqttPublisher Gateway) & Mekanisme Servo (Siti, Darrel)
+│     ├── 4.1 Implementasi Stack MQTT Publisher/Subscriber (vTaskMqttPublisher Gateway) & Mekanisme Servo (Siti, Darrel)
 │     ├── 4.2 Integrasi Casing 3D IoT + Hardware + Firmware ESP32 Dual-Varian (Node & Gateway) (Darrel, Ilman, Siti)
-│     └── 4.3 [REVISI] Setup MQTT Subscriber Worker Pool Go & Integrasi TP-Link CPE220 (Daffa)
+│     └── 4.3 Setup MQTT Subscriber Worker Pool Go & Integrasi TP-Link CPE220 (Daffa)
 │
 ├── 5.0 MID-TERM EVALUATION & PHASE GATE 3 (Pekan 7 — Evaluasi Tengah Semester / UTS)
 │     └── 5.1 Demonstrasi Prototipe Terintegrasi & Evaluasi Kesiapan Midterm (Seluruh Tim)
@@ -160,3 +160,4 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
 1. **Setiap Hari Kerja (Senin–Jumat):** Anggota mengisi log aktivitas dan jam kerja aktual pada Google Sheets Live Tracker.
 2. **Setiap Jumat Sore:** Formula Google Sheets menghitung persentase ketercapaian target pekanan dan status inventaris.
 3. **Setiap Sabtu Pagi:** Manajer Proyek (Daffa) mengonsolidasikan ringkasan capaian ke dalam berkas Markdown laporan mingguan (`reports/group/` dan `reports/individual/`), memperbarui `05_EVIDENCE_REGISTER.md`, dan melakukan *Git Commit* sebagai arsip resmi.
+

@@ -71,15 +71,6 @@ CREATE TABLE node_threshold_configs (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE api_keys (
-    key_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    node_id UUID REFERENCES sanitation_nodes(node_id),
-    key_hash VARCHAR(128) NOT NULL,
-    scope VARCHAR(32) NOT NULL DEFAULT 'INGEST_ONLY',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    revoked_at TIMESTAMPTZ
-);
 
 -- ---------------------------------------------------------------------------------
 -- 5. TABEL TRANSAKSIONAL

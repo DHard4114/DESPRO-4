@@ -82,3 +82,43 @@ Sebagai fondasi *thread-safety* antar-*task*, dilarang keras melakukan pertukara
 *   QueueHandle_t xQueueCommand;
     *   **Produsen:** TaskMqttRx (Menerima perintah buka/tutup katup dari Dashboard).
     *   **Konsumen:** TaskLoRaTx (Gateway menembakkan perintah balik ke Node).
+
+
+### 6.3 Pemetaan Task FreeRTOS (Node & Gateway)
+
+Spesifikasi mutlak untuk parameter *Task* (dilarang diubah saat implementasi):
+
+| Nama Task | Target Board | Core (Affinity) | Priority | Stack Size (Bytes) | Deskripsi |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| TaskLoRaRx | Gateway | Core 1 | 3 | 4096 | Menangkap paket biner LoRa secara kontinu. |
+| TaskLoRaTx | Node WC | Core 1 | 3 | 4096 | Mengirim paket biner ke udara. |
+| TaskSensors | Node WC | Core 0 | 1 | 2048 | Membaca pin analog & digital, rata-rata, lalu *Queue*. |
+| TaskMqttTx | Gateway | Core 0 | 2 | 4096 | *Dequeue* telemetri, *serialize* ke JSON, *Publish*. |
+| TaskActuator | Node WC | Core 0 | 2 | 2048 | Memutar motor servo MG996R via PWM. |
+
+
+---
+
+## 7. Manajemen Build (PlatformIO)
+
+Firmware untuk kedua peran fisik (*Node* dan *Gateway*) disatukan dalam satu repositori yang sama untuk kemudahan *sharing* struct biner (Payload), namun **wajib dipisah secara ketat** pada konfigurasi *build* platformio.ini.
+
+`ini
+[env:node_wc]
+platform = espressif32
+board = esp32doit-devkit-v1
+framework = arduino
+build_flags = -D IS_NODE_WC
+lib_deps =
+    jgromes/RadioLib
+    # DILARANG KERAS memasukkan library Wi-Fi atau MQTT di env ini!
+
+[env:gateway_router]
+platform = espressif32
+board = esp32doit-devkit-v1
+framework = arduino
+build_flags = -D IS_GATEWAY
+lib_deps =
+    jgromes/RadioLib
+    knolleary/PubSubClient
+`

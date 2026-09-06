@@ -51,7 +51,7 @@ Berikut adalah perjalanan satu paket data telemetri dari kotoran limbah hingga m
 ### Aktor 2: Sang Jembatan Posko (ESP32 Gateway)
 *   **Perangkat:** ESP32 + Antena LoRa RA-02. (Diletakkan di dalam Posko, dicolok ke sumber listrik PLN/Genset stabil).
 *   **Koneksi:** Memiliki 2 jalur. Mendengarkan LoRa 433MHz di udara, DAN terhubung ke Wi-Fi Router TP-Link CPE220.
-*   **Tugas:** Begitu antena LoRa menangkap paket dari Aktor 1, ESP32 Gateway ini langsung menggunakan *library PubSubClient* untuk melemparkan paket tersebut ke protokol TCP/IP (MQTT) via Wi-Fi.
+*   **Tugas:** Begitu antena LoRa menangkap paket biner dari Aktor 1, ESP32 Gateway bertugas **men-deserialize struct biner tersebut dan mengubahnya menjadi String JSON Envelope lengkap** sebelum me-publish-nya ke protokol TCP/IP (MQTT) via Wi-Fi.
 
 ### Aktor 3: Sang Kantor Pos & Redaksi (Mosquitto & Server Go)
 *   **Perangkat:** Laptop/PC Server milik Daffa yang terhubung ke Wi-Fi CPE220. Memiliki IP Statis (misal: `192.168.0.100`).
@@ -153,7 +153,7 @@ Untuk menepis kesalahpahaman, protokol MQTT adalah "kurir" tanpa bentuk fisik. S
 Berdasarkan ADR-03, resiliensi jaringan ditangani secara eksklusif di level Gateway. Node WC LoRa-only bersifat *stateless* dan tidak menyadari jika jaringan Wi-Fi posko sedang terputus.
 
 Jika koneksi TCP/IP Wi-Fi dari ESP32 Gateway ke CPE220 atau Mosquitto Broker terputus:
-1. **Penyimpanan Lokal:** Gateway tidak akan membuang paket LoRa yang masuk. Paket tersebut ditampung ke dalam **Non-Volatile Ring Buffer berbasis LittleFS (Flash Memory)** (kapasitas maksimal 500 pesan). Hal ini menjamin prinsip **Durability (Ketahanan)**: jika Gateway mengalami putus daya (mati listrik) saat Wi-Fi sedang terputus, antrean data sensor tidak akan hilang dari memori volatil dan akan otomatis dikirimkan begitu Gateway menyala dan terhubung kembali.
+1. **Penyimpanan Lokal:** Gateway tidak akan membuang paket LoRa yang masuk. Paket tersebut ditampung ke dalam **Fixed-Size Binary Circular Buffer** dalam 1 file .dat (misal: uffer.dat) pada media LittleFS (kapasitas maksimal 500 pesan). Dilarang menggunakan mekanisme *append file* teks biasa untuk mencegah kerusakan *Flash Memory Wear-Out*. Hal ini menjamin prinsip **Durability (Ketahanan)**: jika Gateway mengalami putus daya (mati listrik) saat Wi-Fi sedang terputus, antrean data sensor tidak akan hilang dari memori volatil dan akan otomatis dikirimkan begitu Gateway menyala dan terhubung kembali.
 2. **Exponential Backoff:** Task TaskWiFiSupervisor pada FreeRTOS Gateway akan mencoba menyambung ulang (*reconnect*) secara berkala dengan jeda eksponensial (3s, 6s, 12s, max 30s) untuk mencegah banjir *request*.
 3. **Flushing (Store-and-Forward):** Begitu koneksi ke Mosquitto kembali terjalin (CONNACK diterima), Gateway akan melakukan *flush* (mengirimkan secara berurutan) seluruh pesan yang tertahan di dalam *buffer* menggunakan QoS 1.
 
