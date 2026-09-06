@@ -8,6 +8,8 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <RadioLib.h>
+#include "esp_pm.h"
+#include "esp_sleep.h"
 
 // ==========================================
 // KREDENSIAL & PARAMETER
@@ -19,6 +21,7 @@ const int   MQTT_PORT     = 1883;
 const char* MQTT_USER     = "esos_gateway";
 const char* MQTT_PASS     = "gateway_secret";
 const char* MQTT_TOPIC_TX = "esos/gateway_01/nodes/telemetry";
+const char* MQTT_TOPIC_RX = "esos/+/+/command";
 
 // Parameter Radio (SX1278)
 #define PIN_LORA_NSS      5
@@ -46,6 +49,11 @@ struct __attribute__((packed)) TelemetryPayload {
     float h2s_ppm;
     float battery_voltage;
     uint8_t sos_triggered;
+};
+
+struct __attribute__((packed)) ActuatorCommand {
+    uint8_t command_id; // 1 = OPEN, 2 = CLOSE, 3 = FLUSH
+    uint8_t angle;
 };
 
 // ==========================================
@@ -88,21 +96,18 @@ void pushToBuffer(TelemetryPayload data) {
     xSemaphoreTake(fsMutex, portMAX_DELAY);
     
     File f = LittleFS.open(FILE_DATA, FILE_WRITE); // Buka mode tulis
-    // Kalkulasi offset
     uint32_t offset = meta.tail * sizeof(TelemetryPayload);
     f.seek(offset, SeekSet);
     f.write((uint8_t*)&data, sizeof(TelemetryPayload));
     f.close();
 
-    // Update pointers
     meta.tail = (meta.tail + 1) % MAX_BUFFER_SIZE;
     if (meta.count < MAX_BUFFER_SIZE) {
         meta.count++;
     } else {
-        // Overwrite mode: head maju (data tertua hilang)
         meta.head = (meta.head + 1) % MAX_BUFFER_SIZE;
     }
-    saveMeta();
+    saveMeta(); 
     
     xSemaphoreGive(fsMutex);
     Serial.printf("Buffer PUSH. Count: %d\n", meta.count);
@@ -134,70 +139,109 @@ bool popFromBuffer(TelemetryPayload* data) {
 // GLOBAL HANDLES
 // ==========================================
 QueueHandle_t xQueueTelemetry;
+QueueHandle_t xQueueCommandDownlink;
 TaskHandle_t TaskLoRaRxHandle;
+esp_pm_lock_handle_t active_lock;
+
 SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, PIN_LORA_MISO);
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
 // ==========================================
-// ISR: LORA DIO0 (Core 1)
+// CALLBACK & ISR
 // ==========================================
 void IRAM_ATTR isr_lora_rx() {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // Beri sinyal ke Task LoRa bahwa paket siap dibaca
     vTaskNotifyGiveFromISR(TaskLoRaRxHandle, &xHigherPriorityTaskWoken);
     if (xHigherPriorityTaskWoken) {
         portYIELD_FROM_ISR();
     }
 }
 
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, payload, length);
+    if (err) return;
+
+    ActuatorCommand cmd;
+    const char* c_type = doc["command_type"];
+    
+    if (c_type != nullptr) {
+        if (strcmp(c_type, "OPEN_VALVE") == 0) cmd.command_id = 1;
+        else if (strcmp(c_type, "CLOSE_VALVE") == 0) cmd.command_id = 2;
+        else if (strcmp(c_type, "FLUSH_TANK") == 0) cmd.command_id = 3;
+        else return;
+        
+        cmd.angle = doc["target_angle_deg"] | 0;
+
+        xQueueSend(xQueueCommandDownlink, &cmd, 0);
+    }
+}
+
 // ==========================================
 // TASK 1: LORA RX (Core 1, Prio 3)
 // ==========================================
-// DILARANG BLOKIR SAAT WIFI PUTUS!
 void vTaskLoRaRx(void *pvParameters) {
-    radio.setDio0Action(isr_sos_button); // akan direplace nanti oleh library
-    // Kita panggil setDio0Action di setup
     for (;;) {
-        // Block ringan menanti notifikasi ISR (Non-blocking ke OS)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         TelemetryPayload rxData;
         int state = radio.readData((uint8_t*)&rxData, sizeof(TelemetryPayload));
 
         if (state == RADIOLIB_ERR_NONE) {
-            // Push ke antrean internal
             if (xQueueSend(xQueueTelemetry, &rxData, 0) != pdPASS) {
-                // Queue penuh, langsung jatuhkan ke LittleFS
                 pushToBuffer(rxData);
             }
         }
         
-        // Kembalikan ke mode Listen
         radio.startReceive();
     }
 }
 
 // ==========================================
-// TASK 2: MQTT TX & BUFFER FLUSH (Core 0, Prio 2)
+// TASK 2: LORA TX DOWNLINK (Core 1, Prio 2)
+// ==========================================
+void vTaskLoRaTxDownlink(void *pvParameters) {
+    ActuatorCommand cmd;
+    for (;;) {
+        if (xQueueReceive(xQueueCommandDownlink, &cmd, portMAX_DELAY) == pdTRUE) {
+            // Ambil Power Lock agar stabil
+            esp_pm_lock_acquire(active_lock);
+            
+            radio.standby(); // Stop Receive mode
+
+            int state = radio.transmit((uint8_t*)&cmd, sizeof(ActuatorCommand));
+            if (state == RADIOLIB_ERR_NONE) {
+                Serial.println("LoRa Downlink (Command) Terkirim!");
+            } else {
+                Serial.printf("LoRa Downlink Gagal (rc=%d)\n", state);
+            }
+            
+            radio.startReceive(); // Kembali Listen
+            
+            // Lepas Power Lock
+            esp_pm_lock_release(active_lock);
+        }
+    }
+}
+
+// ==========================================
+// TASK 3: MQTT TX & BUFFER FLUSH (Core 0, Prio 2)
 // ==========================================
 void vTaskMqttTx(void *pvParameters) {
     for (;;) {
         TelemetryPayload data;
         bool hasData = false;
 
-        // Prioritas 1: Ambil dari Queue RAM
         if (xQueueReceive(xQueueTelemetry, &data, pdMS_TO_TICKS(100)) == pdTRUE) {
             hasData = true;
         } 
-        // Prioritas 2: Ambil dari LittleFS jika MQTT konek
         else if (mqtt.connected() && meta.count > 0) {
             hasData = popFromBuffer(&data);
         }
 
         if (hasData) {
             if (mqtt.connected()) {
-                // Konversi Biner -> JSON [ADR-01]
                 StaticJsonDocument<256> doc;
                 doc["schema_version"] = data.schema_version;
                 doc["node_code"] = data.node_code;
@@ -211,12 +255,10 @@ void vTaskMqttTx(void *pvParameters) {
                 char jsonBuffer[256];
                 serializeJson(doc, jsonBuffer);
 
-                if (!mqtt.publish(MQTT_TOPIC_TX, jsonBuffer, true)) { // QoS 0 di ESP, Backend handle deduplikasi
-                    // Jika gagal kirim (koneksi drop tiba-tiba), simpan ke buffer
+                if (!mqtt.publish(MQTT_TOPIC_TX, jsonBuffer, true)) {
                     pushToBuffer(data);
                 }
             } else {
-                // WiFi/MQTT Putus, simpan ke LittleFS
                 pushToBuffer(data);
             }
         }
@@ -224,7 +266,7 @@ void vTaskMqttTx(void *pvParameters) {
 }
 
 // ==========================================
-// TASK 3: WIFI & MQTT SUPERVISOR (Core 0, Prio 1)
+// TASK 4: WIFI & MQTT SUPERVISOR (Core 0, Prio 1)
 // ==========================================
 void vTaskWiFiSupervisor(void *pvParameters) {
     uint32_t backoff = 3000;
@@ -235,7 +277,6 @@ void vTaskWiFiSupervisor(void *pvParameters) {
             WiFi.disconnect();
             WiFi.begin(WIFI_SSID, WIFI_PASS);
             
-            // Tunggu hingga 5 detik
             int retries = 10;
             while (WiFi.status() != WL_CONNECTED && retries > 0) {
                 vTaskDelay(pdMS_TO_TICKS(500));
@@ -246,16 +287,17 @@ void vTaskWiFiSupervisor(void *pvParameters) {
         if (WiFi.status() == WL_CONNECTED && !mqtt.connected()) {
             Serial.println("MQTT Terputus. Menghubungkan...");
             mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+            mqtt.setCallback(mqttCallback);
             
-            // LWT (Last Will and Testament) [Sesuai Dokumen Pipa Jaringan]
             if (mqtt.connect("Gateway_01", MQTT_USER, MQTT_PASS, "esos/gateway_01/status", 1, true, "OFFLINE")) {
                 Serial.println("MQTT Terhubung!");
                 mqtt.publish("esos/gateway_01/status", "ONLINE", true);
-                backoff = 3000; // Reset backoff
+                mqtt.subscribe(MQTT_TOPIC_RX, 1);
+                backoff = 3000;
             } else {
                 Serial.printf("MQTT Gagal (rc=%d). Backoff %d ms\n", mqtt.state(), backoff);
                 vTaskDelay(pdMS_TO_TICKS(backoff));
-                if (backoff < 12000) backoff *= 2; // Exponential Backoff (3s, 6s, 12s)
+                if (backoff < 12000) backoff *= 2; 
             }
         }
         
@@ -263,7 +305,7 @@ void vTaskWiFiSupervisor(void *pvParameters) {
             mqtt.loop();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100)); // Relieve CPU
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -273,9 +315,19 @@ void vTaskWiFiSupervisor(void *pvParameters) {
 void setup() {
     Serial.begin(115200);
 
-    // Inisiasi Mutex & Queue
+    // Power Management
+    esp_pm_config_t pm_config = {
+        .max_freq_mhz = 80,
+        .min_freq_mhz = 10,
+        .light_sleep_enable = true
+    };
+    esp_pm_configure(&pm_config);
+    esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "active_lock", &active_lock);
+
+    // Inisiasi Mutex & Queues
     fsMutex = xSemaphoreCreateMutex();
     xQueueTelemetry = xQueueCreate(20, sizeof(TelemetryPayload));
+    xQueueCommandDownlink = xQueueCreate(5, sizeof(ActuatorCommand));
 
     // Inisiasi LittleFS
     if (!LittleFS.begin(true)) {
@@ -294,11 +346,12 @@ void setup() {
     }
 
     // Pembuatan Task
-    xTaskCreatePinnedToCore(vTaskWiFiSupervisor, "TaskWiFi",  4096, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(vTaskMqttTx,         "TaskMqtt",  4096, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(vTaskWiFiSupervisor, "TaskWiFi",       4096, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(vTaskMqttTx,         "TaskMqtt",       4096, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(vTaskLoRaTxDownlink, "TaskLoRaTxDown", 4096, NULL, 2, NULL, 1);
     
-    // Simpan Handle untuk Notify
-    xTaskCreatePinnedToCore(vTaskLoRaRx,         "TaskLoRaRx", 4096, NULL, 3, &TaskLoRaRxHandle, 1);
+    // Simpan Handle untuk Notify (ISR)
+    xTaskCreatePinnedToCore(vTaskLoRaRx,         "TaskLoRaRx",     4096, NULL, 3, &TaskLoRaRxHandle, 1);
 }
 
 void loop() {
