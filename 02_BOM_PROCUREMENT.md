@@ -4,7 +4,7 @@
 Status Dokumen: KONTROL PENGADAAN TERKENDALI (CONTROLLED BASELINE)  
 Batas Pagu Anggaran (*Budget Ceiling*): Rp2.000.000  
 Anggaran Proposal Baseline (RAB): Rp1.901.000  
-Estimasi Belanja Aktual Marketplace: Rp1.828.500 (Penghematan: Rp72.500 | Sisa Pagu Kas: Rp171.500)  
+Estimasi Belanja Aktual Marketplace: Rp1.243.500 (Penghematan: Rp756.500 | Pemanfaatan Aset Pribadi)  
 Model Pengadaan: **Pengadaan Kolektif Terdistribusi oleh Seluruh 5 Anggota Tim (Joint Procurement by All Members)**  
 Koordinator Konsolidasi Finansial & Faktur: Raka Arrayan Muttaqien  
 Verifikator Anggaran & Manajer Proyek: Daffa Hardhan  
@@ -24,7 +24,7 @@ Pengadaan 15 komponen BoM dieksekusi secara bersama oleh seluruh anggota tim ses
 
 | No | Nama Komponen Perangkat Keras | Spesifikasi Teknis Minimum | Qty | Satuan | Harga Target RAB (Rp) | Total Target RAB (Rp) | Harga Aktual Toko (Rp) | Total Aktual Toko (Rp) | Selisih (Rp) | Status Anggaran | Toko Rekomendasi (Vendor) | Tautan Marketplace | Invoice / Bukti Fisik | Prioritas | PIC Pembelian & Verifikasi |
 |:---:|:---|:---|:---:|:---:|---:|---:|---:|---:|---:|:---:|:---|:---:|:---:|:---:|:---|
-| 1 | Access Point Outdoor TP-Link CPE220 | 2.4GHz 300Mbps High-Power 23dBm 12dBi Directional | 1 | Unit | Rp600.000 | Rp600.000 | Rp585.000 | Rp585.000 | Rp15.000 | `HEMAT` | TP-Link Official / Tokopedia | [Buka Toko](https://www.tokopedia.com/search?q=tp-link+cpe220+outdoor) | `EV-W2-PROC-001` | HIGH | **Daffa Hardhan** |
+| 1 | Access Point Outdoor TP-Link CPE220 | 2.4GHz 300Mbps High-Power 23dBm 12dBi Directional | 1 | Unit | Rp600.000 | Rp600.000 | Rp0 | Rp0 | Rp600.000 | `ASET PRIBADI` | Existing Asset Kelompok | [Buka Toko](https://www.tokopedia.com/search?q=tp-link+cpe220+outdoor) | `EV-W2-PROC-001` | HIGH | **Daffa Hardhan** |
 | 2 | Panel Surya Polikristalin 10 Wp | 10 Wp 18V Output Vmp 17.5V Voc 21.5V Waterproof | 1 | Unit | Rp130.000 | Rp130.000 | Rp125.000 | Rp125.000 | Rp5.000 | `HEMAT` | Solar Solution ID / Shopee | [Buka Toko](https://shopee.co.id/search?keyword=solar+panel+10wp) | `EV-W2-PROC-001` | HIGH | **M. Ilman Zuhriy** |
 | 3 | Baterai Li-ion 18650 3.7V (Pack 4 pcs) | Sony VTC6 / Panasonic 3000mAh 3.7V Original Grade A | 4 | Pcs | Rp45.000 | Rp180.000 | Rp42.500 | Rp170.000 | Rp10.000 | `HEMAT` | Battery Center / Tokopedia | [Buka Toko](https://www.tokopedia.com/search?q=baterai+18650+3000mah+original) | `EV-W2-PROC-001` | HIGH | **M. Ilman Zuhriy** |
 | 4 | Modul Charger BMS Baterai TP4056 | 5V 1A Micro USB / Type-C with Overdischarge DW01 | 2 | Unit | Rp6.000 | Rp12.000 | Rp5.000 | Rp10.000 | Rp2.000 | `HEMAT` | E-Store Robotic / Tokopedia | [Buka Toko](https://www.tokopedia.com/search?q=tp4056+type+c+protection) | `EV-W2-PROC-001` | MEDIUM | **M. Ilman Zuhriy** |
@@ -39,9 +39,9 @@ Pengadaan 15 komponen BoM dieksekusi secara bersama oleh seluruh anggota tim ses
 | 13 | Gland Kabel Waterproof PG7 & Baut M3/M4 | Set PG7 Nylon Waterproof IP68 + Baut Mur Stainless | 1 | Set | Rp35.000 | Rp35.000 | Rp32.000 | Rp32.000 | Rp3.000 | `HEMAT` | Baut Mur Teknik / Tokopedia | [Buka Toko](https://www.tokopedia.com/search?q=cable+gland+pg7+waterproof) | `EV-W2-PROC-001` | MEDIUM | **Darrel Alfath** |
 | 14 | Perfboard Dot-Matrix & Kabel Silicone 22AWG (Wiring Harness — No Custom PCB) | Single Side Perfboard FR4 + Kabel AWG22 Flexible 5m | 1 | Set | Rp45.000 | Rp45.000 | Rp42.000 | Rp42.000 | Rp3.000 | `HEMAT` | Elektronika Mandiri / Shopee | [Buka Toko](https://shopee.co.id/search?keyword=perfboard+fr4+kabel+silicone+22awg) | `EV-W2-PROC-001` | HIGH | **M. Ilman Zuhriy** |
 | 15 | Tombol Darurat SOS Push Button 16mm | Stainless Steel Waterproof Momentary LED Ring 5V | 1 | Unit | Rp25.000 | Rp25.000 | Rp23.500 | Rp23.500 | Rp1.500 | `HEMAT` | Saklar Industri / Tokopedia | [Buka Toko](https://www.tokopedia.com/search?q=push+button+16mm+waterproof+momentary) | `EV-W2-PROC-001` | HIGH | **Darrel Alfath** |
-| **TOTAL** | **TOTAL AKUMULASI PENGADAAN (15 ITEM)** | | | | | **Rp1.901.000** | | **Rp1.828.500** | **Rp72.500** | **`HEMAT`** | | | | |
+| **TOTAL** | **TOTAL AKUMULASI PENGADAAN (15 ITEM)** | | | | | **Rp1.901.000** | | **Rp1.243.500** | **Rp756.500** | **`HEMAT`** | | | | |
 | **PAGU** | **PAGU MAKSIMUM PROPOSAL (RAB CEILING)** | | | | | **Rp2.000.000** | | | | **`HEMAT`** | | | | |
-| **SISA** | **SISA ANGGARAN KAS TERHADAP PAGU Rp 2.000.000** | | | | | **Rp171.500** | | | | **`HEMAT`** | | | | |
+| **SISA** | **SISA ANGGARAN KAS TERHADAP PAGU Rp 2.000.000** | | | | | **Rp756.500** | | | | **`HEMAT`** | | | | |
 
 ---
 

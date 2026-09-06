@@ -1,7 +1,7 @@
 # REPOSITORI UTAMA PROYEK — SMART-SANITATION eSOS
 ## Sistem Pemantauan Sanitasi Cerdas Berbasis IoT & Transmisi Nirkabel Daerah Bencana
 
-Status Dokumen: REPOSITORI MASTER TERKENDALI (CONTROLLED BASELINE)  
+Status Dokumen: REPOSITORI MASTER TERKENDALI (CONTROLLED BASELINE) — v5.0 Ultimate Architecture  
 Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
 Mata Kuliah: Desain Proyek 2 (Semester Gasal 2026/2027)  
 Dosen Pembimbing: Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.  
@@ -36,6 +36,8 @@ Untuk memastikan kemudahan pemahaman bagi seluruh penguji dan anggota tim, berik
 | **AQI** | *Air Quality Index* (Indeks Mutu Udara) | Klasifikasi mutu udara lingkungan bilik sanitasi (*Baik*, *Sedang*, atau *Berbahaya*). |
 | **RTM** | *Requirements Traceability Matrix* | Matriks penelusuran dari kebutuhan proposal, arsitektur sistem, hingga skenario uji verifikasi. |
 | **IP54** | *Ingress Protection 54* | Standar ketahanan casing terhadap debu partikel padat (level 5) dan percikan air dari segala arah (level 4). |
+| **Light-Sleep** | *ESP32 Power Mode* | Mode hemat daya ESP32 yang mematikan CPU namun mempertahankan RAM dan status *FreeRTOS Queues*. |
+| **LittleFS** | *Little Flash File System* | Sistem file pada memori *Flash* untuk menyimpan *Circular Buffer* saat jaringan mati. |
 
 ---
 
@@ -47,8 +49,8 @@ Untuk memastikan kemudahan pemahaman bagi seluruh penguji dan anggota tim, berik
 3. **Komunikasi Nirkabel Jarak Jauh Jalur Ganda (*Dual-Path*):** Jalur Utama Wi-Fi 2.4GHz via Access Point TP-Link CPE220 dan Jalur Cadangan LoRa RA-02 433 MHz SX1278.
 4. **Kemandirian Daya Surya Mandiri:** Panel surya 10 Wp, modul manajemen pengisian baterai TP4056 BMS, dan sel Li-ion 18650 1S4P terproteksi (operasi 24 jam kontinu).
 5. **Casing 3D IoT Modular (Weatherproof):** Enclosure kustom hasil cetak 3D PETG dengan proteksi standar setara IP54 (dirancang khusus oleh Darrel Alfath).
-6. **Arsitektur Perakitan Elektrikal Cepat:** Menggunakan modul breakout standar industri dan *perfboard / wiring harness* terisolasi berkeandalan tinggi (tidak menggunakan custom PCB kelompok).
-7. **Infrastruktur Server Go (Golang) Berkinerja Tinggi:** Backend mandiri berbasis Go dengan Streaming Ingestion, Batch ETL Engine, WebSocket Hub real-time, dan basis data SQLite WAL mode berformat UUIDv7.
+6. **Firmware FreeRTOS Multi-Task & Ultra-Low Power:** Menggunakan *Light-Sleep*, *Tickless Idle*, dan *Power Management Locks* untuk menghemat baterai tanpa mengorbankan RAM, disertai mitigasi hardware (*Blind Zone* & *Debouncing*).
+7. **Infrastruktur Backend Zero-Trust:** Backend Go dengan Worker Pool MQTT, PostgreSQL UUIDv7 (ACID compliant), Threshold Cache (LISTEN/NOTIFY), dan Web Dashboard WebSocket *offline-ready* dengan *Idempotency-Key*.
 
 ---
 
