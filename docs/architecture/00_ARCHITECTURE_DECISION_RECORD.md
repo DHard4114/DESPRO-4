@@ -5,14 +5,14 @@ Dokumen ini adalah **Architecture Decision Record (ADR)** utama yang mencatat se
 
 ---
 
-### ADR-01: Migrasi dari HTTP Ingest ke MQTT
-*   **Konteks:** Node sensor sebelumnya dirancang menggunakan Wi-Fi & HTTP POST, yang boros daya dan rentan putus.
+### ADR-01: Arsitektur Komunikasi Data Berbasis MQTT
+*   **Konteks:** Penggunaan HTTP konvensional membebani daya sensor dan tidak dirancang untuk aliran data IoT berlatensi rendah yang konstan.
 *   **Keputusan:** Sistem menggunakan arsitektur **MQTT Broker (Mosquitto)** di Posko. ESP32 Gateway menerima sinyal radio LoRa lalu meneruskannya ke Mosquitto via Wi-Fi Intranet. Go Server berlangganan (*subscribe*) ke Mosquitto.
 *   **Konsekuensi:** Beban jaringan Wi-Fi turun drastis, latensi menjadi sub-milidetik, tetapi membutuhkan *setup* Mosquitto di mesin server.
 
 ### ADR-02: Topologi Jaringan Sensor "Star" (Point-to-Multipoint)
-*   **Konteks:** Pemikiran awal menggunakan topologi *Mesh* agar jangkauan luas.
-*   **Keputusan:** Batal menggunakan *Mesh* karena terlalu kompleks untuk Capstone Project. Mengadopsi **Star Topology** menggunakan modul **LoRa RA-02 433MHz**. Semua Node WC (Klien) langsung menembak sinyal ke 1 buah ESP32 Gateway (Pusat) di Posko.
+*   **Konteks:** Sistem membutuhkan konektivitas jarak jauh yang stabil di area tanpa sinyal (blank spot) tanpa membebani daya sensor.
+*   **Keputusan:** Sistem mengadopsi **Star Topology** menggunakan modul **LoRa RA-02 433MHz**. Semua Node WC (Klien) langsung menembak sinyal ke 1 buah ESP32 Gateway (Pusat) di Posko.
 *   **Konsekuensi:** Firmware Node WC murni hanya radio LoRa (tanpa Wi-Fi, menghemat baterai), logika jauh lebih sederhana.
 
 ### ADR-03: Backend Go Lambda Architecture

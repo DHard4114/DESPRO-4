@@ -164,7 +164,7 @@ function sambungkanWebSocket() {
 ---
 
 ### 4.2 Manajemen Aktuator Servo (Asynchronous Command)
-Menekan tombol buka/tutup katup pada Dashboard **TIDAK** lagi mengubah status UI secara lokal. Sesuai ADR-07, Dashboard akan mengirim perintah ke Backend (yang akan meneruskannya ke Node via MQTT), dan UI hanya berubah setelah menerima ACTUATOR_STATUS via WebSocket.
+Menekan tombol buka/tutup katup pada Dashboard secara asinkron mengirim perintah ke Backend (yang akan meneruskannya ke Node via MQTT). UI Dashboard tidak akan mengubah status secara sepihak; UI hanya akan diperbarui setelah menerima konfirmasi ACTUATOR_STATUS via WebSocket. 
 
 `javascript
 async function triggerValve(command) {
