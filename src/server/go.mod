@@ -1,0 +1,22 @@
+module smart-sanitation-esos/server
+
+go 1.21
+
+require (
+	github.com/eclipse/paho.mqtt.golang v1.4.3
+	github.com/google/uuid v1.6.0
+	github.com/jackc/pgx/v5 v5.6.0
+	github.com/joho/godotenv v1.5.1
+	github.com/swaggo/swag v1.16.3
+)
+
+require (
+	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
+)
