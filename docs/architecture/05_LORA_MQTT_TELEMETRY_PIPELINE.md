@@ -37,6 +37,12 @@ flowchart BT
 
 Sistem ini dibangun oleh 3 entitas (aktor) utama yang bekerja secara terpisah namun terintegrasi:
 
+### 3.1 Alur Telemetri Sensor (Uplink Pipeline)
+
+### 3.1 Alur Telemetri Sensor (Uplink Pipeline)
+
+Berikut adalah perjalanan satu paket data telemetri dari kotoran limbah hingga menjadi grafik di layar:
+
 ### Aktor 1: Sang Wartawan Lapangan (ESP32 Node WC)
 *   **Perangkat:** ESP32 + Sensor Gas + Sensor Ultrasonik + Antena LoRa RA-02.
 *   **Koneksi:** **Hanya Radio LoRa** (Wi-Fi ESP32 dimatikan total untuk menghemat baterai panel surya).
@@ -56,7 +62,9 @@ Sistem ini dibangun oleh 3 entitas (aktor) utama yang bekerja secara terpisah na
 
 ## 3. Alur Komunikasi Penuh (End-to-End Pipeline)
 
-Berikut adalah perjalanan satu paket data dari kotoran limbah hingga menjadi grafik di layar:
+### 3.1 Alur Telemetri Sensor (Uplink Pipeline)
+
+Berikut adalah perjalanan satu paket data telemetri dari kotoran limbah hingga menjadi grafik di layar:
 
 ```mermaid
 sequenceDiagram
@@ -93,6 +101,41 @@ sequenceDiagram
 7. **[Network]** Server Go menembak WebSocket ke layar.
 8. **[Visualisasi]** Grafik di layar bergerak naik seketika.
 
+
+
+### 3.2 Alur Perintah Aktuator Jarak Jauh (Downlink Pipeline)
+
+Selain mengirim data sensor ke atas, arsitektur MQTT eSOS mendukung instruksi ke bawah (Downlink) untuk memicu putaran Servo MG996R pembuka katup tangki.
+
+`mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Web Dashboard
+    participant Go as Server Go (API)
+    participant Broker as Mosquitto Broker
+    participant GW as ESP32 Gateway
+    participant Node as ESP32 Node WC
+    participant Servo as Servo MG996R
+
+    UI->>Go: 1. POST /api/v1/actuator/commands (Idempotency Key)
+    Go->>Go: 2. Validasi & Simpan ke DB (Status: PENDING)
+    Go-->>UI: 3. HTTP 202 Accepted
+    Go->>Broker: 4. Publish ke esos/posko-a/WC_01/command
+    Broker->>GW: 5. Forward ke Gateway (MQTT Subscriber)
+    GW-)Node: 6. Transmisi Radio (LoRa Downlink)
+    Node->>Servo: 7. vTaskActuator ubah sudut (Buka Katup)
+    Node-)GW: 8. LoRa ACK (Aktuator Bergerak)
+    GW->>Broker: 9. Publish ke esos/posko-a/WC_01/command/ack
+    Broker->>Go: 10. Update DB (Status: EXECUTED_SUCCESS)
+    Go->>UI: 11. WebSocket Push: ACTUATOR_STATUS
+`
+
+**Penjelasan Sekuensial Aktuator:**
+1. **[Interaksi]** Petugas menekan tombol buka katup di layar.
+2. **[Persistensi]** Server merekam jejak audit perintah ke database.
+3. **[Asinkron]** Karena komunikasi LoRa lambat, server Go tidak menahan respons API, melainkan langsung menjawab 202 Accepted.
+4-7. **[Eksekusi]** Perintah dirutekan turun dari MQTT hingga secara fisik memutar Motor Servo.
+8-11. **[Konfirmasi]** Status keberhasilan naik kembali lewat LoRa hingga memicu centang hijau (sukses) di layar Dashboard petugas.
 
 ---
 
@@ -159,3 +202,4 @@ user go_server_subscriber
 topic read esos/#
 topic write esos/+/+/command
 `
+
