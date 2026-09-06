@@ -20,6 +20,10 @@ type Pipeline struct {
 	// LRU Cache untuk deduplikasi (node_code -> last_sequence_no)
 	muDedup sync.RWMutex
 	dedup   map[string]uint32
+
+	// Cache resolusi NodeCode ke NodeID
+	muNodeID sync.RWMutex
+	nodeIDs  map[string]string
 }
 
 func NewPipeline(dbPool *pgxpool.Pool) *Pipeline {
@@ -28,6 +32,7 @@ func NewPipeline(dbPool *pgxpool.Pool) *Pipeline {
 		OutStream: make(chan models.TelemetryRecord, 1000),
 		DBPool:    dbPool,
 		dedup:     make(map[string]uint32),
+		nodeIDs:   make(map[string]string),
 	}
 }
 
@@ -56,12 +61,30 @@ func (p *Pipeline) StartWorkers(workerCount int) {
 				p.dedup[payload.NodeCode] = payload.SequenceNo
 				p.muDedup.Unlock()
 
+				// Resolusi NodeCode -> NodeID menggunakan Cache Internal
+				p.muNodeID.RLock()
+				nodeID, hasNodeID := p.nodeIDs[payload.NodeCode]
+				p.muNodeID.RUnlock()
+
+				if !hasNodeID {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					err := p.DBPool.QueryRow(ctx, "SELECT node_id FROM sanitation_nodes WHERE node_code = $1", payload.NodeCode).Scan(&nodeID)
+					cancel()
+					if err != nil {
+						log.Printf("Worker %d: NodeCode %s tidak terdaftar di DB: %v", workerID, payload.NodeCode, err)
+						continue // Drop pesan jika node tidak dikenal
+					}
+					p.muNodeID.Lock()
+					p.nodeIDs[payload.NodeCode] = nodeID
+					p.muNodeID.Unlock()
+				}
+
 				// Cek anomali (Threshold Cache) [ADR-07]
-				// TODO: Resolusi NodeCode ke NodeID dari cache jika diperlukan
 				// Di sini logika anomaly detection memicu Insert ke incident_alerts
 				// ...
 
 				record := models.TelemetryRecord{
+					NodeID:         nodeID,
 					NodeCode:       payload.NodeCode,
 					SequenceNo:     payload.SequenceNo,
 					WaterLevelCM:   payload.WaterLevelCM,
@@ -109,14 +132,14 @@ func (p *Pipeline) flushBuffer(buffer *[]models.TelemetryRecord) {
 	rows := make([][]interface{}, 0, len(*buffer))
 	for _, rec := range *buffer {
 		rows = append(rows, []interface{}{
-			rec.NodeCode, // Dalam sistem rill butuh node_id UUID
+			rec.NodeID,       // UUIDv7 string
 			rec.NodeCode,
 			rec.SequenceNo,
 			rec.WaterLevelCM,
 			rec.AmmoniaPPM,
 			rec.H2SPPM,
 			rec.BatteryVoltage,
-			rec.SOSTriggered,
+			rec.SOSTriggered, // pgx driver mengkonversi bool ke BOOLEAN di postgres
 			rec.ReceivedAt,
 		})
 	}

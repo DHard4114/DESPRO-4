@@ -25,6 +25,7 @@ type ThresholdConfig struct {
 
 // TelemetryRecord merepresentasikan data yang siap diinsert ke PostgreSQL.
 type TelemetryRecord struct {
+	NodeID         string // UUIDv7 Format
 	NodeCode       string
 	SequenceNo     uint32
 	WaterLevelCM   float32
