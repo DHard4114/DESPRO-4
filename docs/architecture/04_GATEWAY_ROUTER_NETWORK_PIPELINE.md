@@ -11,13 +11,11 @@ Author: Daffa Hardhan
 
 ## 1. Glosarium
 
-*(Tidak berubah dari baseline — CPE, AP, SSID, WPA2-PSK, AES, DHCP, IP Address, MAC Address, TCP/IP, LoRa, RF, SPI, UART, RSSI, SNR, dBm, QoS, ACK.)*
-
 ---
 
-## 2. Arsitektur Jaringan Intranet (TCP/IP Topology) — Revisi Peran Radio
+## 2. Arsitektur Jaringan Intranet (TCP/IP Topology)
 
-**Perubahan penting dari baseline:** Node ESP32 WC **tidak pernah terhubung ke Wi-Fi CPE220 secara langsung**. Hanya **ESP32 Gateway** yang memiliki radio Wi-Fi. Ini menegaskan ulang ADR-02 dan menghapus ambiguitas versi sebelumnya yang menyiratkan Node bisa memilih jalur Wi-Fi/LoRa secara dinamis.
+Sesuai ADR-02, Node ESP32 WC **tidak pernah terhubung ke Wi-Fi CPE220 secara langsung**. Hanya **ESP32 Gateway** yang memiliki radio Wi-Fi.
 
 ```mermaid
 flowchart TD
@@ -68,8 +66,6 @@ sequenceDiagram
 
 ## 4. Konfigurasi Standar Router TP-Link CPE220 (`config/network_cpe220.conf`)
 
-*(Tidak berubah dari baseline — parameter fisik radio, antena, dan IP reservation tetap valid karena tidak bergantung pada keputusan MQTT vs HTTP.)*
-
 ```ini
 [DEVICE_INFO]
 Model = TP-Link CPE220 V3
@@ -101,13 +97,13 @@ Lease_Time = 7200
 192.168.0.254 = Gateway_AP_CPE220 (Access Point)
 ```
 
-> **Catatan Revisi:** Baseline lama mereservasi IP untuk `ESP32_Node_Sanitasi_01/02` secara langsung (mengasumsikan Node terhubung Wi-Fi). Karena kini hanya Gateway yang punya radio Wi-Fi (ADR-02), reservasi IP untuk Node individual **dihapus** — Node WC tidak pernah muncul di jaringan TCP/IP sama sekali, hanya dikenali via `node_code` di dalam payload MQTT yang diteruskan Gateway.
+> **Catatan Jaringan:** Reservasi IP hanya berlaku untuk perangkat di zona TCP/IP. Node WC murni berada di luar jaringan IP dan hanya dikenali via `node_code` di dalam payload MQTT yang diteruskan Gateway.
 
 ---
 
-## 5. Mekanisme Resiliensi Jaringan — Revisi Total (Menggantikan "LoRa Fallback Redundancy")
+## 5. Mekanisme Resiliensi Jaringan
 
-**Baseline lama** memiliki diagram *fallback* di mana Node mencoba HTTP via Wi-Fi terlebih dahulu, baru beralih ke LoRa jika gagal. Diagram ini **dihapus** karena bertentangan dengan ADR-02 (Node LoRa-only, tanpa radio Wi-Fi sama sekali — sehingga tidak ada "Wi-Fi untuk dicoba" di level Node).
+Node beroperasi sebagai *LoRa-only* (tanpa radio Wi-Fi sama sekali).
 
 Resiliensi jaringan kini **sepenuhnya berada di level Gateway**, didetailkan penuh di `05_LORA_MQTT_TELEMETRY_PIPELINE.md` §5. Ringkasan untuk konteks jaringan:
 
@@ -128,7 +124,7 @@ Dengan model ini:
 
 ---
 
-## 6. Prosedur Verifikasi Jaringan di Laboratorium / Lapangan (Revisi — MQTT, Bukan HTTP)
+## 6. Prosedur Verifikasi Jaringan di Laboratorium / Lapangan
 
 ```powershell
 # 1. Verifikasi Konektivitas ke Router Access Point
@@ -151,4 +147,5 @@ curl http://192.168.0.100:8000/api/v1/nodes/{node_id}/telemetry/latest `
   -H "Authorization: Bearer <jwt_token>"
 ```
 
-> **Catatan:** Perintah `curl -X POST .../api/telemetry` pada baseline lama **dihapus sepenuhnya** dari prosedur verifikasi standar karena jalur ingest resmi kini eksklusif via MQTT (ADR-01). `POST /api/v1/telemetry/ingest` di `06_REST_API_OPENAPI_SPEC.md` tetap ada tapi berstatus *fallback-only* untuk kebutuhan testing tanpa perangkat fisik.
+> **Catatan:** Jalur ingest resmi adalah eksklusif via MQTT (ADR-01). Endpoint `POST /api/v1/telemetry/ingest` berstatus *fallback-only* untuk kebutuhan simulasi pengembangan.
+

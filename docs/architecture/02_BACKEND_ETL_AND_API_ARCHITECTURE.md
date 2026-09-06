@@ -10,8 +10,6 @@ Author: Daffa Hardhan
 
 ## 1. Glosarium
 
-*(Tidak berubah dari baseline — ETL, API, REST, HTTP, WS, RAM, CPU, I/O, WAL, MVCC, PPM, AQI, ACID, JSON, Goroutine, Channel, MQTT, Mosquitto, Lambda Architecture, TimescaleDB.)*
-
 Tambahan istilah baru:
 
 | Singkatan | Kepanjangan Lengkap | Penjelasan |
@@ -22,7 +20,7 @@ Tambahan istilah baru:
 
 ---
 
-## 2. Arsitektur Internal Server Go (High-Level Architecture — Revisi MQTT-Native)
+## 2. Arsitektur Internal Server Go (High-Level Architecture)
 
 ```mermaid
 flowchart TD
@@ -61,7 +59,7 @@ flowchart TD
 
 ---
 
-## 3. Diagram Alur Transmisi & Pemrosesan Data (Sequence Diagram — Revisi)
+## 3. Diagram Alur Transmisi & Pemrosesan Data (Sequence Diagram)
 
 ```mermaid
 sequenceDiagram
@@ -100,7 +98,7 @@ sequenceDiagram
 
 ---
 
-## 4. Rincian Alur Kerja Mesin ETL (Revisi MQTT-Native)
+## 4. Rincian Alur Kerja Mesin ETL
 
 ### 4.1 Tahap Ekstraksi (*Extract Stage*) — MQTT Subscriber, Bukan HTTP Handler
 
@@ -128,7 +126,7 @@ func (p *Pipeline) startMQTTSubscriber(client mqtt.Client) {
 
 ### 4.2 Tahap Transformasi (*Transform Stage*) — Threshold dari Cache, Bukan Hardcode
 
-Perbedaan mendasar dari baseline lama: **tidak ada lagi angka ambang batas yang di-hardcode** (`ammonia_ppm > 25.0` dsb. langsung di kode Go). Sebagai gantinya:
+Sistem **tidak menggunakan angka ambang batas yang di-hardcode** (misal `ammonia_ppm > 25.0` langsung di kode Go). Sebagai gantinya:
 
 ```go
 type ThresholdCache struct {
@@ -150,12 +148,10 @@ func (tc *ThresholdCache) Refresh(nodeID string, db *database.DB) {
 }
 ```
 
-Alur kalkulasi lain (volume air, persentase baterai, AQI) tetap sama seperti baseline sebelumnya.
+Kalkulasi nilai lainnya (volume air, persentase baterai, AQI) dieksekusi secara independen per Goroutine.
 
 ### 4.3 Tahap Pemuatan Data (*Load Stage*) — Tidak Berubah
-Micro-batch optimization (kapasitas 50 rekaman / *flush timer* 3 detik) tetap dipertahankan dari baseline.
-
-### 4.4 Threshold Cache Bootstrap & Live Refresh (ADR-07)
+Sistem menggunakan micro-batch optimization (kapasitas 50 rekaman / *flush timer* 3 detik). Bootstrap & Live Refresh (ADR-07)
 
 ```go
 func (p *Pipeline) startThresholdListener(pgConn *pgx.Conn) {
@@ -196,8 +192,9 @@ Saat `POST /api/v1/actuator/commands` diterima Router REST API:
 
 ## 6. Kontrak REST API
 
-**Kontrak REST API lengkap (endpoint, autentikasi, pagination, error envelope, idempotency) didefinisikan secara otoritatif di `06_REST_API_OPENAPI_SPEC.md`.** Dokumen ini tidak lagi mendefinisikan endpoint API secara terpisah untuk menghindari duplikasi/divergensi spesifikasi seperti yang terjadi pada baseline sebelumnya (di mana `02` dan `06` mendeskripsikan gaya endpoint yang berbeda).
+**Kontrak REST API lengkap (endpoint, autentikasi, pagination, error envelope, idempotency) didefinisikan secara otoritatif di `06_REST_API_OPENAPI_SPEC.md`.** Dokumen ini mendelegasikan spesifikasi tersebut untuk menjaga prinsip single source of truth.
 
 Ringkasan tanggung jawab lapisan:
 - **`02` (dokumen ini):** Bagaimana data *masuk* ke sistem (MQTT ingestion, ETL, threshold cache) dan *tersimpan*.
 - **`06`:** Bagaimana Dashboard/operator *berinteraksi* dengan data tersebut (kontrak REST, autentikasi, format request/response).
+

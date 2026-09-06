@@ -12,9 +12,7 @@ Author: Daffa Hardhan
 
 ## 1. Glosarium
 
-*(Tidak berubah dari baseline — lihat versi sebelumnya untuk daftar lengkap istilah UUID, PK, FK, ERD, DDL, SQL, ACID, WAL, MVCC, DSN, HMAC, SHA-256, GPS, GIS, IoT.)*
-
-Tambahan istilah baru pada revisi ini:
+*(Istilah utama: UUID, PK, FK, ERD, DDL, SQL, ACID, WAL, MVCC, DSN, HMAC, SHA-256, GPS, GIS, IoT.)*
 
 | Singkatan | Kepanjangan Lengkap | Penjelasan |
 |:---|:---|:---|
@@ -45,7 +43,7 @@ UUIDv7 menggabungkan **kedua dunia**:
 | Performa indeks B-Tree (menghindari *page split*) | ❌ Buruk | ✅ Optimal |
 | Bisa diekstrak *timestamp* pembuatan tanpa kolom terpisah | ❌ | ✅ (berguna untuk *debugging* forensik insiden) |
 
-**Kesimpulan:** UUIDv7 dipakai secara **konsisten** di seluruh Primary Key tabel (`sanitation_nodes`, `node_threshold_configs`, `telemetry_records`, `incident_alerts`, `actuation_commands`, `system_audit_logs`) — tidak ada lagi campuran v4/v7 seperti pada baseline sebelumnya.
+**Kesimpulan:** UUIDv7 dipakai secara **konsisten** di seluruh Primary Key tabel (`sanitation_nodes`, `node_threshold_configs`, `telemetry_records`, `incident_alerts`, `actuation_commands`, `system_audit_logs`).
 
 ### 2.4 Implementasi Generasi UUIDv7 di PostgreSQL
 PostgreSQL native `gen_random_uuid()` (ekstensi `pgcrypto`) hanya menghasilkan **UUIDv4**. Karena PostgreSQL 15/16 belum punya fungsi bawaan UUIDv7, sistem eSOS menggunakan salah satu dari dua pendekatan berikut (dipilih saat implementasi):
@@ -202,7 +200,7 @@ erDiagram
     }
 ```
 
-> **Perubahan dari baseline:** Ditambahkan tabel `API_KEYS` (mendukung ADR-05: autentikasi API Key per node), kolom `sequence_no` dipertegas fungsinya untuk deduplikasi MQTT, kolom `idempotency_key` ditambahkan pada `ACTUATION_COMMANDS`, dan `trace_id` pada `SYSTEM_AUDIT_LOGS` untuk korelasi *error envelope* REST API.
+Tabel `API_KEYS` mendukung autentikasi per node (ADR-05), kolom `sequence_no` menjamin deduplikasi MQTT, kolom `idempotency_key` pada `ACTUATION_COMMANDS` menangani retry yang aman, dan `trace_id` pada `SYSTEM_AUDIT_LOGS` mendukung korelasi error envelope REST API.
 
 ---
 
@@ -240,7 +238,7 @@ Go Server menjalankan *goroutine* terpisah yang melakukan `LISTEN threshold_conf
 
 ## 7. Penegakan ACID & Strategi Indeks
 
-*(Tidak berubah dari baseline — MVCC, WAL, `idx_telemetry_node_received`, `idx_telemetry_sos`, `idx_alerts_unresolved` tetap berlaku. Tambahan indeks baru:)*
+Indeks tambahan untuk menunjang performa:
 
 ```sql
 CREATE UNIQUE INDEX idx_actuation_idempotency ON actuation_commands (idempotency_key);
