@@ -105,10 +105,57 @@ Untuk menepis kesalahpahaman, protokol MQTT adalah "kurir" tanpa bentuk fisik. S
 
 ---
 
-## 5. Pemenuhan Prinsip ACID pada Telemetri MQTT
+## 5. Mekanisme Resiliensi Jaringan (Store-and-Forward Ring Buffer)
+
+Berdasarkan ADR-03, resiliensi jaringan ditangani secara eksklusif di level Gateway. Node WC LoRa-only bersifat *stateless* dan tidak menyadari jika jaringan Wi-Fi posko sedang terputus.
+
+Jika koneksi TCP/IP Wi-Fi dari ESP32 Gateway ke CPE220 atau Mosquitto Broker terputus:
+1. **Penyimpanan Lokal:** Gateway tidak akan membuang paket LoRa yang masuk. Paket tersebut ditampung ke dalam **In-Memory Ring Buffer** (kapasitas maksimal 500 pesan).
+2. **Exponential Backoff:** Task TaskWiFiSupervisor pada FreeRTOS Gateway akan mencoba menyambung ulang (*reconnect*) secara berkala dengan jeda eksponensial (3s, 6s, 12s, max 30s) untuk mencegah banjir *request*.
+3. **Flushing (Store-and-Forward):** Begitu koneksi ke Mosquitto kembali terjalin (CONNACK diterima), Gateway akan melakukan *flush* (mengirimkan secara berurutan) seluruh pesan yang tertahan di dalam *buffer* menggunakan QoS 1.
+
+Mekanisme LWT (Last Will and Testament):
+Saat Gateway berhasil *connect*, ia juga menitipkan pesan wasiat (*Last Will*) ke Mosquitto:
+*   **Topik:** esos/posko-a/gateway/status
+*   **Payload:** {"status": "OFFLINE", "reason": "UNEXPECTED_DISCONNECT"}
+Jika Gateway mati listrik mendadak, Mosquitto akan otomatis mem-*publish* pesan wasiat ini ke Dashboard sehingga operator tahu bahwa *Gateway* mati.
+
+---
+
+## 6. Pemenuhan Prinsip ACID pada Telemetri MQTT
 Walaupun MQTT adalah protokol transmisi, arsitektur ini dirancang untuk mendukung prinsip ACID (Atomicity, Consistency, Isolation, Durability) saat data mendarat di database:
 
 1. **Atomicity (Keutuhan):** Penggunaan *MQTT QoS 1 (At least once)* pada *library* PubSubClient menjamin bahwa paket tidak akan setengah terkirim. Pesan JSON masuk secara utuh (Atomik) ke Server Go, atau gagal seluruhnya.
 2. **Consistency (Konsistensi):** Format JSON yang dikirimkan node (seperti mmonia_ppm) divalidasi ketat oleh tipe data struct Golang sebelum INSERT ke database.
 3. **Isolation (Isolasi):** Setiap *Goroutine* di Go memproses paket LoRa dari WC 1 dan WC 2 secara independen tanpa saling menimpa memori (*Thread-Safe*).
 4. **Durability (Ketahanan):** Dengan integrasi langsung ke PostgreSQL *Write-Ahead Logging* (WAL), setelah data menyentuh siklus ke-6 pada diagram di atas, data dijamin tidak akan hilang walau posko mati listrik mendadak.
+
+
+---
+
+## 7. Konfigurasi Mosquitto Broker & ACL (Access Control List)
+
+Sesuai ADR-01, Mosquitto wajib dikonfigurasi menolak koneksi anonim dan membatasi hak akses per perangkat.
+
+**src/config/mosquitto.conf (Ringkasan):**
+`ini
+listener 1883 0.0.0.0
+allow_anonymous false
+password_file /mosquitto/config/mosquitto_passwd
+acl_file /mosquitto/config/mosquitto_acl
+persistence true
+persistence_location /mosquitto/data/
+`
+
+**src/config/mosquitto_acl (Ringkasan):**
+`	ext
+# Gateway hanya boleh publish ke topik telemetri/status posko-nya
+user gateway_posko_a
+topic write esos/posko-a/+/telemetry
+topic write esos/posko-a/gateway/status
+
+# Server Go butuh akses baca semua dan tulis ke command
+user go_server_subscriber
+topic read esos/#
+topic write esos/+/+/command
+`
