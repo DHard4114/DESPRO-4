@@ -52,11 +52,12 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 
 ---
 
-## 5. Serialisasi Payload (JSON Data)
-*Standar format pengemasan data sebelum dikirim via LoRa.*
-*   **Library Referensi:** [ArduinoJson by Benoit Blanchon](https://arduinojson.org/)
-*   **Implementasi RTOS:**
-    Diimplementasikan pada *Main Loop* atau sebelum *Task LoRa*. Library ini memungkinkan Amel mengonversi nilai sensor (integer/float) menjadi string berformat `{"gas_nh3": 120, "water_lvl": 80}` yang aman diproses oleh *Go Server* milik Daffa di posko pusat.
+## 5. Serialisasi Payload (Binary vs JSON)
+
+*Standar format pengemasan data harus dibedakan antara transmisi Radio dan transmisi Wi-Fi.*
+
+*   **Node WC (LoRa Tx):** TIDAK MENGGUNAKAN JSON. Menggunakan struktur data C standar (struct Payload { ... }) yang dikirim mentah (*raw memory copy*) untuk efisiensi SRAM dan *airtime* di udara.
+*   **Gateway (Wi-Fi Tx):** Menggunakan library **ArduinoJson** untuk men-*deserialize* struct biner tadi dan merakitnya menjadi String JSON Envelope utuh sebelum dikirim ke Server Mosquitto.
 
 ---
 

@@ -91,7 +91,6 @@ erDiagram
     SANITATION_NODES ||--o{ TELEMETRY_RECORDS : "mengirimkan deret waktu"
     SANITATION_NODES ||--o{ INCIDENT_ALERTS : "membangkitkan peringatan"
     SANITATION_NODES ||--o{ ACTUATION_COMMANDS : "menerima perintah kontrol"
-    SANITATION_NODES ||--o{ API_KEYS : "memiliki kredensial ingest"
 
     SANITATION_NODES {
         uuid node_id PK "UUIDv7, Time-Ordered"

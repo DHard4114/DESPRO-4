@@ -144,7 +144,6 @@ mosquitto_sub -h 192.168.0.100 -p 1883 -u go_server_subscriber -P "<password>" -
 
 # 5. Verifikasi Endpoint REST API v1 (Query, bukan Ingest)
 curl http://192.168.0.100:8000/api/v1/nodes/{node_id}/telemetry/latest `
-  -H "Authorization: Bearer <jwt_token>"
 ```
 
 > **Catatan:** Jalur ingest resmi adalah eksklusif via MQTT (ADR-01). Endpoint `POST /api/v1/telemetry/ingest` berstatus *fallback-only* untuk kebutuhan simulasi pengembangan.
