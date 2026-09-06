@@ -123,6 +123,18 @@ Spesifikasi mutlak untuk parameter *Task* (dilarang diubah saat implementasi):
 2. **Tombol SOS (EXTI ISR):** Tombol fisik SOS dilarang dibaca via *polling* digitalRead. Wajib dihubungkan ke pin Hardware Interrupt. Saat ditekan, rutin ISR akan memanggil xQueueSendFromISR yang secara paksa dan instan membangunkan TaskLoRaTx (Bypass antrean normal).
 3. **LoRa DIO0 (Non-Blocking ISR):** Untuk memastikan radio non-blocking, pin DIO0 pada SX1278 (LoRa) wajib memicu Interrupt saat paket biner selesai dikirim (TX Done) atau diterima (RX Done), memberikan *semaphore* ke task terkait agar CPU bisa tidur/yield selama transmisi berlangsung.
 
+### 6.5 Stabilitas Transisi Daya (Power Locks & Wake-up)
+Untuk mencegah hilangnya data atau korupsi SPI saat CPU baru terbangun dari *Light-Sleep*, firmware WAJIB menerapkan 2 standar mitigasi berikut:
+
+1. **Penggunaan Power Management Locks (esp_pm_lock_t):**
+   * Tepat setelah CPU terbangun oleh Timer atau Interrupt, *Task* yang bertugas WAJIB memanggil esp_pm_lock_acquire() dengan tipe ESP_PM_NO_LIGHT_SLEEP untuk menahan ESP32 tetap berada di *Active Mode*.
+   * Lock ini ditahan selama proses baca sensor, transmisi LoRa, hingga 2000ms *RX Window* selesai dengan aman.
+   * Panggil esp_pm_lock_release() hanya ketika seluruh proses dalam siklus tersebut tuntas 100%, mengizinkan Scheduler untuk menidurkan CPU kembali.
+
+2. **Stabilisasi PLL Clock & Debouncing Tombol SOS:**
+   * **Debouncing Hardware/Software:** Tombol fisik SOS memiliki *mechanical bouncing*. Di dalam fungsi ISR EXTI Tombol SOS, WAJIB disertakan logika *Software Debouncing* (menggunakan xTaskGetTickCountFromISR()). Abaikan interupsi susulan jika jaraknya < 300ms dari interupsi pertama untuk mencegah *FreeRTOS Queue Overflow*.
+   * **Jeda Stabilisasi:** Setelah CPU bangun, WAJIB berikan jeda stabilisasi sangat kecil (TaskDelay(pdMS_TO_TICKS(10))) sebelum *Task* membaca ADC atau memulai komunikasi SPI (LoRa) agar *Clock* internal ESP32 stabil 100%.
+
 ## 7. Manajemen Build (PlatformIO)
 
 Firmware untuk kedua peran fisik (*Node* dan *Gateway*) disatukan dalam satu repositori yang sama untuk kemudahan *sharing* struct biner (Payload), namun **wajib dipisah secara ketat** pada konfigurasi *build* platformio.ini.

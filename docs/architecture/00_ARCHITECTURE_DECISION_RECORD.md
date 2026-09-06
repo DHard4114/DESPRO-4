@@ -44,3 +44,9 @@ Dokumen ini adalah **Architecture Decision Record (ADR)** utama yang mencatat se
 *   **Konteks:** Dokumentasi arsitektur pernah tersebar di beberapa lokasi (`src/server/docs/`, root, dll.) menyebabkan kebingungan.
 *   **Keputusan:** Path dokumentasi resmi adalah `docs/architecture/` dan `docs/hardware_references/` (root-level). Tidak ada dokumen arsitektur di `src/server/docs/` atau lokasi lain.
 *   **Konsekuensi:** Seluruh referensi antar-dokumen konsisten menunjuk ke `docs/architecture/` sebagai *single source of truth*.
+
+
+### ADR-09: Strategi Ultra-Low Power dengan Power Locks & Light-Sleep
+*   **Konteks:** Sistem bertenaga surya 10Wp memerlukan penghematan baterai ekstrem. Namun, menggunakan Deep-Sleep akan menghapus memori RAM (menghancurkan FreeRTOS Queues) dan menyebabkan *missed alerts* selama proses *reboot*.
+*   **Keputusan:** Sistem secara eksklusif menggunakan **Light-Sleep + Tickless Idle Mode** yang dipadukan dengan **Power Management Locks (esp_pm_lock_t)**. Deep-Sleep dan Hibernation dilarang keras.
+*   **Konsekuensi:** CPU dapat tidur pulas (~0.8mA) tanpa kehilangan *state* RAM. Saat terbangun oleh *Timer* atau *Interrupt*, sistem mengaktifkan ESP_PM_NO_LIGHT_SLEEP lock untuk menjamin stabilitas *Clock* (PLL) dan SPI selama eksekusi TaskLoRa dan *RX Window*, lalu melepaskannya kembali saat kembali *Idle*.
