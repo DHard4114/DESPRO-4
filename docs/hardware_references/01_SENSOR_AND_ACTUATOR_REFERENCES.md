@@ -57,3 +57,28 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 *   **Library Referensi:** [ArduinoJson by Benoit Blanchon](https://arduinojson.org/)
 *   **Implementasi RTOS:**
     Diimplementasikan pada *Main Loop* atau sebelum *Task LoRa*. Library ini memungkinkan Amel mengonversi nilai sensor (integer/float) menjadi string berformat `{"gas_nh3": 120, "water_lvl": 80}` yang aman diproses oleh *Go Server* milik Daffa di posko pusat.
+
+---
+
+## 6. Topologi Antrean Data (FreeRTOS IPC & Queue Topology)
+
+Sebagai fondasi *thread-safety* antar-*task*, dilarang keras melakukan pertukaran data antar *Goroutine/Task* menggunakan variabel global publik (Global Variables) tanpa pelindung. Sistem wajib menggunakan **FreeRTOS Queue (xQueue)** dan **Interrupt Safe API (...FromISR)**.
+
+### 6.1 Topologi Queue pada ESP32 Node WC (Transmitter)
+*   QueueHandle_t xQueueSensorData;
+    *   **Produsen:** TaskSensors (Ultrasonik & Gas).
+    *   **Konsumen:** TaskLoRaTx.
+    *   **Mekanisme:** Sensor membaca data dan mengirim struct TelemetryPayload ke Queue ini. LoRa Tx menunggu secara *blocking* (portMAX_DELAY), sehingga CPU tidak sibuk (*idle*) sampai ada data masuk.
+*   **Penanganan Interrupt (Tombol SOS):**
+    *   Tombol SOS memicu rutin ISR (Interrupt Service Routine).
+    *   ISR memanggil xQueueSendFromISR(xQueueSensorData, &emergencyPayload, &xHigherPriorityTaskWoken).
+    *   Ini langsung membangunkan TaskLoRaTx tanpa harus menunggu siklus bacaan sensor normal selesai.
+
+### 6.2 Topologi Queue pada ESP32 Gateway (Jembatan)
+*   QueueHandle_t xQueueTelemetry;
+    *   **Produsen:** TaskLoRaRx (Menangkap paket LoRa dari udara).
+    *   **Konsumen:** TaskMqttTx (Meneruskan ke Wi-Fi Mosquitto).
+    *   **Integrasi ADR-03:** Jika Mosquitto mati/Wi-Fi putus, TaskMqttTx akan gagal mengirim. Data di-pop dari Queue dan dilempar ke LittleFS (*Store-and-Forward*).
+*   QueueHandle_t xQueueCommand;
+    *   **Produsen:** TaskMqttRx (Menerima perintah buka/tutup katup dari Dashboard).
+    *   **Konsumen:** TaskLoRaTx (Gateway menembakkan perintah balik ke Node).
