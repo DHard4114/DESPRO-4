@@ -1,42 +1,73 @@
-/**
- * Smart-Sanitation eSOS Firmware Configuration Header
- * Hardware Pinout Mapping for ESP32 DevKitC 38-Pin
- */
-
 #ifndef CONFIG_H
 #define CONFIG_H
 
 #include <Arduino.h>
 
-// Node Identification
-#define NODE_ID "NODE_SANITATION_01"
+// ==========================================
+// 1. KONTRAK PAYLOAD BINER MUTLAK (Max 50 Bytes)
+// ==========================================
+struct __attribute__((packed)) TelemetryPayload {
+    uint8_t schema_version; // Selalu 1
+    char node_code[8];      // Contoh: "WC_01" (Null terminated)
+    uint32_t sequence_no;   // Counter pesan
+    float water_level_cm;
+    float ammonia_ppm;
+    float h2s_ppm;
+    float battery_voltage;
+    uint8_t sos_triggered;  // 1 = True, 0 = False
+};
 
-// 1. LoRa SX1278 SPI Pins
-#define LORA_SS_PIN     5
-#define LORA_RST_PIN    14
-#define LORA_DIO0_PIN   2
-#define LORA_SCK_PIN    18
-#define LORA_MISO_PIN   19
-#define LORA_MOSI_PIN   23
-#define LORA_FREQUENCY  433E6
+// ==========================================
+// 2. IDENTITAS NODE & PARAMETER LORA
+// ==========================================
+#ifdef IS_NODE_WC
+    #define NODE_ID "WC_01"  // Ubah sesuai Node fisik (WC_02, WC_03)
+#else
+    #define NODE_ID "GATEWAY"
+#endif
 
-// 2. Ultrasonic Sensor JSN-SR04T Pins
-#define TRIG_PIN        12
-#define ECHO_PIN        13
+// Parameter Radio (SX1278)
+#define LORA_FREQ         433.0
+#define LORA_BW           125.0
+#define LORA_SF           9
+#define LORA_CR           7
+#define LORA_SYNC_WORD    0x12
+#define LORA_TX_POWER     17
 
-// 3. Analog Gas Sensors Pins (ADC1)
-#define MQ137_ANALOG_PIN 34   // Ammonia (NH3)
-#define MQ136_ANALOG_PIN 35   // Hydrogen Sulfide (H2S)
-#define BATTERY_VOLT_PIN 36   // Voltage Divider (100k / 20k)
+// ==========================================
+// 3. DEFINISI PIN GPIO (ESP32)
+// ==========================================
 
-// 4. Actuator and Indicator Pins
-#define SERVO_PWM_PIN    25   // MG996R Control Pin
-#define SOS_BUTTON_PIN   27   // Emergency SOS Push Button (Active LOW)
-#define STATUS_LED_PIN   26   // System Status Indicator LED
+// Pin Radio SX1278 (SPI)
+#define PIN_LORA_NSS      5
+#define PIN_LORA_DIO0     2
+#define PIN_LORA_RESET    14
+#define PIN_LORA_MISO     19
+#define PIN_LORA_MOSI     23
+#define PIN_LORA_SCK      18
 
-// Operational Constants
-#define SAMPLE_INTERVAL_MS 5000   // Sensor Sampling Every 5 Seconds
-#define LORA_TX_INTERVAL_MS 10000 // LoRa Transmit Every 10 Seconds
-#define NUM_ADC_SAMPLES    16     // Moving Average Samples
+// Pin Sensor Node WC
+#define PIN_TRIG_US       13  // Ultrasonik
+#define PIN_ECHO_US       12  // Ultrasonik
+#define PIN_MQ137_AO      32  // Analog Ammonia
+#define PIN_MQ136_AO      33  // Analog H2S
+#define PIN_BTN_SOS       27  // Eksternal Interrupt (EXTI)
+#define PIN_SERVO         26  // PWM Servo MG996R
+#define PIN_BATT_VOLT     34  // Analog Battery Divider
+
+// ==========================================
+// 4. KREDENSIAL JARINGAN (HANYA GATEWAY)
+// ==========================================
+#ifdef IS_GATEWAY
+    #define WIFI_SSID       "Posko_Sanitasi_AP"
+    #define WIFI_PASS       "poskoadmin123"
+    #define MQTT_BROKER_IP  "192.168.0.100"
+    #define MQTT_PORT       1883
+    #define MQTT_CLIENT_ID  "Gateway_ESP32_01"
+    
+    // Topik MQTT
+    #define TOPIC_TELEMETRY "esos/posko-a/telemetry/ingest"
+    #define TOPIC_COMMAND   "esos/posko-a/+/command"
+#endif
 
 #endif // CONFIG_H
