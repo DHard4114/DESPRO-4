@@ -17,6 +17,42 @@ Author: Daffa Hardhan
 
 Sesuai ADR-02, Node ESP32 WC **tidak pernah terhubung ke Wi-Fi CPE220 secara langsung**. Hanya **ESP32 Gateway** yang memiliki radio Wi-Fi.
 
+```text
+=============================================================================================================
+[ ZONA 1: LUAR RUANGAN / BILIK SANITASI ]                       [ ZONA 2: TENDA POSKO DARURAT (INDOOR) ]
+=============================================================================================================
+
+  +-----------------------+                                       +-----------------------+
+  |    ESP32 NODE WC      |                                       |   ESP32 GATEWAY       |
+  | (Firmware: firmware/) |                                       | (Firmware: gateway/)  |
+  +-----------------------+                                       +-----------------------+
+  | - Power: Panel Surya  |        (( SINYAL LORA 433MHz ))       | - Power: Adaptor 5V   |
+  | - Modul LoRa #1       | ~ ~ ~ ~ ~ Jarak Jauh (2-3 km) ~ ~ ~ > | - Modul LoRa #2       |
+  | - Sensor Air & Gas    |         (Menembus Beton/Tembok)       | - Konek Wi-Fi CPE220  |
+  | - Motor Servo         |                                       | - LittleFS Buffer     |
+  | - WIFI: MATI TOTAL    |                                       | - WIFI: NYALA (DHCP)  |
+  +-----------------------+                                       +-----------------------+
+            ^                                                                 |
+            |                                                                 |  (( SINYAL WI-FI 2.4GHz ))
+     [ Limbah & Air ]                                                         V
+                                                                  +-----------------------+
+                                                                  |  ROUTER ACCESS POINT  |
+                                                                  |   (TP-Link CPE220)    |
+                                                                  +-----------------------+
+                                                                              |
+                                                                              |  Kabel LAN / Wi-Fi
+                                                                              V
+                                                                  +-----------------------+
+                                                                  |  LAPTOP SERVER (PC)   |
+                                                                  |  (192.168.0.100)      |
+                                                                  +-----------------------+
+                                                                  | - Broker Mosquitto    |
+                                                                  | - Go Backend ETL      |
+                                                                  | - DB PostgreSQL       |
+                                                                  | - Web Dashboard UI    |
+                                                                  +-----------------------+
+```
+
 ```mermaid
 flowchart TD
     subgraph Sisi_Radio_LoRa[Zona Radio Frekuensi — Node LoRa-Only, No WiFi]
