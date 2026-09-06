@@ -1,302 +1,203 @@
 # DOKUMEN ARSITEKTUR BACKEND, MESIN ETL & SPESIFIKASI API
-## Smart-Sanitation eSOS (Emergency Sanitation Operating System) — Server Edge Berkinerja Tinggi Berbasis Go (Golang)
+## Smart-Sanitation eSOS — Server Edge Berkinerja Tinggi Berbasis Go (Golang)
 
-Status Dokumen: ARSITEKTUR BACKEND TERKENDALI (CONTROLLED BASELINE)  
-Bahasa Pemrograman: Go (Golang 1.25+)  
-Arsitektur Sistem: Lambda Architecture (MQTT Stream Ingestion + TimescaleDB Batch + WebSockets)  
-Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
-Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
+Status Dokumen: **ARSITEKTUR BACKEND TERKENDALI (CONTROLLED BASELINE) — v2.0 MATURED**
+Mengacu pada: `00_ARCHITECTURE_DECISION_RECORD.md` (ADR-01, ADR-06, ADR-07)
+Arsitektur Sistem: Lambda Architecture (**MQTT Subscriber Ingestion** + TimescaleDB Batch + WebSockets)
+Author: Daffa Hardhan
 
 ---
 
-## 1. Glosarium Singkatan & Istilah Lengkap Backend & ETL (Backend Glossary)
+## 1. Glosarium
 
-Berikut adalah daftar kepanjangan resmi dan definisi istilah teknis rekayasa perangkat lunak backend dan pipeline data pada sistem eSOS:
+*(Tidak berubah dari baseline — ETL, API, REST, HTTP, WS, RAM, CPU, I/O, WAL, MVCC, PPM, AQI, ACID, JSON, Goroutine, Channel, MQTT, Mosquitto, Lambda Architecture, TimescaleDB.)*
 
-| Singkatan | Kepanjangan Lengkap (Full Term) | Penjelasan Sederhana & Fungsi dalam Sistem eSOS |
+Tambahan istilah baru:
+
+| Singkatan | Kepanjangan Lengkap | Penjelasan |
 |:---|:---|:---|
-| **ETL** | *Extract, Transform, Load* (Ekstraksi, Transformasi, Pemuatan) | Alur pipa pemrosesan data tiga tahap: mengekstrak paket mentah dari sensor, mentransformasikan rumus kalibrasi dan alarm, lalu memuatnya ke basis data. |
-| **API** | *Application Programming Interface* (Antarmuka Pemrograman Aplikasi) | Jalur perantara komunikasi standar antara perangkat keras sensor mikrokontroler ESP32 dan server backend Go. |
-| **REST** | *Representational State Transfer* | Standar arsitektur layanan web berbasis protokol HTTP yang bersifat *stateless* dan menggunakan format data JSON. |
-| **HTTP** | *Hypertext Transfer Protocol* | Protokol komunikasi dasar jaringan komputer untuk mengirimkan data permintaan (*request*) dan tanggapan (*response*). |
-| **WS / WebSocket** | *WebSocket Protocol (RFC 6455)* | Jalur komunikasi dua arah berlatensi sangat rendah ($< 1\text{ ms}$) untuk menyiarkan aliran data sensor langsung ke layar dashboard secara kontinu. |
-| **RAM** | *Random Access Memory* (Memori Akses Acak) | Memori utama berkecepatan tinggi pada komputer server posko untuk menyimpan antrean *buffered channel* dan *batch buffer*. |
-| **CPU** | *Central Processing Unit* (Unit Pemroses Sentral) | Prosesor komputer yang mengeksekusi logika algoritma dan konkurensi goroutine. |
-| **I/O** | *Input / Output* (Masukan / Keluaran) | Operasi pembacaan dan penulisan berkas pada media penyimpanan disk atau lalu lintas data pada kartu jaringan. |
-| **WAL** | *Write-Ahead Logging* | Mekanisme penulisan log transaksi SQLite/PostgreSQL untuk mencegah korupsi data saat terjadi pemadaman listrik posko secara mendadak. |
-| **MVCC** | *Multi-Version Concurrency Control* | Manajemen konkurensi basis data agar operasi pembacaan dashboard tidak pernah saling mengunci (*lock*) dengan operasi penulisan paket data sensor. |
-| **PPM** | *Parts Per Million* (Bagian per Sejuta) | Satuan konsentrasi gas amonia ($NH_3$) dan hidrogen sulfida ($H_2S$) terlarut di udara. |
-| **AQI** | *Air Quality Index* (Indeks Mutu Udara) | Kategori visual tingkat keamanan udara di dalam bilik sanitasi (*GOOD*, *MODERATE*, atau *HAZARDOUS*). |
-| **ACID** | *Atomicity, Consistency, Isolation, Durability* | Standar integritas transaksi data agar setiap kumpulan paket telemetri tersimpan secara utuh dan aman. |
-| **JSON** | *JavaScript Object Notation* | Format teks standar untuk pengiriman payload telemetri nirkabel. |
-| **Goroutine** | *Go Lightweight Thread* (Utas Ringan Go) | Unit eksekusi independen berdaya sangat ringan ($\approx 2\text{ KB}$ per utas) yang memungkinkan ribuan tugas paralel dijalankan secara bersamaan. |
-| **Channel** | *Go Synchronization Channel* (Saluran Sinkronisasi Go) | Pipa transmisi data internal Go yang aman digunakan antar-goroutine (*thread-safe*) tanpa membutuhkan penguncian manual yang rumit. |
+| **paho.mqtt.golang** | *Eclipse Paho MQTT Golang Client* | Pustaka klien MQTT resmi Eclipse Foundation untuk Go, mendukung *persistent session*, *auto-reconnect*, dan QoS 0/1/2 penuh. |
+| **Worker Pool** | *Goroutine Worker Pool Pattern* | Pola konkurensi di mana sejumlah tetap Goroutine mengonsumsi pekerjaan dari satu *channel* bersama, mencegah *unbounded goroutine spawning* saat lonjakan pesan MQTT. |
+| **LISTEN/NOTIFY** | *PostgreSQL Async Notification* | Dipakai Server Go untuk menerima notifikasi perubahan `node_threshold_configs` secara real-time (lihat `01_DATABASE_ARCHITECTURE_AND_ERD.md` §5). |
 
-| **MQTT** | *Message Queuing Telemetry Transport* | Protokol ringan berbasis *publish-subscribe* berstandar industri IoT untuk penerimaan jutaan paket data dari ESP32 Gateway. |
-| **Mosquitto** | *Eclipse Mosquitto MQTT Broker* | *Service background* penengah yang berlari di RAM PC Server untuk meneruskan lalu lintas MQTT ke Server Go secara seketika (*zero-delay*). |
-| **Lambda Architecture** | *Big Data Lambda Architecture* | Pola desain sistem terdistribusi yang menangani data massal melalui dua jalur simultan: *Streaming* (real-time) dan *Batch* (historis). |
-| **TimescaleDB** | *Time-Series PostgreSQL Extension* | *Database Engine* berkinerja tinggi penyimpan *Hypertable* yang melakukan *Continuous Aggregates* secara transparan. |
 ---
 
-## 2. Arsitektur Internal Server Go (High-Level Architecture)
-
-Server backend eSOS dirancang secara modular dengan mengadopsi prinsip *Clean Architecture* dan *Event-Driven Concurrency* menggunakan fitur bawaan Go (*Goroutines* dan *Channels*):
+## 2. Arsitektur Internal Server Go (High-Level Architecture — Revisi MQTT-Native)
 
 ```mermaid
 flowchart TD
-    subgraph IoT_Edge ["IoT Edge (Intranet)"]
-        Node["ESP32 Node WC"] -- "LoRa 433MHz" --> Gateway["ESP32 Gateway"]
-        Gateway -- "TCP/IP Wi-Fi" --> Mosquitto{"MQTT Broker<br>Port 1883"}
+    subgraph IoT_Edge ["IoT Edge (Intranet, LoRa-Only Node)"]
+        Node["ESP32 Node WC<br>FreeRTOS Multi-Task"] -- "LoRa 433MHz" --> Gateway["ESP32 Gateway<br>Store-and-Forward Buffer"]
+        Gateway -- "TCP/IP Wi-Fi via CPE220" --> Mosquitto{"Mosquitto Broker<br>Port 1883, QoS 1/2, LWT"}
     end
 
     subgraph Go_Backend ["Go Server (Lambda Engine)"]
-        Mosquitto -- "paho.mqtt Subscribe" --> InQueue["Stream: Buffered Go Channel Cap: 1000"]
-        Router["HTTP/REST API Router"]
+        Mosquitto -- "paho.mqtt.golang Subscribe<br>esos/+/+/telemetry, /alert, /status" --> InQueue["Buffered Go Channel<br>Cap: 1000"]
+        Router["HTTP/REST API Router<br>(Dashboard-facing, /api/v1)"]
         WSHub["WebSocket Streaming Hub"]
-        
-        InQueue --> Worker["Transform: Goroutine ETL Worker"]
-        
+        ThreshCache["Threshold In-Memory Cache<br>map[node_id]Config + RWMutex"]
+        PgListen["Goroutine: LISTEN threshold_config_updated"]
+
+        InQueue --> WorkerPool["Worker Pool: N Goroutine ETL<br>(dedup via sequence_no)"]
+
         subgraph TransformStage ["Transform & Anomaly Detection"]
-            Worker --> Calib["Data Parsing & Normalisasi JSON"]
-            Calib --> Anomaly["Pengecekan Ambang Batas Gas H2S/Amonia"]
-            Anomaly --> AlertGen["Pembangkitan Alarm & Aktuasi Otomatis"]
+            WorkerPool --> Calib["Parsing & Normalisasi JSON Envelope"]
+            Calib --> ThreshCheck["Threshold Checking<br>(baca dari ThreshCache, bukan hardcode)"]
+            ThreshCheck --> AlertGen["Pembangkitan Alarm & Publish MQTT Downlink"]
         end
 
+        PgListen -.refresh.-> ThreshCache
+
         AlertGen -- "1. Stream (Real-Time)" --> WSHub
-        AlertGen -- "2. Batch Buffer" --> MemBuffer["Load: Memory Buffer Batch Size=50"]
+        AlertGen -- "2. Batch Buffer" --> MemBuffer["Memory Buffer, Batch Size=50"]
         MemBuffer -- "Transactional Bulk Insert" --> DB[("PostgreSQL + TimescaleDB")]
     end
 
-    Dashboard["Web Dashboard Operator"] <== "WebSocket Push (Live Graph)" ==> WSHub
-    Dashboard -- "REST API (Polling/History)" --> Router
+    Dashboard["Web Dashboard Operator"] <== "WebSocket Push" ==> WSHub
+    Dashboard -- "REST API v1 (lihat 06_REST_API_OPENAPI_SPEC.md)" --> Router
     Router -- "Query Hypertable" --> DB
+    Router -- "Publish Command" --> Mosquitto
 ```
 
 ---
 
-## 3. Diagram Alur Transmisi & Pemrosesan Data (Sequence Diagram)
+## 3. Diagram Alur Transmisi & Pemrosesan Data (Sequence Diagram — Revisi)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor ESPNode as ESP32 Node WC (LoRa)
-    participant ESPGateway as ESP32 Gateway (WiFi)
-    participant MQTT as Mosquitto Broker (1883)
-    participant GoServer as Go Server (Goroutines)
+    actor ESPNode as ESP32 Node WC (LoRa, FreeRTOS)
+    participant GW as ESP32 Gateway (Buffer + MQTT)
+    participant Broker as Mosquitto Broker (1883)
+    participant GoServer as Go Server (paho Subscriber + Worker Pool)
+    participant Cache as Threshold Cache (In-Memory)
     participant TSDB as PostgreSQL + TimescaleDB
     actor Dashboard as Web Dashboard Operator
 
-    ESPNode->>ESPGateway: Transmisi Radio LoRa (JSON Payload)
-    ESPGateway->>MQTT: Publish 'esos/septic/telemetry'
-    MQTT->>GoServer: Push via MQTT Subscribe
-    GoServer->>GoServer: Goroutine ETL: Extract & Transform
+    ESPNode-)GW: Transmisi Radio LoRa (JSON Envelope)
+    GW->>Broker: PUBLISH esos/posko-a/WC_01/telemetry (QoS 1)
+    Broker->>GoServer: Forward via Subscription Wildcard
+    GoServer->>GoServer: Dedup Check (node_code, sequence_no)
+    GoServer->>GoServer: Worker Pool: Extract & Transform
 
     activate GoServer
-    GoServer->>GoServer: Cek Anomali Gas (H2S > 10ppm?)
-    
+    GoServer->>Cache: Baca Threshold Aktif untuk node_id ini
+    Cache-->>GoServer: {ammonia_danger_ppm: 50.0, h2s_danger_ppm: 20.0, ...}
+    GoServer->>GoServer: Evaluasi Ambang Batas (Bukan Hardcode)
+
     par Stream (WebSockets Real-Time Push)
         GoServer->>Dashboard: Push Live JSON Data (Latency < 1ms)
     and Batch (TimescaleDB Insertion)
         GoServer->>TSDB: Bulk Insert ke Hypertable
     end
     deactivate GoServer
-    
-    Dashboard->>GoServer: GET /api/history (REST API)
-    GoServer->>TSDB: Query Continuous Aggregates
-    TSDB-->>GoServer: Hasil Rata-rata/Batch
-    GoServer-->>Dashboard: Response JSON Historis
+
+    Dashboard->>GoServer: PUT /api/v1/nodes/{id}/config (Ubah Ambang Batas)
+    GoServer->>TSDB: UPDATE node_threshold_configs
+    TSDB-->>GoServer: NOTIFY threshold_config_updated (via LISTEN)
+    GoServer->>Cache: Refresh Entry untuk node_id Terkait
 ```
 
 ---
 
-## 4. Rincian Alur Kerja Mesin ETL (Extract, Transform, Load)
+## 4. Rincian Alur Kerja Mesin ETL (Revisi MQTT-Native)
 
-### 4.1 Tahap Ekstraksi (*Extract Stage*)
-- Menerima struktur data `RawTelemetryPacket` melalui pemanggilan fungsi `pipeline.Ingest(raw)`.
-- Menggunakan *buffered Go Channel* berkapasitas 1000 antrean. Jika terjadi lonjakan paket data masuk yang sangat tinggi, data akan diantrekan secara aman di memori tanpa memblokir siklus eksekusi HTTP handler (*non-blocking I/O*).
+### 4.1 Tahap Ekstraksi (*Extract Stage*) — MQTT Subscriber, Bukan HTTP Handler
 
-### 4.2 Tahap Transformasi (*Transform Stage*)
-Setiap paket mentah yang diambil dari antrean channel diproses melalui algoritma transformasi deterministik:
-1. **Perhitungan Volume Air Tangki:**
-   $$\text{WaterVolumePercentage} = \max\left(0.0, \min\left(100.0, \frac{\text{WaterLevelCm}}{\text{TankHeightCm}} \times 100\right)\right)$$
-2. **Kalkulasi Kapasitas Baterai 1S4P (3.0V s.d. 4.2V):**
-   $$\text{BatteryPercentage} = \max\left(0.0, \min\left(100.0, \frac{\text{BatteryVoltage} - 3.0\text{V}}{1.2\text{V}} \times 100\right)\right)$$
-3. **Kategorisasi Indeks Kualitas Udara (AQI):**
-   - Jika $\text{H}_2\text{S} > 10.0\text{ ppm}$ atau $\text{NH}_3 > 25.0\text{ ppm} \rightarrow$ **`HAZARDOUS`**.
-   - Jika $\text{H}_2\text{S} > 5.0\text{ ppm}$ atau $\text{NH}_3 > 15.0\text{ ppm} \rightarrow$ **`MODERATE`**.
-   - Jika parameter di bawah ambang batas $\rightarrow$ **`GOOD`**.
-4. **Deteksi Anomali & Pembangkitan Alarm Otomatis:**
-   - Memeriksa flag `SosButtonTriggered`. Jika `true`, sistem secara otomatis membuat rekaman *Incident Alert* bertipe `SOS_BUTTON` dengan tingkat keparahan `EMERGENCY`.
-   - Memeriksa pelanggaran ambang batas gas dan level air kritis ($< 15\text{ cm}$).
+- Server Go terhubung sebagai **satu klien MQTT persisten** (`clean_session=false`) ke Mosquitto Broker menggunakan `github.com/eclipse/paho.mqtt.golang`.
+- Callback `OnMessage` dari `paho` **tidak pernah memproses data secara langsung** (mencegah *blocking* pada thread MQTT client) — ia hanya mem-*push* pesan mentah ke *buffered Go Channel* (`chan MQTTMessage`, kapasitas 1000).
+- **Worker Pool** berisi N Goroutine (dikonfigurasi via `ETL_WORKER_COUNT`, default 8) yang mengonsumsi channel tersebut secara paralel.
+- **Deduplikasi:** Sebelum diproses, setiap pesan dicek terhadap *LRU cache* `(node_code → last_sequence_no)` di memori. Pesan dengan `sequence_no` ≤ nilai terakhir yang tercatat (indikasi *retry* duplikat dari QoS 1) dibuang tanpa diproses ulang.
 
-### 4.3 Tahap Pemuatan Data (*Load Stage — Micro-Batch Optimization*)
-Untuk menghindari fenomena *disk I/O contention* dan *database lock* akibat penulisan baris per baris secara terus-menerus:
-- Data hasil transformasi disimpan di dalam *memory slice* `batchBuffer`.
-- Penulisan massal (*bulk insert*) ke SQLite/PostgreSQL dipicu oleh salah satu dari dua kondisi:
-  1. **Threshold Kapasitas:** Jumlah data di memori mencapai **20 rekaman**.
-  2. **Threshold Waktu:** Timer flush internal berdetak setiap **3.0 detik**.
-- Penulisan dilakukan di dalam *Goroutine* terpisah dengan transaksi tunggal (`BEGIN TRANSACTION ... COMMIT`), memastikan latensi baca pada dashboard tetap konsisten di bawah $5\text{ ms}$.
+```go
+type MQTTMessage struct {
+    Topic   string
+    Payload []byte
+}
 
----
+func (p *Pipeline) startMQTTSubscriber(client mqtt.Client) {
+    client.Subscribe("esos/+/+/telemetry", 1, func(c mqtt.Client, msg mqtt.Message) {
+        select {
+        case p.inStream <- MQTTMessage{Topic: msg.Topic(), Payload: msg.Payload()}:
+        default:
+            log.Printf("[WARN] Ingest buffer penuh! Pesan dari topik %s dibuang.", msg.Topic())
+        }
+    })
+}
+```
 
-## 5. WebSocket Real-Time Streaming Hub (`package api/websocket.go`)
+### 4.2 Tahap Transformasi (*Transform Stage*) — Threshold dari Cache, Bukan Hardcode
 
-- Menggunakan protokol WebSocket standar RFC 6455 melalui pustaka `github.com/gorilla/websocket`.
-- **Mekanisme Broadcast:** Menggunakan *fan-out pattern* thread-safe dengan `sync.Mutex` untuk mengelola *pool* koneksi peramban aktif.
-- Begitu data selesai ditransformasikan di tahap ETL, objek `WebSocketEvent` bertipe `TELEMETRY_STREAM` langsung disiarkan ke seluruh klien peramban yang terhubung secara instan ($< 1\text{ ms}$) tanpa perlu menunggu data tersimpan ke disk.
-- Dilengkapi mekanisme *Auto-Reconnect* di sisi JavaScript peramban jika terjadi pemutusan koneksi jaringan nirkabel.
+Perbedaan mendasar dari baseline lama: **tidak ada lagi angka ambang batas yang di-hardcode** (`ammonia_ppm > 25.0` dsb. langsung di kode Go). Sebagai gantinya:
 
----
+```go
+type ThresholdCache struct {
+    mu     sync.RWMutex
+    byNode map[string]models.ThresholdConfig // key: node_id
+}
 
-## 6. Spesifikasi Lengkap Antarmuka REST API (API Reference)
+func (tc *ThresholdCache) Get(nodeID string) models.ThresholdConfig {
+    tc.mu.RLock()
+    defer tc.mu.RUnlock()
+    return tc.byNode[nodeID] // fallback ke default jika belum di-load
+}
 
-### 6.1 Ingest Telemetri Sensor
-Menerima paket telemetri yang dikirimkan oleh Node ESP32 melalui Router TP-Link CPE220 atau LoRa Gateway Bridge.
+func (tc *ThresholdCache) Refresh(nodeID string, db *database.DB) {
+    cfg, _ := db.GetThresholdConfig(nodeID)
+    tc.mu.Lock()
+    tc.byNode[nodeID] = cfg
+    tc.mu.Unlock()
+}
+```
 
-- **Endpoint:** `POST /api/telemetry`
-- **Content-Type:** `application/json`
-- **Request Payload Schema:**
-  ```json
-  {
-    "node_id": "NODE_SANITATION_01",
-    "sequence_no": 105,
-    "water_level_cm": 65.4,
-    "ammonia_ppm": 8.2,
-    "h2s_ppm": 3.1,
-    "battery_voltage": 3.95,
-    "sos_button_triggered": false,
-    "valve_servo_open": false,
-    "rssi_dbm": -72,
-    "snr_db": 9.0
-  }
-  ```
-- **Response Success (201 Created):**
-  ```json
-  {
-    "status": "ACCEPTED",
-    "node_id": "NODE_SANITATION_01",
-    "sequence_no": 105,
-    "ingested_at": "2026-09-03T06:25:00.123456+07:00"
-  }
-  ```
+Alur kalkulasi lain (volume air, persentase baterai, AQI) tetap sama seperti baseline sebelumnya.
 
----
+### 4.3 Tahap Pemuatan Data (*Load Stage*) — Tidak Berubah
+Micro-batch optimization (kapasitas 50 rekaman / *flush timer* 3 detik) tetap dipertahankan dari baseline.
 
-### 6.2 Mengambil Telemetri Terkini (*Latest Snapshot*)
-Mengambil status telemetri paling baru untuk pembaruan awal kartu metrik pada dashboard.
+### 4.4 Threshold Cache Bootstrap & Live Refresh (ADR-07)
 
-- **Endpoint:** `GET /api/telemetry/latest`
-- **Query Parameter (Opsional):** `?node_id=NODE_SANITATION_01`
-- **Response Success (200 OK):**
-  ```json
-  [
-    {
-      "record_id": 1420,
-      "node_id": "NODE_SANITATION_01",
-      "sequence_no": 105,
-      "water_level_cm": 65.4,
-      "water_volume_percentage": 65.4,
-      "ammonia_ppm": 8.2,
-      "h2s_ppm": 3.1,
-      "battery_voltage": 3.95,
-      "battery_percentage": 79.2,
-      "solar_charging_active": true,
-      "valve_servo_open": false,
-      "sos_button_triggered": false,
-      "air_quality_index": "GOOD",
-      "anomaly_detected": false,
-      "rssi_dbm": -72,
-      "snr_db": 9.0,
-      "received_at": "2026-09-03T06:25:00Z"
+```go
+func (p *Pipeline) startThresholdListener(pgConn *pgx.Conn) {
+    // 1. Bootstrap: load seluruh threshold config saat startup
+    p.cache.LoadAll(p.db)
+
+    // 2. Live refresh via PostgreSQL LISTEN/NOTIFY
+    pgConn.Exec(context.Background(), "LISTEN threshold_config_updated")
+    for {
+        notification, err := pgConn.WaitForNotification(context.Background())
+        if err != nil {
+            log.Printf("[LISTEN ERROR] %v — retry in 3s", err)
+            time.Sleep(3 * time.Second)
+            continue
+        }
+        nodeID := notification.Payload
+        p.cache.Refresh(nodeID, p.db)
+        log.Printf("[THRESHOLD CACHE] Refreshed untuk node_id=%s", nodeID)
     }
-  ]
-  ```
+}
+```
+
+### 4.5 Publikasi Perintah Aktuator (Downlink)
+
+Saat `POST /api/v1/actuator/commands` diterima Router REST API:
+1. Simpan `ActuationCommand` baru ke database dengan status `PENDING`.
+2. Publish payload ke topik `esos/{zone}/{node_code}/command` (QoS 2) via klien MQTT yang sama.
+3. Update status jadi `TRANSMITTED`.
+4. Saat `esos/{zone}/{node_code}/command/ack` diterima kembali dari Node, update status jadi `EXECUTED_SUCCESS`/`EXECUTION_FAILED` dan broadcast event `ACTUATOR_STATUS` ke WebSocket Hub.
 
 ---
 
-### 6.3 Mengambil Riwayat Deret Waktu (*Time-Series History*)
-Mengambil kumpulan data riwayat untuk rendering grafik Chart.js di dashboard.
+## 5. WebSocket Real-Time Streaming Hub
 
-- **Endpoint:** `GET /api/telemetry/history`
-- **Query Parameters:**
-  - `node_id` (string, opsional): Filter ID posko sanitasi.
-  - `limit` (integer, default: 50, max: 500): Batas jumlah data yang diambil.
-- **Response Success (200 OK):**
-  ```json
-  [
-    {
-      "record_id": 1420,
-      "node_id": "NODE_SANITATION_01",
-      "water_level_cm": 65.4,
-      "ammonia_ppm": 8.2,
-      "h2s_ppm": 3.1,
-      "battery_voltage": 3.95,
-      "received_at": "2026-09-03T06:25:00Z"
-    },
-    {
-      "record_id": 1419,
-      "node_id": "NODE_SANITATION_01",
-      "water_level_cm": 65.5,
-      "ammonia_ppm": 8.1,
-      "h2s_ppm": 3.0,
-      "battery_voltage": 3.96,
-      "received_at": "2026-09-03T06:24:50Z"
-    }
-  ]
-  ```
+*(Tidak berubah secara mekanisme *fan-out* `sync.Mutex`, namun kini juga menyiarkan event tambahan `GATEWAY_STATUS` (dari LWT MQTT) dan `ACTUATOR_STATUS` (dari `command/ack`) — lihat `06_REST_API_OPENAPI_SPEC.md` §4.7.)*
 
 ---
 
-### 6.4 Mengambil Daftar Peringatan Insiden Aktif (*Active Alerts*)
-Mengambil seluruh insiden darurat yang belum ditangani oleh petugas posko.
+## 6. Kontrak REST API
 
-- **Endpoint:** `GET /api/alerts/active`
-- **Response Success (200 OK):**
-  ```json
-  [
-    {
-      "alert_id": 12,
-      "node_id": "NODE_SANITATION_01",
-      "alert_type": "SOS_BUTTON",
-      "severity": "EMERGENCY",
-      "description": "Peringatan Darurat: Tombol SOS bilik sanitasi ditekan oleh pengungsi!",
-      "is_resolved": false,
-      "created_at": "2026-09-03T06:24:12Z"
-    }
-  ]
-  ```
+**Kontrak REST API lengkap (endpoint, autentikasi, pagination, error envelope, idempotency) didefinisikan secara otoritatif di `06_REST_API_OPENAPI_SPEC.md`.** Dokumen ini tidak lagi mendefinisikan endpoint API secara terpisah untuk menghindari duplikasi/divergensi spesifikasi seperti yang terjadi pada baseline sebelumnya (di mana `02` dan `06` mendeskripsikan gaya endpoint yang berbeda).
 
----
-
-### 6.5 Menyelesaikan Status Insiden (*Resolve Alert*)
-Digunakan oleh petugas posko untuk menandai bahwa insiden darurat telah diverifikasi dan ditangani di lapangan.
-
-- **Endpoint:** `POST /api/alerts/resolve?alert_id=12&resolved_by=Petugas_Posko_A`
-- **Response Success (200 OK):**
-  ```json
-  {
-    "status": "RESOLVED",
-    "alert_id": 12,
-    "resolved_by": "Petugas_Posko_A"
-  }
-  ```
-
----
-
-### 6.6 Endpoint WebSocket Streaming
-- **Endpoint:** `GET /ws` (Protokol Upgrade: `HTTP/1.1 101 Switching Protocols`)
-- **Event Frame Stream:**
-  ```json
-  {
-    "type": "TELEMETRY_STREAM",
-    "payload": {
-      "node_id": "NODE_SANITATION_01",
-      "water_level_cm": 65.4,
-      "ammonia_ppm": 8.2,
-      "h2s_ppm": 3.1,
-      "battery_voltage": 3.95,
-      "sos_button_triggered": false
-    },
-    "timestamp": "2026-09-03T06:25:00.123456+07:00"
-  }
-  ```
+Ringkasan tanggung jawab lapisan:
+- **`02` (dokumen ini):** Bagaimana data *masuk* ke sistem (MQTT ingestion, ETL, threshold cache) dan *tersimpan*.
+- **`06`:** Bagaimana Dashboard/operator *berinteraksi* dengan data tersebut (kontrak REST, autentikasi, format request/response).

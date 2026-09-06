@@ -1,73 +1,48 @@
 # DOKUMEN PIPELINE JARINGAN GATEWAY, ROUTER & ALUR DATA SENSOR
-## Smart-Sanitation eSOS (Emergency Sanitation Operating System) — Komunikasi Nirkabel Wilayah Blank Spot Pasca-Bencana
+## Smart-Sanitation eSOS — Komunikasi Nirkabel Wilayah Blank Spot Pasca-Bencana
 
-Status Dokumen: SPESIFIKASI JARINGAN TERKENDALI (CONTROLLED BASELINE)  
-Perangkat Jaringan: TP-Link CPE220 Outdoor Access Point (2.4GHz High-Power 23 dBm)  
-Protokol Transmisi: Intranet TCP/IP (Wi-Fi AP) untuk Komunikasi Gateway ke MQTT Server  
-Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
-Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
-
----
-
-## 1. Glosarium Singkatan & Istilah Lengkap Jaringan & Komunikasi Radio (Network Glossary)
-
-Berikut adalah daftar kepanjangan resmi dan definisi istilah teknis jaringan nirkabel dan telekomunikasi pada sistem eSOS:
-
-| Singkatan | Kepanjangan Lengkap (Full Term) | Penjelasan Sederhana & Fungsi dalam Sistem eSOS |
-|:---|:---|:---|
-| **CPE** | *Customer Premises Equipment* | Perangkat pemancar nirkabel luar ruangan (*outdoor wireless router access point*) model TP-Link CPE220 yang dipasang di posko pemantauan. |
-| **AP** | *Access Point* (Titik Akses Nirkabel) | Titik pemancar sinyal Wi-Fi lokal tempat mikrokontroler ESP32 di bilik sanitasi terhubung untuk mengirimkan data. |
-| **SSID** | *Service Set Identifier* | Nama identitas jaringan nirkabel Wi-Fi yang dipancarkan oleh router (contoh: `eSOS_Sanitation_Mesh_Net`). |
-| **WPA2-PSK** | *Wi-Fi Protected Access 2 - Pre-Shared Key* | Standar enkripsi keamanan nirkabel yang mengamankan komunikasi data antara ESP32 dan router menggunakan kata sandi rahasia bersama. |
-| **AES** | *Advanced Encryption Standard* | Algoritma penyandian simetris berstandar global untuk mengamankan paket data di udara agar tidak dapat disadap. |
-| **DHCP** | *Dynamic Host Configuration Protocol* | Protokol jaringan yang secara otomatis mengalokasikan alamat IP dan konfigurasi jaringan ke mikrokontroler ESP32 saat pertama kali menyala. |
-| **IP Address** | *Internet Protocol Address* | Alamat numerik unik perangkat di dalam jaringan lokal posko (contoh: `192.168.0.100` untuk Server, `192.168.0.101` untuk ESP32). |
-| **MAC Address** | *Media Access Control Address* | Alamat identitas fisik unik perangkat keras jaringan yang tertanam permanen pada kartu jaringan Wi-Fi ESP32. |
-| **TCP/IP** | *Transmission Control Protocol / Internet Protocol* | Kumpulan protokol standar komunikasi komputer yang menjamin paket data terkirim secara andal, berurutan, dan tanpa galat. |
-| **LoRa** | *Long Range Radio* | Teknologi modulasi radio nirkabel berdaya rendah (*low-power*) jarak jauh yang mampu menembus rintangan reruntuhan bangunan pasca-bencana hingga $2-3\text{ km}$. |
-| **RF** | *Radio Frequency* (Frekuensi Radio) | Gelombang elektromagnetik nirkabel yang digunakan untuk mentransmisikan data di udara (433 MHz untuk LoRa, 2.4 GHz untuk Wi-Fi). |
-| **SPI** | *Serial Peripheral Interface* | Protokol komunikasi sinkron antar-komponen terintegrasi pada board (digunakan ESP32 untuk berkomunikasi dengan chip LoRa SX1278). |
-| **UART** | *Universal Asynchronous Receiver-Transmitter* | Antarmuka komunikasi serial asinkron (digunakan LoRa Gateway receiver untuk mengirim data ke port USB server). |
-| **RSSI** | *Received Signal Strength Indicator* | Indikator kekuatan daya sinyal radio yang diterima, dinyatakan dalam satuan desibel miliwatt (dBm). |
-| **SNR** | *Signal-to-Noise Ratio* | Rasio perbandingan antara kekuatan sinyal informasi terhadap derau (*noise*) interferensi lingkungan nirkabel, dinyatakan dalam desibel (dB). |
-| **dBm** | *Decibel-milliwatts* | Satuan daya sinyal nirkabel terukur terhadap referensi 1 miliwatt (contoh: 23 dBm setara dengan 200 miliwatt daya pancar). |
-| **QoS** | *Quality of Service* | Manajemen prioritas alokasi lebar pita (*bandwidth*) jaringan agar paket darurat SOS selalu diutamakan dibanding data lainnya. |
-| **ACK** | *Acknowledgement* (Pemberitahuan Terima) | Sinyal konfirmasi bahwa paket data sensor telah diterima dengan sukses oleh server posko. |
+Status Dokumen: **SPESIFIKASI JARINGAN TERKENDALI (CONTROLLED BASELINE) — v2.0 MATURED**
+Mengacu pada: `00_ARCHITECTURE_DECISION_RECORD.md` (ADR-02, ADR-03)
+Perangkat Jaringan: TP-Link CPE220 Outdoor Access Point (2.4GHz High-Power 23 dBm)
+Protokol Transmisi: Intranet TCP/IP (Wi-Fi AP) untuk **Gateway ke MQTT Broker** (bukan lagi Node ke Server)
+Author: Daffa Hardhan
 
 ---
 
-## 2. Arsitektur Jaringan Intranet (TCP/IP Topology)
+## 1. Glosarium
 
-Sistem Smart-Sanitation eSOS menggunakan Router **TP-Link CPE220** murni sebagai penyedia jaringan lokal (Intranet) berdaya tinggi. CPE220 TIDAK terhubung ke Internet, melainkan bertindak sebagai tulang punggung (backbone) TCP/IP untuk menghubungkan **ESP32 Gateway (Penerima LoRa)** ke **Laptop Server (Mosquitto & Go)**.
+*(Tidak berubah dari baseline — CPE, AP, SSID, WPA2-PSK, AES, DHCP, IP Address, MAC Address, TCP/IP, LoRa, RF, SPI, UART, RSSI, SNR, dBm, QoS, ACK.)*
 
-`mermaid
+---
+
+## 2. Arsitektur Jaringan Intranet (TCP/IP Topology) — Revisi Peran Radio
+
+**Perubahan penting dari baseline:** Node ESP32 WC **tidak pernah terhubung ke Wi-Fi CPE220 secara langsung**. Hanya **ESP32 Gateway** yang memiliki radio Wi-Fi. Ini menegaskan ulang ADR-02 dan menghapus ambiguitas versi sebelumnya yang menyiratkan Node bisa memilih jalur Wi-Fi/LoRa secara dinamis.
+
+```mermaid
 flowchart TD
-    subgraph Sisi_Radio_LoRa[Zona Radio Frekuensi (No Wi-Fi)]
-        Node1[ESP32 Node WC 01] -- LoRa 433MHz --> ESPGW[ESP32 Gateway Receiver]
-        Node2[ESP32 Node WC 02] -- LoRa 433MHz --> ESPGW
+    subgraph Sisi_Radio_LoRa[Zona Radio Frekuensi — Node LoRa-Only, No WiFi]
+        Node1[ESP32 Node WC 01<br>LoRa 433MHz Only] -- LoRa --> ESPGW[ESP32 Gateway<br>LoRa RX + WiFi TX]
+        Node2[ESP32 Node WC 02<br>LoRa 433MHz Only] -- LoRa --> ESPGW
     end
 
-    subgraph Sisi_Intranet_CPE220[Zona Intranet TCP/IP (TP-Link CPE220)]
-        ESPGW -- Wi-Fi 2.4GHz / DHCP --> Router[CPE220 Access Point
-192.168.0.254]
-        Router -- Ethernet/Wi-Fi --> Laptop[Laptop Posko / Server
-192.168.0.100]
-        
-        subgraph Laptop[Mesin Server Posko (192.168.0.100)]
-            Mosquitto[Eclipse Mosquitto
-Port 1883]
-            GoServer[Go Backend Engine
-Lambda Architecture]
-            Mosquitto <-->|In-Memory MQTT| GoServer
+    subgraph Sisi_Intranet_CPE220[Zona Intranet TCP/IP - TP-Link CPE220]
+        ESPGW -- "Wi-Fi 2.4GHz / DHCP" --> Router["CPE220 Access Point<br>192.168.0.254"]
+        Router -- "Ethernet/Wi-Fi" --> Laptop["Laptop Posko / Server<br>192.168.0.100"]
+
+        subgraph Laptop["Mesin Server Posko (192.168.0.100)"]
+            Mosquitto["Eclipse Mosquitto<br>Port 1883, Auth + ACL"]
+            GoServer["Go Backend Engine<br>paho.mqtt.golang Subscriber"]
+            Mosquitto <-->|MQTT TCP| GoServer
         end
     end
-`
+```
 
-## 3. Diagram Alur Alokasi Jaringan Intranet (Sequence Diagram)
+---
 
-Diagram ini mengilustrasikan proses penentuan alamat IP (DHCP) oleh router hingga paket tiba di MQTT.
+## 3. Diagram Alokasi Jaringan Intranet (Sequence Diagram)
 
-`mermaid
+```mermaid
 sequenceDiagram
     autonumber
     participant ESPGW as ESP32 Gateway
@@ -76,23 +51,24 @@ sequenceDiagram
     participant MQTT as Mosquitto Broker (Port 1883)
 
     Note over ESPGW,Router: Tahap 1: Inisialisasi Jaringan Intranet
-    ESPGW->>Router: Probe & Associate (SSID: eSOS_Intranet)
-    Router-->>ESPGW: DHCP ACK -> Berikan IP 192.168.0.101
-    
+    ESPGW->>Router: Probe & Associate (SSID: eSOS_Sanitation_Mesh_Net)
+    Router-->>ESPGW: DHCP ACK -> IP 192.168.0.101
+
     Server->>Router: Koneksi Kabel LAN / Wi-Fi
     Router-->>Server: IP Statis 192.168.0.100
 
-    Note over ESPGW,MQTT: Tahap 2: Transmisi Telemetri (Pasca-LoRa)
-    ESPGW->>MQTT: Buka TCP Socket ke 192.168.0.100:1883
-    MQTT-->>ESPGW: Socket Terhubung
-    ESPGW->>MQTT: Publish MQTT Topic (Payload JSON)
-    MQTT->>Server: Forward ke Go Server (Subscribe)
-`
+    Note over ESPGW,MQTT: Tahap 2: Sesi MQTT Persisten (clean_session=false)
+    ESPGW->>MQTT: CONNECT (Will Topic=esos/posko-a/gateway/status)
+    MQTT-->>ESPGW: CONNACK
+    ESPGW->>MQTT: PUBLISH esos/posko-a/WC_01/telemetry (QoS 1)
+    MQTT->>Server: Forward via Subscription Wildcard
+```
+
 ---
 
 ## 4. Konfigurasi Standar Router TP-Link CPE220 (`config/network_cpe220.conf`)
 
-Untuk memastikan kestabilan koneksi di lingkungan terbuka pasca-bencana, router outdoor dikonfigurasi dengan parameter optimal:
+*(Tidak berubah dari baseline — parameter fisik radio, antena, dan IP reservation tetap valid karena tidak bergantung pada keputusan MQTT vs HTTP.)*
 
 ```ini
 [DEVICE_INFO]
@@ -105,9 +81,9 @@ Transmit_Power = 23 dBm (200 mW)
 SSID = eSOS_Sanitation_Mesh_Net
 Security_Mode = WPA2-PSK (AES)
 Channel_Frequency = 2.412 GHz (Channel 1)
-Channel_Width = 20 MHz (Lebih tahan terhadap interferensi lingkungan)
-Distance_Setting = 1.5 km (Optimasi timing ACK nirkabel jarak jauh)
-Isolation = Disabled (Mengizinkan komunikasi antar-perangkat lokal)
+Channel_Width = 20 MHz
+Distance_Setting = 1.5 km
+Isolation = Disabled
 
 [IP_SETTINGS]
 IP_Assignment = Static
@@ -120,37 +96,39 @@ DHCP_Range_End = 192.168.0.200
 Lease_Time = 7200
 
 [IP_RESERVATION_TABLE]
-# Pemetaan Alamat IP Perangkat Keras eSOS
-192.168.0.100 = Server_Posko_Monitoring (Laptop / Mini PC)
-192.168.0.101 = ESP32_Node_Sanitasi_01 (Shelter A)
-192.168.0.102 = ESP32_Node_Sanitasi_02 (Shelter B)
+192.168.0.100 = Server_Posko_Monitoring (Laptop / Mini PC — Mosquitto + Go Server)
+192.168.0.101 = ESP32_Gateway_Bridge (Satu-satunya Node dengan radio Wi-Fi)
 192.168.0.254 = Gateway_AP_CPE220 (Access Point)
 ```
 
+> **Catatan Revisi:** Baseline lama mereservasi IP untuk `ESP32_Node_Sanitasi_01/02` secara langsung (mengasumsikan Node terhubung Wi-Fi). Karena kini hanya Gateway yang punya radio Wi-Fi (ADR-02), reservasi IP untuk Node individual **dihapus** — Node WC tidak pernah muncul di jaringan TCP/IP sama sekali, hanya dikenali via `node_code` di dalam payload MQTT yang diteruskan Gateway.
+
 ---
 
-## 5. Mekanisme Jalur Cadangan (LoRa 433 MHz Fallback Redundancy)
+## 5. Mekanisme Resiliensi Jaringan — Revisi Total (Menggantikan "LoRa Fallback Redundancy")
+
+**Baseline lama** memiliki diagram *fallback* di mana Node mencoba HTTP via Wi-Fi terlebih dahulu, baru beralih ke LoRa jika gagal. Diagram ini **dihapus** karena bertentangan dengan ADR-02 (Node LoRa-only, tanpa radio Wi-Fi sama sekali — sehingga tidak ada "Wi-Fi untuk dicoba" di level Node).
+
+Resiliensi jaringan kini **sepenuhnya berada di level Gateway**, didetailkan penuh di `05_LORA_MQTT_TELEMETRY_PIPELINE.md` §5. Ringkasan untuk konteks jaringan:
 
 ```mermaid
 flowchart TD
-    Start[ESP32 Mencoba Kirim Data Sensor] --> TestWiFi{Koneksi Wi-Fi CPE220 Aktif?}
-    
-    TestWiFi -->|Ya| PathWiFi[Kirim HTTP POST via Wi-Fi AP ke 192.168.0.100:8000]
-    TestWiFi -->|Tidak / Terhalang Obstacle| PathLoRa[Alihkan Transmisi ke Modulasi LoRa 433 MHz SPI]
-    
-    PathLoRa --> LoRaGW[LoRa Gateway Bridge Receiver di Posko]
-    LoRaGW -->|USB Serial UART /dev/ttyUSB0| ServerGo[Go Serial Listener Ingest Worker]
-    
-    PathWiFi --> ServerGo
-    ServerGo --> Pipeline[Mesin ETL Streaming & Batch]
-    Pipeline --> LiveUI[Web Dashboard Live Broadcast]
+    Start[Node Kirim Data via LoRa] --> GWReceive[Gateway Terima Paket LoRa]
+    GWReceive --> CheckLink{Sesi MQTT ke Broker Aktif?}
+    CheckLink -->|Ya - CPE220 Normal| PublishDirect[Publish Langsung ke Mosquitto]
+    CheckLink -->|Tidak - CPE220/WiFi Down| LocalBuffer[Simpan di RAM Ring Buffer<br>Kapasitas 500 Pesan]
+    LocalBuffer --> Retry[vTaskWiFiSupervisor: Retry Reconnect<br>Exponential Backoff 3s-30s]
+    Retry --> CheckLink
+    PublishDirect --> Done[Selesai]
 ```
+
+Dengan model ini:
+- **Node tidak pernah tahu** apakah jaringan Wi-Fi/CPE220 sedang bermasalah — ia terus memancarkan LoRa seperti biasa, sepenuhnya *stateless* terhadap kondisi jaringan.
+- **Gateway** menjadi satu-satunya titik yang perlu menangani kompleksitas *reconnect* dan buffering, menyederhanakan firmware Node secara signifikan.
 
 ---
 
-## 6. Prosedur Verifikasi Jaringan di Laboratorium / Lapangan
-
-Petugas atau pengembang dapat memvalidasi keterhubungan pipa data menggunakan perintah terminal:
+## 6. Prosedur Verifikasi Jaringan di Laboratorium / Lapangan (Revisi — MQTT, Bukan HTTP)
 
 ```powershell
 # 1. Verifikasi Konektivitas ke Router Access Point
@@ -159,11 +137,18 @@ ping 192.168.0.254
 # 2. Verifikasi Konektivitas ke Server Backend Posko
 ping 192.168.0.100
 
-# 3. Uji Injeksi Paket Telemetri via HTTP cURL
-curl -X POST http://192.168.0.100:8000/api/telemetry `
-  -H "Content-Type: application/json" `
-  -d '{"node_id":"NODE_SANITATION_01","sequence_no":1,"water_level_cm":65.0,"ammonia_ppm":8.0,"h2s_ppm":3.0,"battery_voltage":3.95,"sos_button_triggered":false,"rssi_dbm":-70,"snr_db":9.0}'
+# 3. Uji Publish Manual ke Mosquitto Broker (menggantikan curl POST /api/telemetry)
+mosquitto_pub -h 192.168.0.100 -p 1883 `
+  -u gateway_posko_a -P "<password>" `
+  -t "esos/posko-a/WC_01/telemetry" -q 1 `
+  -m '{"schema_version":"1.0","node_code":"WC_01","sequence_no":1,"sent_at":"2026-09-06T10:30:00+07:00","payload_type":"TELEMETRY","data":{"water_level_cm":65.0,"ammonia_ppm":8.0,"h2s_ppm":3.0,"battery_voltage":3.95,"sos_button_triggered":false,"rssi_dbm":-70,"snr_db":9.0}}'
 
-# 4. Verifikasi Pembacaan Data Terkini dari Server
-curl http://192.168.0.100:8000/api/telemetry/latest
+# 4. Verifikasi Server Go Menerima & Memproses (Subscribe sebagai observer eksternal)
+mosquitto_sub -h 192.168.0.100 -p 1883 -u go_server_subscriber -P "<password>" -t "esos/#" -v
+
+# 5. Verifikasi Endpoint REST API v1 (Query, bukan Ingest)
+curl http://192.168.0.100:8000/api/v1/nodes/{node_id}/telemetry/latest `
+  -H "Authorization: Bearer <jwt_token>"
 ```
+
+> **Catatan:** Perintah `curl -X POST .../api/telemetry` pada baseline lama **dihapus sepenuhnya** dari prosedur verifikasi standar karena jalur ingest resmi kini eksklusif via MQTT (ADR-01). `POST /api/v1/telemetry/ingest` di `06_REST_API_OPENAPI_SPEC.md` tetap ada tapi berstatus *fallback-only* untuk kebutuhan testing tanpa perangkat fisik.

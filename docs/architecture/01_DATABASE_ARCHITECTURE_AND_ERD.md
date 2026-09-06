@@ -1,74 +1,91 @@
 # DOKUMEN ARSITEKTUR BASIS DATA & ENTITY RELATIONSHIP DIAGRAM (ERD)
-## Smart-Sanitation eSOS (Emergency Sanitation Operating System) — Sistem Pemantauan Sanitasi Darurat Pasca-Bencana
+## Smart-Sanitation eSOS — Sistem Pemantauan Sanitasi Darurat Pasca-Bencana
 
-Status Dokumen: ARSITEKTUR BASIS DATA TERKENDALI (CONTROLLED BASELINE)  
-Database Engine: PostgreSQL 15+ dengan Ekstensi **TimescaleDB** (Time-Series Database)  
-Standar Kepatuhan: ACID (Atomicity, Consistency, Isolation, Durability)  
-Strategi Kunci Utama: **Universally Unique Identifier Versi 7 (UUIDv7 Time-Ordered / RFC 9562)**  
-Author: Daffa Hardhan (Manajer Proyek & Penanggung Jawab Backend/Pipeline Data)  
-Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
+Status Dokumen: **ARSITEKTUR BASIS DATA TERKENDALI (CONTROLLED BASELINE) — v2.0 MATURED**
+Mengacu pada: `00_ARCHITECTURE_DECISION_RECORD.md` (ADR-06, ADR-07)
+Database Engine: PostgreSQL 15+ dengan Ekstensi **TimescaleDB**
+Standar Kepatuhan: ACID
+Strategi Kunci Utama: **UUIDv7 (RFC 9562, Time-Ordered)** — konsisten di seluruh tabel
+Author: Daffa Hardhan
 
 ---
 
-## 1. Glosarium Singkatan & Istilah Lengkap Basis Data (Database Glossary)
+## 1. Glosarium
 
-Berikut adalah daftar kepanjangan resmi dan definisi istilah teknis basis data yang digunakan dalam sistem eSOS:
+*(Tidak berubah dari baseline — lihat versi sebelumnya untuk daftar lengkap istilah UUID, PK, FK, ERD, DDL, SQL, ACID, WAL, MVCC, DSN, HMAC, SHA-256, GPS, GIS, IoT.)*
 
-| Singkatan | Kepanjangan Lengkap (Full Term) | Penjelasan Sederhana & Fungsi dalam Sistem eSOS |
+Tambahan istilah baru pada revisi ini:
+
+| Singkatan | Kepanjangan Lengkap | Penjelasan |
 |:---|:---|:---|
-| **UUID** | *Universally Unique Identifier (RFC 4122)* | Kode identitas acak unik global 128-bit berstandar internasional yang menjamin tidak akan pernah terjadi tabrakan ID (*ID collision*) saat data dari puluhan posko bencana digabungkan ke server pusat. |
-| **PK** | *Primary Key* (Kunci Utama) | Kolom unik yang menjadi tanda pengenal identitas tunggal dari setiap baris rekaman pada tabel. |
-| **FK** | *Foreign Key* (Kunci Asing / Relasi) | Kolom yang menghubungkan rekaman pada tabel anak ke kolom kunci utama (*Primary Key*) pada tabel induk. |
-| **ERD** | *Entity Relationship Diagram* (Diagram Relasi Entitas) | Diagram visual pemetaan struktur tabel, kolom, tipe data, dan hubungan relasi antar-entitas dalam basis data. |
-| **DDL** | *Data Definition Language* | Sekumpulan perintah SQL (`CREATE`, `ALTER`, `DROP`, `INDEX`) untuk mendefinisikan kerangka struktur basis data. |
-| **SQL** | *Structured Query Language* | Bahasa standar internasional untuk berkomunikasi, memanipulasi, dan meminta data dari sistem basis data relasional. |
-| **ACID** | *Atomicity, Consistency, Isolation, Durability* | Empat prinsip keandalan mutlak transaksi basis data agar data dijamin utuh, konsisten, tidak tumpang tindih, dan tidak hilang saat listrik padam. |
-| **WAL** | *Write-Ahead Logging* | Mekanisme pencatatan transaksi ke dalam log penyimpanan permanen terlebih dahulu sebelum ditulis ke berkas database utama guna menjamin ketahanan saat daya padam (*crash-recovery*). |
-| **MVCC** | *Multi-Version Concurrency Control* | Arsitektur konkurensi PostgreSQL yang memungkinkan pembacaan data oleh dashboard tidak terhalang atau terkunci oleh proses penulisan paket data sensor yang masuk bersamaan. |
-| **DSN** | *Data Source Name* | String koneksi yang memuat parameter lokasi berkas database, port, hak akses, dan opsi pragma optimasi. |
-| **HMAC** | *Hash-based Message Authentication Code* | Kode verifikasi keaslian paket data sensor yang dihitung menggunakan fungsi hash kriptografi bersama kunci rahasia. |
-| **SHA-256** | *Secure Hash Algorithm 256-bit* | Algoritma matematika satu arah berstandar industri keamanan militer untuk memastikan paket telemetri tidak dimanipulasi. |
-| **GPS** | *Global Positioning System* | Sistem satelit navigasi global untuk menentukan titik koordinat garis lintang (*latitude*) dan garis bujur (*longitude*) bilik sanitasi di peta bumi. |
-| **GIS** | *Geographic Information System* | Sistem komputasi untuk menyimpan, memetakan, dan menganalisis data spasial koordinat geografis posko bencana. |
-| **IoT** | *Internet of Things* (Internet untuk Segala) | Jaringan perangkat keras fisik (sensor, mikrokontroler, aktuator) yang saling terhubung dan bertukar data melalui jaringan nirkabel. |
-| **eSOS** | *Emergency Sanitation Operating System* | Nama sistem perangkat lunak dan arsitektur pemantauan fasilitas sanitasi darurat terpadu kelompok 4 Despro. |
+| **LISTEN/NOTIFY** | *PostgreSQL Asynchronous Notification* | Mekanisme *native* PostgreSQL untuk memberi tahu proses lain (Go Server) secara *real-time* saat baris tabel tertentu berubah, tanpa perlu *polling*. |
+| **UUIDv7** | *Universally Unique Identifier Version 7 (RFC 9562)* | Varian UUID terbaru yang menggabungkan komponen *timestamp* (48-bit millisecond precision) dengan komponen acak, sehingga **terurut secara alami** (*monotonically increasing*) namun tetap terdesentralisasi. |
 
 ---
 
-## 2. Rationale Strategi Kunci Utama: Mengapa Wajib Menggunakan UUID?
+## 2. Rationale Strategi Kunci Utama: Mengapa UUIDv7, Bukan Auto-Increment atau UUIDv4?
 
-Dalam arsitektur sistem IoT terdistribusi di wilayah posko pasca-bencana, pemilihan tipe *Primary Key* sangat krusial:
+### 2.1 Mengapa Auto-Increment Integer (`BIGSERIAL`) Berbahaya?
+*(Tidak berubah)* Risiko *ID Collision* saat sinkronisasi multi-posko dan ketergantungan terpusat pada database untuk `nextval()` yang mustahil dilakukan di jaringan *blank spot*.
 
-### Mengapa Auto-Increment Integer (`BIGSERIAL` 1, 2, 3...) Berbahaya untuk Wilayah Bencana?
-1. **Risiko Tabrakan Data Saat Sinkronisasi (*ID Collision*):** Posko A (dalam kondisi *blank spot* tanpa internet) mencatat alarm dengan ID `1`, `2`, `3`. Posko B di bukit sebelah juga mencatat alarm dengan ID `1`, `2`, `3`. Ketika jaringan internet darurat pulih dan kedua posko menyinkronkan data ke server pusat BNPB / BPBD, **terjadi tabrakan data (*Primary Key Conflict*)** yang merusak integritas database.
-2. **Ketergantungan Terpusat:** Auto-increment mewajibkan klien selalu bertanya ke database pusat untuk mendapatkan ID berikutnya, yang mustahil dilakukan saat jaringan terputus.
+### 2.2 Mengapa Bukan UUIDv4 Murni (`gen_random_uuid()`)?
+UUIDv4 sepenuhnya acak (122-bit random), yang memberi keunggulan desentralisasi dan anti-*enumeration* — namun punya **kelemahan performa** untuk kasus penggunaan eSOS:
+1. **B-Tree Index Fragmentation:** Karena UUIDv4 tidak terurut, setiap `INSERT` baru berpotensi jatuh di halaman *index* acak manapun, menyebabkan *page split* berlebihan dan indeks yang tidak efisien saat volume telemetri mencapai jutaan baris.
+2. **Cache Locality Buruk:** Baris data yang secara logis "baru saja masuk" (kandidat paling sering di-*query* untuk dashboard *real-time*) tersebar acak di seluruh *tablespace*, bukan mengelompok di halaman terbaru.
 
-### Keunggulan Menggunakan `UUIDv4` (`gen_random_uuid()`):
-1. **Kemandirian Penuh (*Decentralized ID Generation*):** Setiap node sensor, mesin ETL Go, dan server posko dapat membangkitkan ID unik secara lokal di memori secara mandiri dengan probabilitas tabrakan mendekati nol ($1 \text{ banding } 2^{122}$).
-2. **Sinkronisasi Tanpa Konflik (*Seamless Uplink Replication*):** Ketika koneksi satelit/seluler pulih, jutaan data dari seluruh posko pengungsian di Indonesia dapat langsung digabungkan ke basis data pusat tanpa perlu re-mapping ID.
-3. **Keamanan Data (*Anti-Enumeration Attack*):** Mencegah pihak luar menebak volume atau jumlah insiden posko secara sekuensial.
+### 2.3 Keunggulan UUIDv7 (Keputusan Final — ADR-06)
+UUIDv7 menggabungkan **kedua dunia**:
 
+| Properti | UUIDv4 | UUIDv7 |
+|:---|:---:|:---:|
+| Desentralisasi generasi ID (tanpa koordinasi pusat) | ✅ | ✅ |
+| Anti-*collision* lintas-posko | ✅ | ✅ |
+| Anti-*enumeration attack* (tidak bisa ditebak sekuensial) | ✅ | ✅ (128-bit space tetap besar) |
+| Terurut secara waktu (*time-ordered*) | ❌ | ✅ |
+| Performa indeks B-Tree (menghindari *page split*) | ❌ Buruk | ✅ Optimal |
+| Bisa diekstrak *timestamp* pembuatan tanpa kolom terpisah | ❌ | ✅ (berguna untuk *debugging* forensik insiden) |
+
+**Kesimpulan:** UUIDv7 dipakai secara **konsisten** di seluruh Primary Key tabel (`sanitation_nodes`, `node_threshold_configs`, `telemetry_records`, `incident_alerts`, `actuation_commands`, `system_audit_logs`) — tidak ada lagi campuran v4/v7 seperti pada baseline sebelumnya.
+
+### 2.4 Implementasi Generasi UUIDv7 di PostgreSQL
+PostgreSQL native `gen_random_uuid()` (ekstensi `pgcrypto`) hanya menghasilkan **UUIDv4**. Karena PostgreSQL 15/16 belum punya fungsi bawaan UUIDv7, sistem eSOS menggunakan salah satu dari dua pendekatan berikut (dipilih saat implementasi):
+
+**Opsi A — Ekstensi Komunitas:**
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_uuidv7; -- https://github.com/fboulnois/pg_uuidv7
+-- Pemakaian: DEFAULT uuid_generate_v7()
+```
+
+**Opsi B — Fungsi SQL Kustom (Tanpa Dependensi Eksternal):**
+```sql
+CREATE OR REPLACE FUNCTION uuid_generate_v7() RETURNS UUID AS $$
+DECLARE
+    unix_ts_ms BYTEA;
+    uuid_bytes BYTEA;
+BEGIN
+    unix_ts_ms := substring(int8send(floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3);
+    uuid_bytes := unix_ts_ms || gen_random_bytes(10);
+    uuid_bytes := set_byte(uuid_bytes, 6, (b'0111' || get_byte(uuid_bytes, 6)::bit(4))::bit(8)::int);
+    uuid_bytes := set_byte(uuid_bytes, 8, (b'10' || get_byte(uuid_bytes, 8)::bit(6))::bit(8)::int);
+    RETURN encode(uuid_bytes, 'hex')::UUID;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+```
+
+> Di lapisan Go (ETL Server), pembangkitan tetap memakai `uuid.Must(uuid.NewV7())` dari `github.com/google/uuid` — **konsisten** dengan strategi database.
 
 ---
 
 ## 3. Arsitektur Pemrosesan Big Data (Lambda Architecture & TimescaleDB)
 
-Karena sistem memproses data sensor (*telemetry*) secara konstan 24 jam nonstop dari banyak node, eSOS menerapkan pola **Lambda Architecture** pada backend Go dan menggunakan **TimescaleDB** pada sisi basis data untuk mengelola skala *Big Data*.
+*(Tidak berubah secara prinsip Lambda Architecture, namun jalur masuk data kini eksplisit via MQTT sesuai `05_LORA_MQTT_TELEMETRY_PIPELINE.md`, bukan HTTP POST langsung.)*
 
-### 3.1. Jalur Stream Processing (Event-Driven / Real-Time via Go)
-*   **Mekanisme:** Saat paket MQTT masuk ke Server Go, *Goroutines* secara konkuren menangkap data tersebut ke dalam *Channel* memori (RAM).
-*   **Fungsi:** Data tidak menunggu disimpan ke *hardisk*. *Goroutines* langsung melakukan pengecekan batas bahaya (*Threshold Checking*). Jika amonia > 300ppm, server seketika menembakkan notifikasi via **WebSockets** ke Dashboard dan mengirim *Command* MQTT ke Aktuator.
-*   **Keunggulan:** Latensi sub-milidetik untuk peringatan bahaya (*Alerting*).
+- **Jalur Stream:** MQTT Subscriber (Goroutine Worker Pool) → Threshold Checking (via *in-memory cache*, §6) → WebSocket Push.
+- **Jalur Batch:** TimescaleDB Hypertable + Continuous Aggregates (tidak berubah).
 
-### 3.2. Jalur Batch Processing (Historical / Aggregation via TimescaleDB)
-Alih-alih menggunakan *Batch script Go* manual (CRON/Ticker) untuk menghitung rata-rata harian, eSOS mendelegasikan tugas *Batch* sepenuhnya ke tingkat *Database* (PostgreSQL + TimescaleDB).
-
-*   **Hypertables (Partisi Otomatis):** Tabel TELEMETRY_RECORDS diubah menjadi *Hypertable*. Walaupun berisi jutaan baris, TimescaleDB secara transparan memecah data berdasarkan dimensi waktu (*time-chunks* per hari/minggu), sehingga pembacaan grafik setahun terakhir tetap sedetik.
-*   **Continuous Aggregates (Batch Otomatis):** Fitur bawaan TimescaleDB yang secara otomatis berjalan di *background* merangkum rata-rata nilai H2S dan Amonia per jam dan per hari. Tidak perlu *coding* rekap harian di Golang, cukup baca hasil dari materialized view.
-*   **Kompresi (Native Compression):** Algoritma kompresi khusus data deret waktu yang menghemat ruang SSD hingga 90%, memastikan *storage* posko tidak cepat penuh.
 ---
 
-## 4. Entity Relationship Diagram (ERD) — Skema Berbasis UUID
+## 4. Entity Relationship Diagram (ERD) — Skema UUIDv7 Konsisten
 
 ```mermaid
 erDiagram
@@ -76,185 +93,158 @@ erDiagram
     SANITATION_NODES ||--o{ TELEMETRY_RECORDS : "mengirimkan deret waktu"
     SANITATION_NODES ||--o{ INCIDENT_ALERTS : "membangkitkan peringatan"
     SANITATION_NODES ||--o{ ACTUATION_COMMANDS : "menerima perintah kontrol"
+    SANITATION_NODES ||--o{ API_KEYS : "memiliki kredensial ingest"
 
     SANITATION_NODES {
-        uuid node_id PK "Kunci Utama Unik Global (UUIDv4)"
-        string node_code UK "Kode Unit Posko (e.g. NODE_SANITATION_01)"
+        uuid node_id PK "UUIDv7, Time-Ordered"
+        string node_code UK "Kode Unit Posko (e.g. WC_01)"
         string node_name "Nama Stasiun Sanitasi"
         string zone_area "Zona Wilayah Evakuasi"
-        decimal latitude "Koordinat Lintang GPS (-90 s.d. 90)"
-        decimal longitude "Koordinat Bujur GPS (-180 s.d. 180)"
-        string firmware_version "Versi Firmware ESP32"
-        string hardware_revision "Revisi Perakitan Hardware"
-        bigint lora_frequency_hz "Frekuensi RF (433000000 Hz)"
+        decimal latitude
+        decimal longitude
+        string firmware_version
+        string hardware_revision
+        bigint lora_frequency_hz
         enum status "ACTIVE | INACTIVE | MAINTENANCE | ALERT_EMERGENCY"
-        timestamptz installed_at "Waktu Instalasi Fisik"
-        timestamptz last_ping_at "Waktu Terakhir Node Aktif"
-        timestamptz created_at "Waktu Pembuatan Rekaman"
-        timestamptz updated_at "Waktu Pembaruan Terakhir"
+        timestamptz installed_at
+        timestamptz last_ping_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     NODE_THRESHOLD_CONFIGS {
-        uuid config_id PK "Kunci Utama Konfigurasi (UUIDv4)"
-        uuid node_id FK "Relasi ke SANITATION_NODES (UNIQUE)"
-        decimal water_tank_height_cm "Tinggi Fisik Tangki Air (cm)"
-        decimal water_critical_low_cm "Batas Kritis Air Kosong (cm)"
-        decimal water_warning_low_cm "Batas Peringatan Air Rendah (cm)"
-        decimal ammonia_warning_ppm "Batas Peringatan Gas NH3 (ppm)"
-        decimal ammonia_danger_ppm "Batas Bahaya Gas NH3 (ppm)"
-        decimal h2s_warning_ppm "Batas Peringatan Gas H2S (ppm)"
-        decimal h2s_danger_ppm "Batas Bahaya Gas H2S (ppm)"
-        decimal battery_critical_volt "Tegangan Kritis Cutoff Baterai (V)"
-        decimal battery_warning_volt "Tegangan Peringatan Baterai Rendah (V)"
-        timestamptz updated_at "Waktu Modifikasi Parameter"
+        uuid config_id PK "UUIDv7"
+        uuid node_id FK "UNIQUE"
+        decimal water_tank_height_cm
+        decimal water_critical_low_cm
+        decimal water_warning_low_cm
+        decimal ammonia_warning_ppm
+        decimal ammonia_danger_ppm
+        decimal h2s_warning_ppm
+        decimal h2s_danger_ppm
+        decimal battery_critical_volt
+        decimal battery_warning_volt
+        timestamptz updated_at
     }
 
     TELEMETRY_RECORDS {
-        uuid record_id PK "Kunci Utama Rekaman (UUIDv4)"
-        timestamptz received_at PK "Waktu Penerimaan Server (Partition Key)"
-        uuid node_id FK "Relasi ke SANITATION_NODES"
-        string node_code "Kode Posko untuk Query Cepat"
-        bigint sequence_no "Nomor Urut Paket Transmisi"
-        decimal water_level_cm "Jarak Level Air Tangki (cm)"
-        decimal water_volume_percentage "Kapasitas Volume Air (%)"
-        decimal ammonia_ppm "Konsentrasi Gas Amonia (ppm)"
-        decimal h2s_ppm "Konsentrasi Gas H2S Toksik (ppm)"
-        enum air_quality_index "GOOD | MODERATE | UNHEALTHY | HAZARDOUS"
-        decimal battery_voltage "Tegangan Baterai 1S4P (V)"
-        decimal battery_percentage "Persentase Daya Baterai (%)"
-        boolean solar_charging_active "Indikator Pengisian Panel Surya"
-        boolean valve_servo_open "Status Bukaan Katup Sanitasi"
-        boolean sos_button_triggered "Status Tombol Darurat SOS"
-        boolean anomaly_detected "Indikator Anomali Sinyal"
-        int rssi_dbm "Kekuatan Sinyal Nirkabel LoRa (dBm)"
-        decimal snr_db "Rasio Signal-to-Noise LoRa (dB)"
+        uuid record_id PK "UUIDv7 — Partition Key bersama received_at"
+        timestamptz received_at PK
+        uuid node_id FK
+        string node_code
+        bigint sequence_no "Untuk deduplikasi MQTT QoS 1"
+        decimal water_level_cm
+        decimal water_volume_percentage
+        decimal ammonia_ppm
+        decimal h2s_ppm
+        enum air_quality_index
+        decimal battery_voltage
+        decimal battery_percentage
+        boolean solar_charging_active
+        boolean valve_servo_open
+        boolean sos_button_triggered
+        boolean anomaly_detected
+        int rssi_dbm
+        decimal snr_db
     }
 
     INCIDENT_ALERTS {
-        uuid alert_id PK "Kunci Utama Insiden (UUIDv4)"
-        uuid node_id FK "Relasi ke SANITATION_NODES"
-        string node_code "Kode Posko Pelapor"
-        string alert_code "Kode Kejadian Darurat"
-        enum severity "INFO | WARNING | CRITICAL | EMERGENCY"
-        text description "Deskripsi Rinci Insiden"
-        decimal trigger_value "Nilai Parameter Sensor Pemicu"
+        uuid alert_id PK "UUIDv7"
+        uuid node_id FK
+        string node_code
+        string alert_code
+        enum severity
+        text description
+        decimal trigger_value
         enum status "OPEN | ACKNOWLEDGED | RESOLVED | FALSE_ALARM"
-        boolean is_resolved "Status Selesai (Generated Column)"
-        timestamptz acknowledged_at "Waktu Verifikasi Petugas"
-        string acknowledged_by "Nama Petugas yang Memverifikasi"
-        timestamptz resolved_at "Waktu Insiden Diselesaikan"
-        string resolved_by "Nama Petugas Penyelesai"
-        text resolution_notes "Catatan Tindakan Korektif"
-        timestamptz created_at "Waktu Alarm Dibangkitkan"
+        boolean is_resolved "Generated Column"
+        timestamptz acknowledged_at
+        string acknowledged_by
+        timestamptz resolved_at
+        string resolved_by
+        text resolution_notes
+        timestamptz created_at
     }
 
     ACTUATION_COMMANDS {
-        uuid command_id PK "Kunci Utama Perintah (UUIDv4)"
-        uuid node_id FK "Relasi ke SANITATION_NODES"
-        string node_code "Kode Posko Pelaksana"
-        string command_type "Tipe Perintah (OPEN_VALVE | CLOSE_VALVE)"
-        int target_angle_deg "Target Sudut Servo (0 s.d. 180 Derajat)"
-        string triggered_by "Pemicu (SENSOR_AUTO | OPERATOR_DASHBOARD)"
-        string operator_id "ID Petugas Pengendali"
+        uuid command_id PK "UUIDv7"
+        uuid node_id FK
+        string node_code
+        string command_type
+        int target_angle_deg
+        string triggered_by
+        string operator_id
+        string idempotency_key UK "Mencegah eksekusi ganda REST API"
         enum status "PENDING | TRANSMITTED | EXECUTED_SUCCESS | EXECUTION_FAILED"
-        int execution_latency_ms "Latensi Eksekusi Jaringan (ms)"
-        timestamptz executed_at "Waktu Perintah Selesai Dieksekusi"
-        timestamptz created_at "Waktu Perintah Diterbitkan"
+        int execution_latency_ms
+        timestamptz executed_at
+        timestamptz created_at
+    }
+
+    API_KEYS {
+        uuid key_id PK "UUIDv7"
+        uuid node_id FK
+        string key_hash "SHA-256 hash, bukan plaintext"
+        string scope "INGEST_ONLY"
+        boolean is_active
+        timestamptz created_at
+        timestamptz revoked_at
     }
 
     SYSTEM_AUDIT_LOGS {
-        uuid log_id PK "Kunci Utama Log Audit (UUIDv4)"
-        string action_type "Tipe Aksi Sistem / Konfigurasi"
-        string actor_id "ID Aktor / Pengguna"
-        string ip_address "Alamat IP Klien / Perangkat"
-        jsonb details "Payload Rinci Perubahan (JSONB)"
-        timestamptz created_at "Waktu Kejadian"
+        uuid log_id PK "UUIDv7"
+        string action_type
+        string actor_id
+        string ip_address
+        string trace_id "Korelasi dengan REST API error envelope"
+        jsonb details
+        timestamptz created_at
     }
 ```
 
+> **Perubahan dari baseline:** Ditambahkan tabel `API_KEYS` (mendukung ADR-05: autentikasi API Key per node), kolom `sequence_no` dipertegas fungsinya untuk deduplikasi MQTT, kolom `idempotency_key` ditambahkan pada `ACTUATION_COMMANDS`, dan `trace_id` pada `SYSTEM_AUDIT_LOGS` untuk korelasi *error envelope* REST API.
+
 ---
 
-## 4. Rincian Tabel & Struktur Kolom (Data Dictionary)
+## 5. Mekanisme Cache Invalidation Ambang Batas (ADR-07) via LISTEN/NOTIFY
 
-### 4.1 Tabel Master: `sanitation_nodes`
-Tabel master yang meregistrasikan seluruh unit bilik sanitasi eSOS yang tersebar di wilayah posko pengungsian.
-- **`node_id` (UUID, Primary Key, DEFAULT `gen_random_uuid()`):** Kunci unik global 128-bit.
-- **`node_code` (VARCHAR(32), UNIQUE, NOT NULL):** Nama kode yang mudah dibaca manusia (contoh: `'NODE_SANITATION_01'`).
-- **`node_name` (VARCHAR(128), NOT NULL):** Nama deskriptif fasilitas sanitasi.
-- **`zone_area` (VARCHAR(64), NOT NULL):** Lokasi spesifik penempatan (contoh: `'Shelter Posko A - Zona Evakuasi 1'`).
-- **`latitude` & `longitude` (DECIMAL(10,7) & DECIMAL(11,7), NOT NULL):** Koordinat lintang dan bujur GPS yang divalidasi dengan constraint rentang bumi valid.
-- **`status` (node_status_enum, NOT NULL):** Status operasional (`ACTIVE`, `INACTIVE`, `MAINTENANCE`, `ALERT_EMERGENCY`).
-- **`last_ping_at` (TIMESTAMPTZ):** Diperbarui otomatis oleh database trigger saat menerima paket telemetri baru.
+Untuk menjamin perubahan `node_threshold_configs` dari Dashboard (`PUT /api/v1/nodes/{id}/config`) **langsung** mempengaruhi logika alarm di ETL Server tanpa restart:
 
-### 4.2 Tabel Konfigurasi: `node_threshold_configs`
-Menyimpan batas ambang alarm yang dapat disesuaikan per masing-masing stasiun sanitasi.
-- **`config_id` (UUID, Primary Key, DEFAULT `gen_random_uuid()`):** Kunci unik konfigurasi.
-- **`node_id` (UUID, Foreign Key, UNIQUE):** Terhubung 1-to-1 dengan `sanitation_nodes(node_id)`.
-- **`water_critical_low_cm` (DECIMAL(5,2)):** Batas ketinggian air terendah sebelum memicu peringatan darurat tangki kosong (default: $15.00\text{ cm}$).
-- **`ammonia_warning_ppm` & `ammonia_danger_ppm` (DECIMAL(6,2)):** Batas konsentrasi gas amonia $NH_3$ aman vs bahaya ($25\text{ ppm}$ dan $50\text{ ppm}$).
-- **`h2s_warning_ppm` & `h2s_danger_ppm` (DECIMAL(6,2)):** Batas konsentrasi gas hidrogen sulfida $H_2S$ toksik ($10\text{ ppm}$ dan $20\text{ ppm}$).
-- **`battery_critical_volt` (DECIMAL(3,2)):** Batas tegangan cutoff baterai Li-ion ($3.00\text{ V}$).
+```sql
+CREATE OR REPLACE FUNCTION notify_threshold_change() RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_notify('threshold_config_updated', NEW.node_id::text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-### 4.3 Tabel Deret Waktu: `telemetry_records` (Partitioned Table)
-Tabel time-series berkinerja tinggi yang menyimpan aliran data sensor secara berkala.
-- **Primary Key:** Komposit `(record_id UUID, received_at TIMESTAMPTZ)` untuk kompatibilitas partisi rentang waktu.
-- **Partisi Bulanan:** Menggunakan strategi `PARTITION BY RANGE (received_at)` untuk memisahkan tabel per bulan kalender.
-- **`water_level_cm` & `water_volume_percentage`:** Pembacaan ketinggian air dan kalkulasi persentase kapasitas tangki.
-- **`ammonia_ppm` & `h2s_ppm`:** Konsentrasi gas terkalibrasi dari sensor MQ-137 dan MQ-136.
-- **`air_quality_index` (aqi_category_enum):** Klasifikasi mutu udara otomatis (`GOOD`, `MODERATE`, `UNHEALTHY`, `HAZARDOUS`).
-- **`battery_voltage` & `solar_charging_active`:** Parameter kelistrikan baterai 1S4P dan status suplai panel surya 10Wp.
-- **`sos_button_triggered` (BOOLEAN):** Flag darurat tombol SOS fisik yang ditekan oleh pengungsi.
-- **`rssi_dbm` & `snr_db`:** Metrik kualitas tautan nirkabel LoRa 433 MHz untuk memantau integritas transmisi radio.
-
-### 4.4 Tabel Peringatan Insiden: `incident_alerts`
-Menyimpan seluruh kejadian darurat (SOS button, kebocoran gas beracun, air habis, tegangan drop) dengan siklus penanganan tertutup (*Incident Lifecycle*):
-
-```mermaid
-stateDiagram-v2
-    [*] --> OPEN : Pemicu Ambang Batas / Tombol SOS
-    OPEN --> ACKNOWLEDGED : Petugas Posko Memverifikasi
-    ACKNOWLEDGED --> RESOLVED : Tindakan Lapangan Selesai
-    OPEN --> FALSE_ALARM : Verifikasi Alarm Palsu
-    RESOLVED --> [*]
-    FALSE_ALARM --> [*]
+CREATE OR REPLACE TRIGGER trg_notify_threshold_change
+AFTER INSERT OR UPDATE ON node_threshold_configs
+FOR EACH ROW EXECUTE FUNCTION notify_threshold_change();
 ```
 
-### 4.5 Tabel Perintah Aktuasi: `actuation_commands`
-Catatan jejak audit (*audit trail*) setiap perintah kendali pembukaan/penutupan katup motor servo MG996R, baik yang dipicu secara otomatis oleh sistem (*sensor auto-trigger*) maupun manual oleh operator posko.
+Go Server menjalankan *goroutine* terpisah yang melakukan `LISTEN threshold_config_updated` sepanjang siklus hidup proses. Saat notifikasi masuk, *in-memory cache* threshold (map `node_id → ThresholdConfig`, dilindungi `sync.RWMutex`) di-*refresh* untuk `node_id` terkait — detail implementasi ada di `02_BACKEND_ETL_AND_API_ARCHITECTURE.md` §4.4.
 
 ---
 
-## 5. Ekstensi PostgreSQL yang Digunakan & Rationale Teknis
+## 6. Ekstensi PostgreSQL yang Digunakan
 
-| Nama Ekstensi | Tujuan dan Alasan Penggunaan pada Proyek eSOS |
+| Ekstensi | Tujuan |
 |:---|:---|
-| **`uuid-ossp`** | Menghasilkan pengenal unik global (*Universally Unique Identifier*) berstandar RFC 4122 versi 4 (`uuid_generate_v4()`) untuk kebutuhan token otentikasi API, ID audit log, dan session tracking operator posko tanpa risiko tabrakan ID lintas sistem. |
-| **`pgcrypto`** | Menyediakan fungsi `gen_random_uuid()`, `crypt()`, `gen_salt()`, dan `hmac()`. Digunakan untuk mengenkripsi kata sandi operator posko dan memvalidasi *checksum HMAC-SHA256* pada paket data sensor guna mencegah manipulasi data di udara. |
-| **`timescaledb`** *(Opsional Scale-up)* | Mengubah tabel `telemetry_records` menjadi *Hypertable* teroptimasi IoT, menyediakan fitur kompresi data time-series hingga 90%, dan *continuous aggregate view* untuk efisiensi penyimpanan jangka panjang. |
-| **`postgis`** *(Opsional Scale-up)* | Menyediakan tipe data spasial geografis (`GEOMETRY(Point, 4326)`), memungkinkan query geospasial seperti mencari posko sanitasi terdekat dari titik lokasi evakuasi atau menghitung radius sebaran gas toksik. |
+| **`pgcrypto`** | `gen_random_bytes()` (dipakai fungsi `uuid_generate_v7()` kustom), HMAC-SHA256 validasi integritas payload. |
+| **`pg_uuidv7`** *(opsional, direkomendasikan)* | Alternatif native performant untuk generasi UUIDv7 dibanding fungsi PL/pgSQL kustom. |
+| **`timescaledb`** | Hypertable `telemetry_records`, Continuous Aggregates, kompresi time-series. |
+| **`postgis`** *(opsional scale-up)* | Query geospasial multi-posko. |
 
 ---
 
-## 6. Penegakan Kepatuhan ACID (ACID Enforcement)
+## 7. Penegakan ACID & Strategi Indeks
 
-1. **Atomicity (Keutuhan Transaksi):**
-   - Transaksi *Batch Load* dari server Go diikat dalam blok `BEGIN ... COMMIT`. Seluruh rekaman dalam satu batch berhasil masuk secara utuh atau dibatalkan sepenuhnya jika terjadi kesalahan fatal, menjamin tidak ada data setengah jalan.
-2. **Consistency (Konsistensi Aturan Data):**
-   - Penegakan integritas struktural menggunakan `CHECK CONSTRAINTS` di level basis data untuk memastikan tidak ada angka sensor yang tidak masuk akal (misal: tegangan baterai negatif atau ketinggian air melebihi kapasitas fisik).
-   - Penggunaan tipe data `ENUM` memastikan hanya status valid yang dapat tersimpan di tabel.
-3. **Isolation (Isolasi Antar-Sesi Konkuren):**
-   - Menggunakan arsitektur MVCC (*Multi-Version Concurrency Control*) PostgreSQL. Pembacaan grafik dashboard live tidak pernah mengunci (*lock*) proses penulisan paket telemetri LoRa yang masuk bersamaan.
-4. **Durability (Ketahanan Terhadap Crash Daya):**
-   - Seluruh perubahan data dicatat terlebih dahulu ke dalam *Write-Ahead Log* (WAL) disk non-volatile sebelum status transaksi dikembalikan ke aplikasi. Hal ini menjamin integritas data tetap $100\%$ utuh meskipun suplai listrik posko bencana terputus tiba-tiba.
+*(Tidak berubah dari baseline — MVCC, WAL, `idx_telemetry_node_received`, `idx_telemetry_sos`, `idx_alerts_unresolved` tetap berlaku. Tambahan indeks baru:)*
 
----
+```sql
+CREATE UNIQUE INDEX idx_actuation_idempotency ON actuation_commands (idempotency_key);
+CREATE INDEX idx_telemetry_dedup ON telemetry_records (node_code, sequence_no);
+```
 
-## 7. Strategi Pengindeksan & Kinerja Query (Indexing Strategy)
-
-Untuk memastikan waktu respon API dashboard tetap berada di bawah $5\text{ ms}$:
-1. **`idx_telemetry_node_received` (Composite Index B-Tree on `node_code, received_at DESC`):**  
-   Mengoptimalkan query grafik dashboard time-series yang selalu mengambil data terkini berdasarkan kode posko.
-2. **`idx_telemetry_sos` (Partial Index on `sos_button_triggered = TRUE`):**  
-   Pengindeksan parsial khusus untuk baris yang memiliki status SOS darurat aktif, mempercepat query deteksi insiden tanpa membebani ukuran indeks keseluruhan.
-3. **`idx_alerts_unresolved` (Partial Index on `status IN ('OPEN', 'ACKNOWLEDGED')`):**  
-   Menjamin query daftar alarm aktif posko langsung menemukan data tanpa melakukan *Full Table Scan*.
+Indeks `idx_telemetry_dedup` mendukung pengecekan cepat duplikasi `sequence_no` per node sebelum `INSERT` (lihat ADR §4 "Setiap pesan MQTT wajib memiliki `sequence_no`").

@@ -3,24 +3,36 @@
   "projectCode": "DESPRO2_SMART_SANITATION_MODULAR",
   "institution": "Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)",
   "course": "Desain Proyek 2 (Gasal 2026/2027)",
-  "version": "2.2.0",
-  "status": "CONTROLLED / FULL UNIFIED SRC ARCHITECTURE",
+  "version": "3.0.0",
+  "status": "CONTROLLED / DOCS-FIRST ARCHITECTURE (MQTT-NATIVE, FREERTOS, REST-V1)",
+  "architectureAuthority": "docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md",
   "proposalReference": "Bab 4.4 & Bab 5 Proposal Desain Proyek 1 DTE FTUI 2026",
   "budgetCeiling": 2000000,
   "rabBaseline": 1901000,
   "actualEstimatedCost": 1828500,
   "totalAllocatedHours": 205,
   "googleSheetsTracker": "https://docs.google.com/spreadsheets/d/1zRfozwUUJNMKAodWKQSK0rwU4v89uHyB7RLKbxfwlRk/edit?usp=sharing",
+  "architectureDecisions": [
+    "ADR-01: Jalur ingest resmi Gateway->Server via MQTT (Eclipse Mosquitto), bukan HTTP POST langsung.",
+    "ADR-02: ESP32 Node WC bersifat LoRa-only (radio WiFi dimatikan total); hanya ESP32 Gateway yang memiliki radio WiFi.",
+    "ADR-03: Resiliensi jaringan ditangani via store-and-forward ring buffer di level Gateway, bukan dual-path di level Node.",
+    "ADR-04: Firmware ESP32 (Node & Gateway) wajib FreeRTOS multi-task, non-blocking, dengan pemetaan task/priority/core eksplisit.",
+    "ADR-05: Kontrak REST API mengikuti konvensi enterprise IoT (versioned path /api/v1, API Key + JWT, idempotency key, cursor pagination, error envelope standar).",
+    "ADR-06: Seluruh Primary Key database memakai UUIDv7 (time-ordered) secara konsisten, tidak ada campuran UUIDv4.",
+    "ADR-07: Ambang batas alarm dibaca dari in-memory cache yang di-refresh real-time via PostgreSQL LISTEN/NOTIFY, bukan hardcoded.",
+    "ADR-08: Path dokumentasi resmi adalah docs/architecture/ dan docs/hardware_references/ (root-level), bukan src/server/docs/."
+  ],
   "specialDesignDecisions": [
     "Darrel Alfath designs and fabricates the 3D Parametric CAD Enclosure/Casing for the IoT device with IP54 weatherproofing.",
-    "Hardware assembly utilizes standard off-the-shelf breakout boards and high-reliability perfboard/terminal wiring harness by Muhammad Ilman Zuhriy (No custom group fabricated PCB)."
+    "Hardware assembly utilizes standard off-the-shelf breakout boards and high-reliability perfboard/terminal wiring harness by Muhammad Ilman Zuhriy (No custom group fabricated PCB).",
+    "Prinsip Docs-First: seluruh implementasi kode (src/) mengacu ke docs/architecture/ sebagai kontrak mengikat; kode existing dianggap draf usang yang akan direfaktor total mengikuti dokumen arsitektur final."
   ],
   "team": [
     {
       "name": "Daffa Hardhan",
       "npm": "2306161763",
       "proposalRole": "Manajer Proyek dan Pengembang",
-      "primaryDomain": "Project management, master semester WBS, system architecture, Go backend server (Batch & Streaming ETL), Web Dashboard UI, TP-Link CPE220 outdoor router pipeline",
+      "primaryDomain": "Project management, system architecture, Go backend server (MQTT Subscriber Worker Pool, Batch & Streaming ETL), Web Dashboard UI, TP-Link CPE220 outdoor router pipeline, Mosquitto MQTT Broker administration",
       "allocatedHours": 40,
       "reportFolder": "reports/individual/daffa/"
     },
@@ -36,7 +48,7 @@
       "name": "Siti Amalia Nurfaidah",
       "npm": "2306161851",
       "proposalRole": "Pengembang Perangkat Lunak",
-      "primaryDomain": "Firmware ESP32, embedded logic, ADC/PWM signal processing, LoRa RA-02 433 MHz protocol, servo actuator automation",
+      "primaryDomain": "Firmware ESP32 FreeRTOS multi-task, embedded logic, ADC/PWM signal processing, LoRa RA-02 433 MHz protocol (RadioLib, non-blocking), servo actuator automation",
       "allocatedHours": 45,
       "reportFolder": "reports/individual/siti/"
     },
@@ -66,7 +78,9 @@
     "src_config": "src/config/",
     "src_data": "src/data/",
     "src_firmware": "src/firmware/",
-    "src_server": "src/server/"
+    "src_server": "src/server/",
+    "docs_architecture": "docs/architecture/",
+    "docs_hardware_references": "docs/hardware_references/"
   },
   "binaries": [
     "src/bin/esos-server.exe"
@@ -75,27 +89,38 @@
     "src/config/sensor_thresholds.json",
     "src/config/lora_config.json",
     "src/config/network_cpe220.conf",
+    "src/config/mosquitto.conf",
+    "src/config/mosquitto_acl",
     "src/config/.env.example"
+  ],
+  "runtimeDependencies": [
+    "Eclipse Mosquitto 2.0+ (MQTT Broker, wajib berjalan sebelum Go Server start)",
+    "PostgreSQL 15+ dengan ekstensi pgcrypto, timescaledb, dan pg_uuidv7 (opsional)"
   ],
   "sourceCode": [
     "src/server/main.go",
     "src/server/models/models.go",
     "src/server/database/database.go",
     "src/server/database/postgres_schema.sql",
+    "src/server/mqtt/subscriber.go",
     "src/server/etl/pipeline.go",
     "src/server/api/handlers.go",
     "src/server/api/websocket.go",
     "src/server/static/index.html",
-    "src/server/schema.sql",
     "src/firmware/platformio.ini",
     "src/firmware/include/config.h",
-    "src/firmware/src/main.cpp"
+    "src/firmware/src/main.cpp",
+    "src/firmware_gateway/src/main.cpp"
   ],
   "technicalDocs": [
-    "src/server/docs/01_DATABASE_ARCHITECTURE_AND_ERD.md",
-    "src/server/docs/02_BACKEND_ETL_AND_API_ARCHITECTURE.md",
-    "src/server/docs/03_FRONTEND_DASHBOARD_ARCHITECTURE.md",
-    "src/server/docs/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md"
+    "docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md",
+    "docs/architecture/01_DATABASE_ARCHITECTURE_AND_ERD.md",
+    "docs/architecture/02_BACKEND_ETL_AND_API_ARCHITECTURE.md",
+    "docs/architecture/03_FRONTEND_DASHBOARD_ARCHITECTURE.md",
+    "docs/architecture/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md",
+    "docs/architecture/05_LORA_MQTT_TELEMETRY_PIPELINE.md",
+    "docs/architecture/06_REST_API_OPENAPI_SPEC.md",
+    "docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md"
   ],
   "procurementDocs": [
     "02_BOM_PROCUREMENT.md"
