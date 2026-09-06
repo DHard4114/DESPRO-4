@@ -106,12 +106,12 @@ Tata letak antarmuka dirancang tersusun secara vertikal intuitif dari atas ke ba
 +=====================================================================================================+
 | 5. PANEL KENDALI AKTUATOR & ALAT UJI (ACTUATOR CONTROL & TESTING SUITE)                             |
 | +---------------------------------------------------+ +-------------------------------------------+ |
-| | KENDALI MANUAL KATUP NIR-SENTUH (SERVO OVERRIDE)  | | SIMULATOR PIPELINE DATA SENSOR KE DATABASE| |
+| | KENDALI MANUAL KATUP NIR-SENTUH (SERVO OVERRIDE)  | | SIMULATOR PIPELINE TELEMETRI FALLBACK API | |
 | | Status Saat Ini: TERTUTUP (0 Derajat)             | | Input Uji: Air, Gas NH3, H2S, Voltase, SOS| |
-| | [Tombol Buka Katup 90°]  [Tombol Tutup Katup 0°]  | | [Tombol Kirim Paket Uji ke Database Go]   | |
+| | [Tombol Buka Katup 90°]  [Tombol Tutup Katup 0°]  | | [Tombol Kirim Paket Uji HTTP Fallback API]   | |
 | +---------------------------------------------------+ +-------------------------------------------+ |
 +=====================================================================================================+
-| 6. TABEL LOG ALIRAN REKAMAN TELEMETRI (LIVE TELEMETRY RECORDS TABLE - SQLITE / POSTGRESQL)          |
+| 6. TABEL LOG ALIRAN REKAMAN TELEMETRI (LIVE TELEMETRY RECORDS TABLE - POSTGRESQL + TIMESCALEDB)          |
 |    Waktu Penerimaan | Node ID | Nomor Urut | Level Air | Gas NH3 | Gas H2S | Baterai | Status SOS   |
 |    06:25:00 WIB     | NODE_01 | Paket #105 | 65.4 cm   | 8.2 ppm | 3.1 ppm | 3.95 V  | STANDBY (AMAN|
 +=====================================================================================================+
@@ -144,6 +144,12 @@ function sambungkanWebSocket() {
             perbaruiTampilanDashboard(dataMasuk.payload);
         } else if (dataMasuk.type === 'EMERGENCY_ALERT') {
             aktifkanBannerDaruratSOS(dataMasuk.payload);
+        } else if (dataMasuk.type === 'GATEWAY_STATUS') {
+            // Menerima LWT dari MQTT Broker jika ESP32 Gateway terputus/terhubung
+            perbaruiStatusGateway(dataMasuk.payload);
+        } else if (dataMasuk.type === 'ACTUATOR_STATUS') {
+            // Konfirmasi asinkron bahwa servo berhasil diputar
+            perbaruiStatusKatup(dataMasuk.payload);
         }
     };
     
@@ -157,14 +163,46 @@ function sambungkanWebSocket() {
 
 ---
 
+### 4.2 Manajemen Aktuator Servo (Asynchronous Command)
+Menekan tombol buka/tutup katup pada Dashboard **TIDAK** lagi mengubah status UI secara lokal. Sesuai ADR-07, Dashboard akan mengirim perintah ke Backend (yang akan meneruskannya ke Node via MQTT), dan UI hanya berubah setelah menerima ACTUATOR_STATUS via WebSocket.
+
+`javascript
+async function triggerValve(command) {
+    // Tampilkan loading state di tombol
+    tombol.disabled = true;
+    tombol.innerText = 'Mengirim Perintah...';
+    
+    // Kirim request ke REST API dengan JWT Auth dan Idempotency Key
+    const response = await fetch('/api/v1/actuator/commands', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization':  + "Bearer " + ,
+            'Idempotency-Key': crypto.randomUUID()
+        },
+        body: JSON.stringify({
+            node_code: 'WC_01',
+            command: command // 'OPEN_VALVE' atau 'CLOSE_VALVE'
+        })
+    });
+    
+    if (response.status === 202) {
+        console.log("Perintah diterima server, menunggu ack dari hardware...");
+    } else {
+        alert("Gagal mengirim perintah");
+        tombol.disabled = false;
+    }
+}
+`
+
 ## 5. Prosedur Uji Coba Antarmuka Melalui Simulator Bawaan
 
 Dashboard dilengkapi simulator internal di bagian bawah layar untuk memvalidasi alur data secara mandiri tanpa memerlukan perangkat keras fisik:
 1. Masukkan nilai ketinggian air tangki pada kolom **Air (cm)** (contoh: `12.0` untuk menguji kondisi air kritis).
 2. Masukkan nilai gas amonia pada kolom **NH3 (ppm)** dan gas beracun pada kolom **H2S (ppm)**.
 3. Centang kotak pilihan **Simulasi Tombol SOS Ditekan** untuk menguji mekanisme alarm darurat.
-4. Klik tombol **Kirim Paket Sensor ke Database**:
-   - Server Go akan menerima data via HTTP POST.
-   - Mesin ETL akan memproses kalkulasi dan mendeteksi status bahaya.
+4. Klik tombol **Kirim Paket Uji HTTP Fallback API**:
+   - Skrip klien akan memanggil endpoint *fallback-only* POST /api/v1/telemetry/ingest (dengan *header* Authorization: Bearer <jwt>).
+   - Sesuai standar, Server Go (jika diizinkan mode uji coba) akan menerima HTTP ini lalu menerbitkan pesan uji ke Mosquitto MQTT Broker, sebelum akhirnya diolah normal oleh Goroutine *Subscriber*.
    - WebSocket Hub akan memancarkan data secara instan kembali ke layar dashboard.
    - Banner darurat merah akan berkedip dan baris data baru akan muncul pada tabel log.
