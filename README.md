@@ -22,17 +22,10 @@ Kami mengadopsi standar industri tertinggi untuk memastikan keandalan sistem dal
 ## 📡 Topologi Perangkat Keras Jaringan
 Alur data end-to-end *(Zero-Trust Pipeline)* terjamin dari hilir ke hulu:
 
-**[Node Bilik WC]** 
-👉 Menggunakan Radio **LoRa (TX Only)** untuk transmisi paket biner terenkapsulasi (Bebas Wi-Fi).
-↓
-**[ESP32 Gateway]** 
-👉 Menjembatani dua dunia: Menerima biner via **LoRa (RX)** dan mentransmisikan JSON via **Wi-Fi**.
-↓
-**[Router TP-Link CPE220]** 
-👉 Memancarkan sinyal Wi-Fi luar ruangan berdaya tinggi (High-Power 2.4GHz) ke area tenda darurat.
-↓
-**[Laptop Server Posko]** 
-👉 Menjalankan Mosquitto Broker, Database PostgreSQL, dan Backend Go Server secara *Offline-Local*.
+*   **[Node Bilik WC]** 👉 Menggunakan Radio LoRa **Half-Duplex**. Bertugas memancarkan data sensor (Uplink TX) dan membuka jendela dengar 2 detik (RX Window) untuk menangkap perintah putar Servo. (Bebas Wi-Fi, sangat hemat daya).
+*   **[ESP32 Gateway]** 👉 Menjembatani dua dunia: Menangkap biner LoRa dari WC (RX), menembakkan perintah komando balik ke WC (TX Downlink), serta menerjemahkan komunikasi tersebut menjadi JSON via jaringan Wi-Fi.
+*   **[Router TP-Link CPE220]** 👉 Memancarkan sinyal Wi-Fi luar ruangan berdaya tinggi (High-Power 2.4GHz) untuk menghubungkan Gateway ke area tenda darurat.
+*   **[Laptop Server Posko]** 👉 Menjalankan Mosquitto Broker, Database PostgreSQL, dan Backend Go Server secara Offline-Local.
 
 ---
 
