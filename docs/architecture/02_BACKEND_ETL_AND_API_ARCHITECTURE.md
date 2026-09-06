@@ -103,6 +103,7 @@ sequenceDiagram
 ### 4.1 Tahap Ekstraksi (*Extract Stage*) — MQTT Subscriber, Bukan HTTP Handler
 
 - Server Go terhubung sebagai **satu klien MQTT persisten** (`clean_session=false`) ke Mosquitto Broker menggunakan `github.com/eclipse/paho.mqtt.golang`.
+- **Keamanan Kredensial:** Go Server dilarang melakukan hardcode kredensial Mosquitto. Username dan Password untuk koneksi `paho.mqtt.golang` WAJIB dibaca dari environment variables (`MQTT_USER`, `MQTT_PASS`) pada file `.env` lokal posko saat proses bootstrap.
 - Callback `OnMessage` dari `paho` **tidak pernah memproses data secara langsung** (mencegah *blocking* pada thread MQTT client) — ia hanya mem-*push* pesan mentah ke *buffered Go Channel* (`chan MQTTMessage`, kapasitas 1000).
 - **Worker Pool** berisi N Goroutine (dikonfigurasi via `ETL_WORKER_COUNT`, default 8) yang mengonsumsi channel tersebut secara paralel.
 - **Deduplikasi:** Sebelum diproses, setiap pesan dicek terhadap *LRU cache* `(node_code → last_sequence_no)` di memori. Pesan dengan `sequence_no` ≤ nilai terakhir yang tercatat (indikasi *retry* duplikat dari QoS 1) dibuang tanpa diproses ulang.

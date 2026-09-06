@@ -18,6 +18,7 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 *   **Referensi Datasheet:** [JSN-SR04T Specifications](https://www.makerguides.com/jsn-sr04t-arduino-tutorial/)
 *   **Implementasi RTOS:** 
     Dibuat dalam `vTaskUltrasonic`. Sensor ultrasonik membutuhkan waktu *ping* sekitar 50ms. Gunakan `vTaskDelay(pdMS_TO_TICKS(50))` agar saat menunggu sinyal suara memantul, ESP32 bisa memproses tugas lain (tidak nge-hang).
+*   **Mitigasi Perangkat Keras:** Sensor JSN-SR04T memiliki blind zone bawaan 20-25 cm. Dalam logika `vTaskSensors`, wajib ditambahkan *filtering*: Jika hasil bacaan ping < 25 cm atau bernilai 0 (timeout dekat), maka firmware WAJIB memaksa nilai menjadi 25 cm (Tangki Kritis/Penuh). Ini untuk mencegah data sampah (garbage value) memicu false alarm di server.
 
 ---
 
@@ -56,7 +57,7 @@ Menggunakan arsitektur RTOS (*Real-Time Operating System*) berarti kita tidak me
 
 *Standar format pengemasan data harus dibedakan antara transmisi Radio dan transmisi Wi-Fi.*
 
-*   **Node WC (LoRa Tx):** TIDAK MENGGUNAKAN JSON. Menggunakan struktur data C standar (struct Payload { ... }) yang dikirim mentah (*raw memory copy*) untuk efisiensi SRAM dan *airtime* di udara.
+*   **Node WC (LoRa Tx):** TIDAK MENGGUNAKAN JSON. Menggunakan struktur data C standar (struct Payload { ... }) yang dikirim mentah (*raw memory copy*) untuk efisiensi SRAM dan *airtime* di udara. **Seluruh struktur data (C-Struct) payload biner yang ditransmisikan via LoRa WAJIB menggunakan atribut __attribute__((packed)) untuk mencegah kompilator C++ menyisipkan byte kosong (Memory Alignment Padding). Ukuran struct maksimal dibatasi 50 bytes. Gateway akan membaca memory block ini secara langsung (raw memory cast).**
 *   **Gateway (Wi-Fi Tx):** Menggunakan library **ArduinoJson** untuk men-*deserialize* struct biner tadi dan merakitnya menjadi String JSON Envelope utuh sebelum dikirim ke Server Mosquitto.
 
 ---
@@ -92,13 +93,20 @@ Spesifikasi mutlak untuk parameter *Task* (dilarang diubah saat implementasi):
 | Nama Task | Target Board | Core (Affinity) | Priority | Stack Size (Bytes) | Deskripsi |
 | :--- | :--- | :---: | :---: | :---: | :--- |
 | TaskLoRaRx | Gateway | Core 1 | 3 | 4096 | Menangkap paket biner LoRa secara kontinu. |
-| TaskLoRaTx | Node WC | Core 1 | 3 | 4096 | Mengirim paket biner ke udara. |
+| TaskLoRaTx | Node WC | Core 1 | 3 | 4096 | Mengirim paket biner ke udara. SETELAH transmisi TX selesai, task ini WAJIB membuka RX Window (mendengarkan) selama 2000ms. Jika dalam 2000ms menerima paket Downlink (Perintah Aktuator), teruskan ke xQueueCommand. Jika timeout, kembali tidur. Mekanisme ini mirip LoRaWAN Class A. |
 | TaskSensors | Node WC | Core 0 | 1 | 2048 | Membaca pin analog & digital, rata-rata, lalu *Queue*. |
 | TaskMqttTx | Gateway | Core 0 | 2 | 4096 | *Dequeue* telemetri, *serialize* ke JSON, *Publish*. |
 | TaskActuator | Node WC | Core 0 | 2 | 2048 | Memutar motor servo MG996R via PWM. |
 
 
 ---
+
+
+### 6.4 Hardware Interrupts (ISR) & Preemptive Scheduler
+
+1. **Preemptive Scheduler:** FreeRTOS berjalan dalam mode Preemptive. Task berprioritas tinggi (LoRa) akan otomatis menyela (preempt) task berprioritas rendah (Sensor) jika ada data yang masuk ke antrean.
+2. **Tombol SOS (EXTI ISR):** Tombol fisik SOS dilarang dibaca via *polling* digitalRead. Wajib dihubungkan ke pin Hardware Interrupt. Saat ditekan, rutin ISR akan memanggil xQueueSendFromISR yang secara paksa dan instan membangunkan TaskLoRaTx (Bypass antrean normal).
+3. **LoRa DIO0 (Non-Blocking ISR):** Untuk memastikan radio non-blocking, pin DIO0 pada SX1278 (LoRa) wajib memicu Interrupt saat paket biner selesai dikirim (TX Done) atau diterima (RX Done), memberikan *semaphore* ke task terkait agar CPU bisa tidur/yield selama transmisi berlangsung.
 
 ## 7. Manajemen Build (PlatformIO)
 
