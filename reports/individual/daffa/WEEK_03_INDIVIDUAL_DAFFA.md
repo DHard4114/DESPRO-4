@@ -118,4 +118,4 @@ Tanda tangan: *(Digital)*
 Tanggal: 12 September 2026
 
 **Catatan Pembimbing**
-- ok , jangan lupa dokumentasikan setiap tahap, uji fungsional sangat penting, maka harus dicatat dalam log book bagaimana performance nya.
+- "Oke. Jangan lupa dokumentasikan setiap tahap. Uji fungsional sangat penting, maka harus dicatat secara mendetail dalam *logbook* bagaimana metrik performanya (*performance*)."
