@@ -27,12 +27,12 @@ BEGIN
     uuid_bytes := gen_random_bytes(16);
 
     -- Byte 0-5: Unix timestamp milliseconds (48-bit, big-endian)
-    uuid_bytes := set_byte(uuid_bytes, 0, (unix_ts_ms >> 40)::int & 255);
-    uuid_bytes := set_byte(uuid_bytes, 1, (unix_ts_ms >> 32)::int & 255);
-    uuid_bytes := set_byte(uuid_bytes, 2, (unix_ts_ms >> 24)::int & 255);
-    uuid_bytes := set_byte(uuid_bytes, 3, (unix_ts_ms >> 16)::int & 255);
-    uuid_bytes := set_byte(uuid_bytes, 4, (unix_ts_ms >>  8)::int & 255);
-    uuid_bytes := set_byte(uuid_bytes, 5, (unix_ts_ms >>  0)::int & 255);
+    uuid_bytes := set_byte(uuid_bytes, 0, ( (unix_ts_ms >> 40) & 255 )::int);
+    uuid_bytes := set_byte(uuid_bytes, 1, ( (unix_ts_ms >> 32) & 255 )::int);
+    uuid_bytes := set_byte(uuid_bytes, 2, ( (unix_ts_ms >> 24) & 255 )::int);
+    uuid_bytes := set_byte(uuid_bytes, 3, ( (unix_ts_ms >> 16) & 255 )::int);
+    uuid_bytes := set_byte(uuid_bytes, 4, ( (unix_ts_ms >>  8) & 255 )::int);
+    uuid_bytes := set_byte(uuid_bytes, 5, ( (unix_ts_ms >>  0) & 255 )::int);
 
     -- Byte 6: version = 7 (0111xxxx)
     uuid_bytes := set_byte(uuid_bytes, 6, (get_byte(uuid_bytes, 6) & 15) | 112);
