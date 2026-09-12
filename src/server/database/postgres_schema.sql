@@ -221,9 +221,10 @@ CREATE OR REPLACE TRIGGER trg_threshold_config_changed
 -- ============================================================================
 -- SELESAI. Jalankan: psql -U postgres -d esos_db -f postgres_schema.sql
 -- ============================================================================
-- -   S E E D   D A T A  
- I N S E R T   I N T O   s a n i t a t i o n _ n o d e s   ( n o d e _ c o d e ,   n o d e _ l a b e l ,   l o c a t i o n _ l a t ,   l o c a t i o n _ l o n )   V A L U E S   ( ' W C _ 0 1 ' ,   ' B i l i k   S a n i t a s i   D a r u r a t   1 ' ,   - 6 . 2 0 0 0 0 0 ,   1 0 6 . 8 1 6 6 6 6 )   O N   C O N F L I C T   ( n o d e _ c o d e )   D O   N O T H I N G ;  
- I N S E R T   I N T O   n o d e _ t h r e s h o l d _ c o n f i g s   ( n o d e _ i d ,   m e t r i c _ n a m e ,   w a r n i n g _ v a l u e ,   c r i t i c a l _ v a l u e ,   u n i t )   S E L E C T   n o d e _ i d ,   ' a m m o n i a _ p p m ' ,   1 5 . 0 ,   2 5 . 0 ,   ' p p m '   F R O M   s a n i t a t i o n _ n o d e s   W H E R E   n o d e _ c o d e   =   ' W C _ 0 1 '   O N   C O N F L I C T   D O   N O T H I N G ;  
- I N S E R T   I N T O   n o d e _ t h r e s h o l d _ c o n f i g s   ( n o d e _ i d ,   m e t r i c _ n a m e ,   w a r n i n g _ v a l u e ,   c r i t i c a l _ v a l u e ,   u n i t )   S E L E C T   n o d e _ i d ,   ' h 2 s _ p p m ' ,   2 . 0 ,   5 . 0 ,   ' p p m '   F R O M   s a n i t a t i o n _ n o d e s   W H E R E   n o d e _ c o d e   =   ' W C _ 0 1 '   O N   C O N F L I C T   D O   N O T H I N G ;  
- I N S E R T   I N T O   n o d e _ t h r e s h o l d _ c o n f i g s   ( n o d e _ i d ,   m e t r i c _ n a m e ,   w a r n i n g _ v a l u e ,   c r i t i c a l _ v a l u e ,   u n i t )   S E L E C T   n o d e _ i d ,   ' w a t e r _ l e v e l _ c m ' ,   1 5 0 . 0 ,   1 8 0 . 0 ,   ' c m '   F R O M   s a n i t a t i o n _ n o d e s   W H E R E   n o d e _ c o d e   =   ' W C _ 0 1 '   O N   C O N F L I C T   D O   N O T H I N G ;  
- 
+-- ============================================================================
+-- SEED DATA
+-- ============================================================================
+INSERT INTO sanitation_nodes (node_code, node_label, location_lat, location_lon) VALUES ('WC_01', 'Bilik Sanitasi Darurat 1', -6.200000, 106.816666) ON CONFLICT (node_code) DO NOTHING;
+INSERT INTO node_threshold_configs (node_id, metric_name, warning_value, critical_value, unit) SELECT node_id, 'ammonia_ppm', 15.0, 25.0, 'ppm' FROM sanitation_nodes WHERE node_code = 'WC_01' ON CONFLICT DO NOTHING;
+INSERT INTO node_threshold_configs (node_id, metric_name, warning_value, critical_value, unit) SELECT node_id, 'h2s_ppm', 2.0, 5.0, 'ppm' FROM sanitation_nodes WHERE node_code = 'WC_01' ON CONFLICT DO NOTHING;
+INSERT INTO node_threshold_configs (node_id, metric_name, warning_value, critical_value, unit) SELECT node_id, 'water_level_cm', 150.0, 180.0, 'cm' FROM sanitation_nodes WHERE node_code = 'WC_01' ON CONFLICT DO NOTHING;
