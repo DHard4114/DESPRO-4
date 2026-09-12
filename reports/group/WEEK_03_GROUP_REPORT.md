@@ -99,6 +99,9 @@ Pada pekan ketiga ini, fokus utama tim beralih pada fondasi *Software Architectu
 ### 12. Kesimpulan
 Pada pekan ketiga, tim sukses mengakselerasi pengembangan perangkat lunak, khususnya *backend server*. Isu teknis terkait basis data berhasil diatasi dengan cepat. Fokus administratif melalui *Daily Logbook Tracker* berjalan tertib. Hal ini memberikan keleluasaan waktu yang signifikan untuk mengantisipasi kompleksitas perakitan *hardware* dan *firmware* FreeRTOS pada pekan depan.
 
+**Catatan Pembimbing:**
+- ok , jangan lupa dokumentasikan setiap tahap, uji fungsional sangat penting, maka harus dicatat dalam log book bagaimana performance nya.
+
 ### Persetujuan
 | Jabatan | Nama | Tanda Tangan |
 |:---|:---|:---:|
