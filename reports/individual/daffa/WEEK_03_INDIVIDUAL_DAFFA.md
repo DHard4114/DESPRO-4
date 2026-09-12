@@ -17,29 +17,30 @@
 ### B. Target Mingguan
 | No | Target Pekerjaan | Luaran yang Diharapkan | Status |
 |:---:|:---|:---|:---:|
-| 1 | Pembuatan Arsitektur Database PostgreSQL (UUIDv7) | File Skema DDL SQL & Tabel Siap Pakai | [x] Selesai &nbsp; [ ] Belum |
-| 2 | Setup MQTT Subscriber Worker Pool | Skrip Go (`subscriber.go`) Terkoneksi Mosquitto | [x] Selesai &nbsp; [ ] Belum |
-| 3 | Migrasi & Validasi Koneksi Mosquitto MQTT Lokal | Test Pub/Sub berhasil | [x] Selesai &nbsp; [ ] Belum |
+| 1 | Membuat API Documentation (Swagger/Markdown) | Dokumen Spesifikasi API `06_REST_API...` | [x] Selesai &nbsp; [ ] Belum |
+| 2 | Menyiapkan dummy data generator untuk testing | Seed Data & Skema PostgreSQL lokal | [x] Selesai &nbsp; [ ] Belum |
+| 3 | Mengintegrasikan Endpoint dengan format LoRa Siti | Go ETL Pipeline Parser Payload JSON | [x] Selesai &nbsp; [ ] Belum |
+| 4 | Setup MQTT Subscriber Worker Pool | Skrip Go (`subscriber.go`) | [x] Selesai &nbsp; [ ] Belum |
 
 ### C. Logbook Aktivitas Harian
 | Hari/Tanggal | Uraian Aktivitas | Waktu (Jam) | Bukti/Dokumen |
 |:---|:---|:---:|:---|
-| Rabu, 09 Sep 2026 | Riset UUIDv7 dan perancangan skema PostgreSQL untuk Time-Series Data | 3 | `postgres_schema.sql` |
-| Kamis, 10 Sep 2026 | Eksekusi `postgres_schema.sql` pada lokal (esos_db) & revisi encoding seed data | 2 | Screenshot Database |
-| Jumat, 11 Sep 2026 | Pemrograman Go (MQTT Worker Pool & Pipeline ETL) non-blocking channels | 5 | `src/server/etl/` & `mqtt/` |
+| Rabu, 09 Sep 2026 | Penyusunan REST API Spec & rancangan skema PostgreSQL (Seed Data) | 3 | `postgres_schema.sql` |
+| Kamis, 10 Sep 2026 | Eksekusi `postgres_schema.sql` lokal & perbaikan bug seed data | 2 | Screenshot Database |
+| Jumat, 11 Sep 2026 | Pemrograman Go (Pipeline ETL format JSON LoRa & MQTT Worker) | 5 | `src/server/etl/` |
 | Sabtu, 12 Sep 2026 | Evaluasi capaian W3, tracking logbook anggota di Google Sheets, penulisan laporan | 4 | Bukti Commit Git & Sheets |
 
 **Total Jam Kerja Minggu Ini : 14 Jam**
 
 ### D. Realisasi Pekerjaan
 **1. Aktivitas yang Berhasil Diselesaikan**
-Telah berhasil menyelesaikan fondasi basis data PostgreSQL lokal yang menggunakan standar enterprise UUIDv7 dan tabel Time-Series untuk menampung telemetri sensor. Selain itu, subsistem *worker pool* MQTT menggunakan bahasa Go telah selesai direalisasikan untuk menelan antrean ribuan pesan dari Mosquitto tanpa *bottleneck*.
+Sesuai dengan rencana pekan sebelumnya, saya telah menyelesaikan dokumentasi spesifikasi REST API secara komprehensif. Saya juga mengganti pendekatan *dummy generator* Python dengan injeksi *seed data* permanen ke dalam PostgreSQL lokal (berbasis UUIDv7). Terakhir, sistem *backend* telah berhasil mengintegrasikan endpoint dengan format JSON dari Gateway LoRa (Siti) melalui pembangunan modul ETL Pipeline dan antrean ribuan pesan via *MQTT Subscriber Worker Pool*.
 
 **2. Luaran yang Dihasilkan**
-- Skema PostgreSQL SQL (`postgres_schema.sql`)
+- Spesifikasi API `06_REST_API_OPENAPI_SPEC.md`
+- Skema PostgreSQL + Seed Data Dummy (`postgres_schema.sql`)
+- Modul Integrasi Parsing JSON LoRa (`pipeline.go`)
 - Modul Go MQTT Subscriber (`subscriber.go`)
-- Modul Go ETL Pipeline (`pipeline.go`)
-- Tabel `esos_db` yang sudah termigrasi di laptop lokal
 
 ### E. Capaian Teknis Mingguan
 **Komponen/Subsistem yang Dikerjakan**
