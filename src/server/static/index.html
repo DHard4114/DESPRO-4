@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eSOS EMS - Enterprise Sanitation Management System</title>
-    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <title>Smart-Sanitation eSOS - Enterprise Environmental Monitoring System (EMS)</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -53,10 +53,10 @@
             border: 1px solid #E2E8F0;
             border-radius: 1rem;
             box-shadow: 0 2px 8px rgba(15, 27, 61, 0.03);
-            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
         .scada-card:hover {
-            box-shadow: 0 10px 25px rgba(15, 27, 61, 0.06);
+            box-shadow: 0 8px 24px rgba(15, 27, 61, 0.06);
             border-color: #CBD5E1;
         }
         .badge-pulse {
@@ -66,36 +66,51 @@
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.4; transform: scale(1.1); }
         }
+        /* Custom scrollbar for packet table */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
 
-    <!-- TOPBAR: AMR-RS Makara Navy Header -->
-    <header class="bg-[#0F1B3D] text-white border-b-2 border-[#FFD400] sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <!-- TOPBAR: Full-Width Institutional SCADA Header -->
+    <header class="bg-[#0F1B3D] text-white border-b-2 border-[#FFD400] sticky top-0 z-50 shadow-md w-full">
+        <div class="w-full px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between">
             <!-- Left Branding -->
             <div class="flex items-center space-x-3.5">
-                <div class="w-10 h-10 rounded-xl bg-[#FFD400] text-[#0F1B3D] flex items-center justify-center font-extrabold text-lg shadow-inner">
-                    UI
+                <div class="w-10 h-10 rounded-xl bg-[#FFD400] text-[#0F1B3D] flex items-center justify-center font-extrabold text-base shadow-inner tracking-tight">
+                    eSOS
                 </div>
                 <div class="flex flex-col">
                     <div class="flex items-center space-x-2">
-                        <span class="text-xs font-bold uppercase tracking-widest text-[#FFD400]">Sinergi1 EMS</span>
+                        <span class="text-xs font-bold uppercase tracking-widest text-[#FFD400]">Smart-Sanitation eSOS</span>
                         <span class="text-xs text-slate-400 font-mono">/</span>
-                        <span class="text-xs text-slate-300 font-medium">Smart Sanitation eSOS</span>
+                        <span class="text-xs text-slate-300 font-medium">Environmental Monitoring System (EMS)</span>
                     </div>
                     <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
-                        Autonomous Facility SCADA
-                        <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">v5.1 LIVE</span>
+                        Central Command & Telemetry SCADA
+                        <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded">v5.1 LIVE</span>
                     </h1>
                 </div>
             </div>
 
-            <!-- Right Status Badges (AMR-RS Status Bar) -->
+            <!-- Right Status Badges (Enterprise SCADA Status Strip) -->
             <div class="flex items-center space-x-3 text-xs">
                 <!-- WebSocket Hub Status -->
-                <div class="hidden sm:flex items-center space-x-2 bg-[#1C2E5E] px-3 py-1.5 rounded-lg border border-slate-700/60">
-                    <span class="text-slate-300 font-medium">Telemetry Stream:</span>
+                <div class="hidden sm:flex items-center space-x-2 bg-[#1C2E5E] px-3.5 py-1.5 rounded-lg border border-slate-700/60">
+                    <span class="text-slate-300 font-medium">WebSocket Hub:</span>
                     <div class="flex items-center space-x-1.5 font-mono font-semibold">
                         <span id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse"></span>
                         <span id="ws-status-text" class="text-emerald-400 uppercase tracking-wider">CONNECTED</span>
@@ -103,96 +118,94 @@
                 </div>
 
                 <!-- Gateway LoRa Status -->
-                <div class="flex items-center space-x-2 bg-[#1C2E5E] px-3 py-1.5 rounded-lg border border-slate-700/60">
+                <div class="flex items-center space-x-2 bg-[#1C2E5E] px-3.5 py-1.5 rounded-lg border border-slate-700/60">
                     <span class="text-slate-300 font-medium">Gateway 01:</span>
                     <div class="flex items-center space-x-1.5 font-mono font-semibold">
                         <span id="gw-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
                         <span id="gw-status-text" class="text-emerald-400 uppercase tracking-wider">ONLINE</span>
                     </div>
                 </div>
+
+                <!-- Active Facility Pill -->
+                <div class="hidden lg:flex items-center space-x-2 bg-[#FFD400]/10 border border-[#FFD400]/30 px-3.5 py-1.5 rounded-lg text-[#FFD400] font-semibold text-xs">
+                    <span>Node: <strong>WC_01</strong></span>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- BANNER DARURAT (High Priority SCADA Alert) -->
-    <div id="emergency-banner" class="hidden bg-[#C0392B] text-white py-3.5 px-4 shadow-lg border-b-2 border-red-300">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <!-- BANNER DARURAT (High-Visibility Critical Alert) -->
+    <div id="emergency-banner" class="hidden bg-[#C0392B] text-white py-3.5 px-6 shadow-lg border-b-2 border-red-300 w-full">
+        <div class="w-full flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <span class="flex h-3 w-3 relative">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
                 </span>
-                <span class="font-bold tracking-wide uppercase text-sm" id="emergency-text">
-                    ⚠️ ALARM DARURAT: TOMBOL SOS PADA BILIK TERDETEKSI DITEKAN!
+                <span class="font-bold tracking-wide uppercase text-sm font-mono" id="emergency-text">
+                    ⚠️ ALARM DARURAT: TOMBOL SOS PADA BILIK AKTIF DITEKAN! SEGERA TINDAK LANJUTI!
                 </span>
             </div>
-            <button onclick="dismissEmergency()" class="bg-red-950/40 hover:bg-red-950/60 text-white font-semibold text-xs px-3 py-1.5 rounded-lg border border-red-400/40 transition">
+            <button onclick="dismissEmergency()" class="bg-red-950/50 hover:bg-red-950/70 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg border border-red-400/40 transition">
                 Tutup Peringatan
             </button>
         </div>
     </div>
 
-    <!-- MAIN CONTAINER -->
-    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <!-- MAIN FLUID CONTAINER: FULL CANVAS WIDTH -->
+    <main class="flex-grow w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6">
         
-        <!-- DASHBOARD HEADER / FACILITY METADATA -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-200 gap-4">
+        <!-- TOP CONTROL BAR: FACILITY CONTEXT & CLOCK -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between pb-5 mb-6 border-b border-slate-200 gap-4">
             <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                     <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-[#FFD400]/20 text-[#0F1B3D] border border-[#FFD400]/50">
-                        ZONA DARURAT BENCANA
+                        ZONA DARURAT PASCA-BENCANA
                     </span>
-                    <span class="text-xs text-slate-500 font-mono">Posko 01 &bull; Bilik Modular 01</span>
+                    <span class="text-xs text-slate-500 font-mono">Posko Utama &bull; Sektor Sanitasi Modular #01</span>
+                    <span class="text-xs text-slate-400">&bull;</span>
+                    <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Bilik Operasional Aktif</span>
                 </div>
-                <h2 class="text-2xl font-extrabold text-[#1C2233] mt-1.5 tracking-tight">
-                    Smart-Sanitation Environmental Monitoring System
+                <h2 class="text-2xl font-extrabold text-[#0F1B3D] mt-1 tracking-tight">
+                    Pusat Pemantauan Lingkungan & Pengendalian Sanitasi (EMS)
                 </h2>
                 <p class="text-xs text-slate-500 mt-0.5 font-medium">
-                    Akuisisi Sensor LoRa Transmisi Half-Duplex &bull; PostgreSQL 17 UUIDv7 &bull; MQTT Real-Time Dispatcher
+                    Radio LoRa SX1278 (Half-Duplex 915 MHz) &bull; Edge Gateway ESP32 RTClib &bull; Go Pipeline &bull; PostgreSQL 17 UUIDv7
                 </p>
             </div>
 
-            <!-- Last Updated Timestamp -->
-            <div class="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
-                <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <!-- Metrics Summary Badge & Time -->
+            <div class="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start md:self-auto">
+                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 badge-pulse"></div>
                 <div class="flex flex-col text-right">
-                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Pembaruan Terakhir</span>
-                    <span id="last-update" class="text-xs font-mono font-bold text-slate-700">Menghubungkan...</span>
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Sinkronisasi Terakhir</span>
+                    <span id="last-update" class="text-xs font-mono font-bold text-slate-800">Menghubungkan...</span>
                 </div>
             </div>
         </div>
 
-        <!-- SCADA SECTION SEPARATOR 1: TELEMETRI -->
-        <div class="flex items-center gap-3 mb-5">
-            <div class="w-1.5 h-7 rounded-full bg-[#0F1B3D]"></div>
-            <div>
-                <h3 class="text-sm font-bold uppercase tracking-widest text-slate-800">Telemetri Real-Time & Sensor Fisik</h3>
-                <p class="text-[11px] text-slate-500">Parameter Kualitas Udara, Debit Air Tangki, dan Pasokan Daya Mandiri</p>
-            </div>
-        </div>
-
-        <!-- 4 AMR-RS METRIC KPI CARDS -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- 4 SCADA KPI METRIC CARDS (Full Width Grid) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
             
             <!-- 1. Water Level -->
             <div class="scada-card p-5 flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
                         <span class="uppercase tracking-wider">Ketinggian Air Tangki</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">LIVE</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">LIVE JSN-SR04T</span>
                     </div>
                     <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-water" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
-                        <span class="text-xs font-bold text-slate-400">cm</span>
+                        <span id="val-water" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-sm font-bold text-slate-400">cm</span>
                     </div>
                 </div>
                 <div class="mt-4">
                     <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
                         <span>Kapasitas (Maks 200cm)</span>
-                        <span id="txt-water-pct" class="font-mono">--%</span>
+                        <span id="txt-water-pct" class="font-mono font-bold text-slate-700">--%</span>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                        <div id="bar-water" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                        <div id="bar-water" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -202,20 +215,20 @@
                 <div>
                     <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
                         <span class="uppercase tracking-wider">Tegangan Catu Baterai</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">1S4P LiPo</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">1S4P LiPo 18650</span>
                     </div>
                     <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-batt" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
-                        <span class="text-xs font-bold text-slate-400">Volt DC</span>
+                        <span id="val-batt" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-sm font-bold text-slate-400">Volt DC</span>
                     </div>
                 </div>
                 <div class="mt-4">
                     <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
-                        <span>State of Charge</span>
-                        <span id="txt-batt-pct" class="font-mono">--%</span>
+                        <span>Status Daya Mandiri</span>
+                        <span id="txt-batt-pct" class="font-mono font-bold text-slate-700">--%</span>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                        <div id="bar-batt" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                        <div id="bar-batt" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -225,16 +238,19 @@
                 <div>
                     <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
                         <span class="uppercase tracking-wider">Amonia (MQ-137)</span>
-                        <span id="badge-nh3" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">NORMAL</span>
+                        <span id="badge-nh3" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono">NORMAL</span>
                     </div>
                     <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-nh3" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
-                        <span class="text-xs font-bold text-slate-400">ppm</span>
+                        <span id="val-nh3" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-sm font-bold text-slate-400">ppm</span>
                     </div>
                 </div>
-                <div class="mt-4 flex items-center gap-1.5 text-[11px] text-slate-500">
-                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span>Ambang Batas Nyaman: &le; 15 ppm</span>
+                <div class="mt-4 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Ambang Normal: &le; 15 ppm
+                    </span>
+                    <span class="font-mono text-slate-400">Target Udara Bersih</span>
                 </div>
             </div>
 
@@ -243,80 +259,118 @@
                 <div>
                     <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
                         <span class="uppercase tracking-wider">H₂S Bau Busuk (MQ-136)</span>
-                        <span id="badge-h2s" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">NORMAL</span>
+                        <span id="badge-h2s" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono">NORMAL</span>
                     </div>
                     <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-h2s" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
-                        <span class="text-xs font-bold text-slate-400">ppm</span>
+                        <span id="val-h2s" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-sm font-bold text-slate-400">ppm</span>
                     </div>
                 </div>
-                <div class="mt-4 flex items-center gap-1.5 text-[11px] text-slate-500">
-                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span>Ambang Batas Bahaya: &le; 2.0 ppm</span>
+                <div class="mt-4 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Ambang Bahaya: &le; 2.0 ppm
+                    </span>
+                    <span class="font-mono text-slate-400">Indikator Sanitasi</span>
                 </div>
             </div>
 
         </div>
 
-        <!-- MIDDLE GRID: CHARTS + ACTUATOR CONTROL -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- MAIN EXPANSIVE WORKSPACE: CHARTS & SIDEBAR CONTROLS -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
             
-            <!-- LEFT 2 COLUMNS: REALTIME ANALYTICAL CHARTS -->
-            <div class="lg:col-span-2 space-y-6">
+            <!-- LEFT AREA (CHARTS): Spans 2 cols on lg, 3 cols on xl (75% width) -->
+            <div class="lg:col-span-2 xl:col-span-3 space-y-6">
                 
-                <!-- Chart 1: Air Quality (Gas Trend) -->
-                <div class="scada-card p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Tren Kualitas Udara (NH₃ & H₂S)</h4>
+                <!-- 2 Side-by-Side Charts on XL screens -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Chart 1: Air Quality (Gas Trend) -->
+                    <div class="scada-card p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Tren Kualitas Udara (NH₃ & H₂S)</h4>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400">Real-Time Ingestion</span>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-400">Jendela Geser 20 Sampel</span>
+                        <div class="h-64 w-full">
+                            <canvas id="gasChart"></canvas>
+                        </div>
                     </div>
-                    <div class="h-60 w-full">
-                        <canvas id="gasChart"></canvas>
+
+                    <!-- Chart 2: Water Level Trend -->
+                    <div class="scada-card p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Ketinggian Air Tangki Sanitasi</h4>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400">Ultrasonik JSN-SR04T</span>
+                        </div>
+                        <div class="h-64 w-full">
+                            <canvas id="waterChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Chart 2: Water Level Trend -->
-                <div class="scada-card p-6">
-                    <div class="flex items-center justify-between mb-4">
+                <!-- LIVE PACKET TELEMETRY AUDIT LOG TABLE (AMR-RS Stream Table) -->
+                <div class="scada-card p-5">
+                    <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-2.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Profil Ketinggian Air Tangki Sanitasi</h4>
+                            <div class="w-2.5 h-2.5 rounded-full bg-[#0F1B3D]"></div>
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Log Paket Telemetri Terkini (Stream Audit)</h4>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-400">Sensor Ultrasonik JSN-SR04T</span>
+                        <span class="text-[11px] font-mono text-slate-500">PostgreSQL Ingestion Feed &bull; Max 8 Record</span>
                     </div>
-                    <div class="h-60 w-full">
-                        <canvas id="waterChart"></canvas>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-3">Waktu (WIB)</th>
+                                    <th class="py-2.5 px-3">Seq #</th>
+                                    <th class="py-2.5 px-3">Node</th>
+                                    <th class="py-2.5 px-3">Level Air</th>
+                                    <th class="py-2.5 px-3">NH₃</th>
+                                    <th class="py-2.5 px-3">H₂S</th>
+                                    <th class="py-2.5 px-3">Tegangan</th>
+                                    <th class="py-2.5 px-3 text-right">Status SOS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="telemetry-table-body" class="divide-y divide-slate-100 text-slate-700">
+                                <tr>
+                                    <td colspan="8" class="py-4 text-center text-slate-400 font-sans">Menunggu aliran paket pertama dari simulator...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
             </div>
 
-            <!-- RIGHT 1 COLUMN: ACTUATOR CONTROL & LOG -->
-            <div class="lg:col-span-1 space-y-6">
+            <!-- RIGHT SIDEBAR (CONTROLS & SPEC): 1 col (25% width on xl) -->
+            <div class="lg:col-span-1 xl:col-span-1 space-y-6">
                 
-                <!-- Panel Kontrol Katup (AMR-RS Enterprise Action Card) -->
-                <div class="scada-card p-6">
-                    <div class="flex items-center space-x-2 pb-4 mb-4 border-b border-slate-100">
-                        <div class="w-8 h-8 rounded-lg bg-[#0F1B3D] text-[#FFD400] flex items-center justify-center font-bold">
+                <!-- Panel Kontrol Katup Aktuator (AMR-RS Action Panel) -->
+                <div class="scada-card p-5">
+                    <div class="flex items-center space-x-2.5 pb-3 mb-4 border-b border-slate-100">
+                        <div class="w-8 h-8 rounded-lg bg-[#0F1B3D] text-[#FFD400] flex items-center justify-center font-bold text-sm">
                             ⚙️
                         </div>
                         <div>
-                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Kendali Aktuator Katup</h4>
-                            <p class="text-[11px] text-slate-500">Downlink LoRa Servo MG996R</p>
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Kendali Katup Pembilasan</h4>
+                            <p class="text-[10px] text-slate-500">Downlink LoRa Servo MG996R</p>
                         </div>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="space-y-2.5">
                         <button onclick="sendCommand('OPEN_VALVE', 90)" id="btn-open" 
                                 class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#0F1B3D] hover:bg-[#1C2E5E] text-white border-b-2 border-[#FFD400] shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
-                            <span>💧 Buka Katup Pembilasan (90°)</span>
+                            <span>💧 Buka Katup Bilik (90°)</span>
                         </button>
                         <button onclick="sendCommand('CLOSE_VALVE', 0)" id="btn-close" 
                                 class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition active:scale-[0.98] flex items-center justify-center gap-2">
-                            <span>🔒 Tutup Katup Pembilasan (0°)</span>
+                            <span>🔒 Tutup Katup Bilik (0°)</span>
                         </button>
                     </div>
 
@@ -324,50 +378,56 @@
                     <div id="actuator-alert" class="mt-4 p-3 rounded-xl border text-xs hidden transition-all duration-300">
                         <div class="flex items-center gap-2">
                             <span id="actuator-alert-icon"></span>
-                            <span id="actuator-alert-text" class="font-medium"></span>
+                            <span id="actuator-alert-text" class="font-medium text-[11px]"></span>
                         </div>
                     </div>
 
-                    <!-- Spesifikasi SCADA Downlink -->
-                    <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5 font-mono">
+                    <!-- Parameter Downlink Radio -->
+                    <div class="mt-5 pt-3.5 border-t border-slate-100 text-[10px] text-slate-500 space-y-1 font-mono">
                         <div class="flex justify-between">
                             <span>Downlink Window:</span>
-                            <span class="font-semibold text-slate-700">2s RX Window (Half-Duplex)</span>
+                            <span class="font-bold text-slate-700">2s RX Window (Half-Duplex)</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Idempotency:</span>
-                            <span class="font-semibold text-slate-700">UUIDv7 Guaranteed</span>
+                            <span class="font-bold text-slate-700">UUIDv7 Header</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>QoS Protocol:</span>
-                            <span class="font-semibold text-slate-700">MQTT Level 1 (At Least Once)</span>
+                            <span>QoS Delivery:</span>
+                            <span class="font-bold text-slate-700">MQTT Level 1</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Card Info Node & Health Diagnostics -->
-                <div class="scada-card p-6 bg-gradient-to-br from-white to-slate-50/50">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Diagnostik Fisik Posko</h4>
-                    <div class="space-y-2.5 text-xs">
-                        <div class="flex justify-between py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">ID Node Lapangan:</span>
-                            <span class="font-mono font-bold text-slate-800">WC_01</span>
+                <!-- Spesifikasi Teknis Node & Jaringan SCADA -->
+                <div class="scada-card p-5 bg-gradient-to-br from-white to-slate-50/70">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                        <span>📡 Arsitektur Fisik & Jaringan</span>
+                    </h4>
+                    <div class="space-y-2 text-[11px] font-mono">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500 font-sans">Node Target:</span>
+                            <span class="font-bold text-slate-800">WC_01 (Posko)</span>
                         </div>
-                        <div class="flex justify-between py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Modulasi Frekuensi:</span>
-                            <span class="font-mono font-bold text-slate-800">LoRa 915 MHz SF7</span>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500 font-sans">Frekuensi LoRa:</span>
+                            <span class="font-bold text-slate-800">915 MHz SF7/BW125</span>
                         </div>
-                        <div class="flex justify-between py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Panel Surya:</span>
-                            <span class="font-mono font-bold text-slate-800">20 Wp 18V Output</span>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500 font-sans">Sistem Daya:</span>
+                            <span class="font-bold text-slate-800">Solar 20Wp 18V</span>
                         </div>
-                        <div class="flex justify-between py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Basis Data:</span>
-                            <span class="font-mono font-bold text-slate-800">PostgreSQL 17 / esos_db</span>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500 font-sans">Penyimpan Lokal:</span>
+                            <span class="font-bold text-slate-800">LittleFS Ring Buffer</span>
                         </div>
-                        <div class="flex justify-between py-1.5">
-                            <span class="text-slate-500">Enclosure Rating:</span>
-                            <span class="font-mono font-bold text-emerald-700">IP54 Weatherproof</span>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500 font-sans">Basis Data:</span>
+                            <span class="font-bold text-slate-800">PostgreSQL 17</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-500 font-sans">Proteksi Fisik:</span>
+                            <span class="font-bold text-emerald-700">IP54 Weatherproof</span>
                         </div>
                     </div>
                 </div>
@@ -378,11 +438,11 @@
 
     </main>
 
-    <!-- FOOTER: Institutional AMR-RS Style -->
-    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+    <!-- FOOTER: Institutional Academic Footer -->
+    <footer class="bg-white border-t border-slate-200 py-3.5 mt-auto w-full">
+        <div class="w-full px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
             <div>
-                &copy; 2026 <strong>Universitas Indonesia</strong> &bull; Departemen Teknik Elektro FTUI &bull; Capstone Proyek 2 (Kelompok 4)
+                &copy; 2026 <strong>Universitas Indonesia</strong> &bull; Departemen Teknik Elektro FTUI &bull; Capstone Desain Proyek 2 (Kelompok 4)
             </div>
             <div class="flex items-center space-x-4">
                 <span>Dosen Pembimbing: <strong>Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.</strong></span>
@@ -393,18 +453,20 @@
     <!-- LOGIKA JAVASCRIPT & WEBSOCKET -->
     <script>
         const MAX_DATAPOINTS = 20;
+        const MAX_TABLE_ROWS = 8;
         let ws;
         let reconnectTimer;
         const TARGET_NODE = "WC_01";
+        const tableRows = [];
 
-        // Setup Chart.js with Clean Light Theme
+        // Setup Chart.js with Clean SCADA Theme
         Chart.defaults.color = '#64748B'; // slate-500
         Chart.defaults.font.family = '"Plus Jakarta Sans", sans-serif';
 
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 300 },
+            animation: { duration: 250 },
             scales: {
                 x: {
                     grid: { color: '#F1F5F9' },
@@ -482,12 +544,12 @@
         // WebSocket Hub Connection
         function connectWebSocket() {
             const wsUrl = `ws://${window.location.host || 'localhost:8000'}/api/v1/ws`;
-            console.log("[eSOS SCADA] Menghubungkan ke WebSocket Hub:", wsUrl);
+            console.log("[eSOS EMS] Menghubungkan ke WebSocket Hub:", wsUrl);
 
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                console.log("[eSOS SCADA] WebSocket Terhubung.");
+                console.log("[eSOS EMS] WebSocket Terhubung.");
                 document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse";
                 document.getElementById('ws-status-text').className = "text-emerald-400 uppercase tracking-wider";
                 document.getElementById('ws-status-text').innerText = "CONNECTED";
@@ -504,7 +566,7 @@
             };
 
             ws.onclose = () => {
-                console.warn("[eSOS SCADA] WebSocket Terputus. Menghubungkan ulang...");
+                console.warn("[eSOS EMS] WebSocket Terputus. Menghubungkan ulang...");
                 document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-amber-400";
                 document.getElementById('ws-status-text').className = "text-amber-400 uppercase tracking-wider";
                 document.getElementById('ws-status-text').innerText = "RECONNECTING...";
@@ -554,35 +616,35 @@
             const barBatt = document.getElementById('bar-batt');
             barBatt.style.width = `${battPct}%`;
             if (battPct < 20) {
-                barBatt.className = "bg-red-500 h-2 rounded-full transition-all duration-500";
+                barBatt.className = "bg-red-500 h-2.5 rounded-full transition-all duration-500";
             } else if (battPct < 50) {
-                barBatt.className = "bg-amber-500 h-2 rounded-full transition-all duration-500";
+                barBatt.className = "bg-amber-500 h-2.5 rounded-full transition-all duration-500";
             } else {
-                barBatt.className = "bg-emerald-500 h-2 rounded-full transition-all duration-500";
+                barBatt.className = "bg-emerald-500 h-2.5 rounded-full transition-all duration-500";
             }
 
             // Gas Badges
             const badgeNh3 = document.getElementById('badge-nh3');
             if (data.ammonia_ppm > 25.0) {
-                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300";
+                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono";
                 badgeNh3.innerText = "CRITICAL";
             } else if (data.ammonia_ppm > 15.0) {
-                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300";
+                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono";
                 badgeNh3.innerText = "WARNING";
             } else {
-                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300";
+                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono";
                 badgeNh3.innerText = "NORMAL";
             }
 
             const badgeH2s = document.getElementById('badge-h2s');
             if (data.h2s_ppm > 5.0) {
-                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300";
+                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono";
                 badgeH2s.innerText = "CRITICAL";
             } else if (data.h2s_ppm > 2.0) {
-                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300";
+                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono";
                 badgeH2s.innerText = "WARNING";
             } else {
-                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300";
+                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono";
                 badgeH2s.innerText = "NORMAL";
             }
 
@@ -594,6 +656,9 @@
             // Update Chart.js Data
             updateChartData(gasChart, now, [data.ammonia_ppm, data.h2s_ppm]);
             updateChartData(waterChart, now, [data.water_level_cm]);
+
+            // Prepend Row to Telemetry Table
+            addTableRow(now, data);
         }
 
         function updateChartData(chart, label, values) {
@@ -606,6 +671,38 @@
                 chart.data.datasets.forEach(ds => ds.data.shift());
             }
             chart.update();
+        }
+
+        function addTableRow(timeStr, data) {
+            const tbody = document.getElementById('telemetry-table-body');
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-50 transition-colors";
+
+            const sosHtml = data.sos_triggered 
+                ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">SOS ACTIVE</span>` 
+                : `<span class="text-slate-400">NORMAL</span>`;
+
+            row.innerHTML = `
+                <td class="py-2 px-3 text-slate-800 font-bold">${timeStr}</td>
+                <td class="py-2 px-3 text-slate-500">#${data.sequence_no || '-'}</td>
+                <td class="py-2 px-3 font-semibold text-slate-700">${data.node_code}</td>
+                <td class="py-2 px-3 font-bold text-blue-600">${data.water_level_cm.toFixed(1)} cm</td>
+                <td class="py-2 px-3 font-bold text-amber-600">${data.ammonia_ppm.toFixed(1)} ppm</td>
+                <td class="py-2 px-3 font-bold text-red-600">${data.h2s_ppm.toFixed(1)} ppm</td>
+                <td class="py-2 px-3 font-bold text-emerald-600">${data.battery_voltage.toFixed(2)} V</td>
+                <td class="py-2 px-3 text-right">${sosHtml}</td>
+            `;
+
+            // If first child was placeholder, remove it
+            if (tbody.children.length === 1 && tbody.children[0].children.length === 1) {
+                tbody.innerHTML = '';
+            }
+
+            tbody.insertBefore(row, tbody.firstChild);
+
+            if (tbody.children.length > MAX_TABLE_ROWS) {
+                tbody.removeChild(tbody.lastChild);
+            }
         }
 
         function updateGatewayStatus(status) {
