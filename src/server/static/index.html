@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart-Sanitation eSOS - Enterprise Environmental Monitoring System (EMS)</title>
+    <title>Smart-Sanitation eSOS - Enterprise SCADA Command Center</title>
     <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,23 +17,6 @@
                     fontFamily: {
                         sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
                         mono: ['"JetBrains Mono"', 'monospace']
-                    },
-                    colors: {
-                        brand: {
-                            gold: '#FFD400',
-                            goldLight: '#FFFDE6',
-                            goldDark: '#998000',
-                            navy: '#0F1B3D',
-                            navyLight: '#1C2E5E',
-                            navyDark: '#0A1229'
-                        },
-                        ui: {
-                            bg: '#F7F5EF',
-                            surface: '#FFFFFF',
-                            border: '#E2E8F0',
-                            text: '#1C2233',
-                            muted: '#64748B'
-                        }
                     }
                 }
             }
@@ -51,12 +34,12 @@
         .scada-card {
             background: #FFFFFF;
             border: 1px solid #E2E8F0;
-            border-radius: 1rem;
-            box-shadow: 0 2px 8px rgba(15, 27, 61, 0.03);
-            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            border-radius: 1.25rem;
+            box-shadow: 0 2px 10px rgba(15, 27, 61, 0.03);
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
         }
         .scada-card:hover {
-            box-shadow: 0 8px 24px rgba(15, 27, 61, 0.06);
+            box-shadow: 0 12px 30px rgba(15, 27, 61, 0.06);
             border-color: #CBD5E1;
         }
         .badge-pulse {
@@ -66,7 +49,7 @@
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.4; transform: scale(1.1); }
         }
-        /* Custom scrollbar for packet table */
+        /* Clean custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -76,7 +59,7 @@
         }
         ::-webkit-scrollbar-thumb {
             background: #CBD5E1;
-            border-radius: 3px;
+            border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #94A3B8;
@@ -85,124 +68,127 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased">
 
-    <!-- TOPBAR: Full-Width Institutional SCADA Header -->
-    <header class="bg-[#0F1B3D] text-white border-b-2 border-[#FFD400] sticky top-0 z-50 shadow-md w-full">
-        <div class="w-full px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between">
-            <!-- Left Branding -->
-            <div class="flex items-center space-x-3.5">
-                <div class="w-10 h-10 rounded-xl bg-[#FFD400] text-[#0F1B3D] flex items-center justify-center font-extrabold text-base shadow-inner tracking-tight">
+    <!-- TOPBAR: Spacious Institutional SCADA Header -->
+    <header class="bg-[#0F1B3D] text-white border-b-2 border-[#FFD400] sticky top-0 z-50 shadow-lg w-full">
+        <div class="w-full px-6 sm:px-8 lg:px-12 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            <!-- Left Branding with generous margins -->
+            <div class="flex items-center gap-4">
+                <div class="h-11 px-4 rounded-xl bg-[#FFD400] text-[#0F1B3D] flex items-center justify-center font-black text-lg tracking-wider shadow-md shrink-0 select-none">
                     eSOS
                 </div>
-                <div class="flex flex-col">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs font-bold uppercase tracking-widest text-[#FFD400]">Smart-Sanitation eSOS</span>
-                        <span class="text-xs text-slate-400 font-mono">/</span>
-                        <span class="text-xs text-slate-300 font-medium">Environmental Monitoring System (EMS)</span>
+                <div class="flex flex-col justify-center">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="text-[11px] font-bold uppercase tracking-widest text-[#FFD400] leading-none">Smart-Sanitation eSOS</span>
+                        <span class="text-slate-500 font-mono text-xs leading-none">&bull;</span>
+                        <span class="text-[11px] text-slate-300 font-medium tracking-wide leading-none">Environmental Monitoring System (EMS)</span>
                     </div>
-                    <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                    <h1 class="text-base sm:text-lg font-extrabold text-white tracking-tight flex items-center gap-2.5 leading-tight">
                         Central Command & Telemetry SCADA
-                        <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded">v5.1 LIVE</span>
+                        <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">v5.1 LIVE</span>
                     </h1>
                 </div>
             </div>
 
-            <!-- Right Status Badges (Enterprise SCADA Status Strip) -->
-            <div class="flex items-center space-x-3 text-xs">
+            <!-- Right Status Badges with generous breathing room -->
+            <div class="flex items-center gap-3 flex-wrap">
                 <!-- WebSocket Hub Status -->
-                <div class="hidden sm:flex items-center space-x-2 bg-[#1C2E5E] px-3.5 py-1.5 rounded-lg border border-slate-700/60">
-                    <span class="text-slate-300 font-medium">WebSocket Hub:</span>
-                    <div class="flex items-center space-x-1.5 font-mono font-semibold">
+                <div class="flex items-center gap-2.5 bg-[#1C2E5E] px-4 py-2 rounded-xl border border-slate-700/60 shadow-inner">
+                    <span class="text-slate-300 text-xs font-medium">WebSocket Hub:</span>
+                    <div class="flex items-center gap-1.5 font-mono text-xs font-semibold">
                         <span id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse"></span>
-                        <span id="ws-status-text" class="text-emerald-400 uppercase tracking-wider">CONNECTED</span>
+                        <span id="ws-status-text" class="text-emerald-400 tracking-wider uppercase">CONNECTED</span>
                     </div>
                 </div>
 
                 <!-- Gateway LoRa Status -->
-                <div class="flex items-center space-x-2 bg-[#1C2E5E] px-3.5 py-1.5 rounded-lg border border-slate-700/60">
-                    <span class="text-slate-300 font-medium">Gateway 01:</span>
-                    <div class="flex items-center space-x-1.5 font-mono font-semibold">
+                <div class="flex items-center gap-2.5 bg-[#1C2E5E] px-4 py-2 rounded-xl border border-slate-700/60 shadow-inner">
+                    <span class="text-slate-300 text-xs font-medium">Gateway 01:</span>
+                    <div class="flex items-center gap-1.5 font-mono text-xs font-semibold">
                         <span id="gw-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                        <span id="gw-status-text" class="text-emerald-400 uppercase tracking-wider">ONLINE</span>
+                        <span id="gw-status-text" class="text-emerald-400 tracking-wider uppercase">ONLINE</span>
                     </div>
                 </div>
 
                 <!-- Active Facility Pill -->
-                <div class="hidden lg:flex items-center space-x-2 bg-[#FFD400]/10 border border-[#FFD400]/30 px-3.5 py-1.5 rounded-lg text-[#FFD400] font-semibold text-xs">
-                    <span>Node: <strong>WC_01</strong></span>
+                <div class="flex items-center gap-2 bg-[#FFD400]/10 border border-[#FFD400]/30 px-4 py-2 rounded-xl text-[#FFD400] font-bold text-xs shadow-sm">
+                    <span class="text-slate-400 font-normal">Node:</span>
+                    <span class="font-mono">WC_01</span>
                 </div>
             </div>
+
         </div>
     </header>
 
-    <!-- BANNER DARURAT (High-Visibility Critical Alert) -->
-    <div id="emergency-banner" class="hidden bg-[#C0392B] text-white py-3.5 px-6 shadow-lg border-b-2 border-red-300 w-full">
-        <div class="w-full flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <span class="flex h-3 w-3 relative">
+    <!-- BANNER DARURAT (Critical Alert) -->
+    <div id="emergency-banner" class="hidden bg-[#C0392B] text-white py-4 px-8 shadow-xl border-b-2 border-red-300 w-full">
+        <div class="w-full flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="flex h-3.5 w-3.5 relative shrink-0">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                    <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-white"></span>
                 </span>
                 <span class="font-bold tracking-wide uppercase text-sm font-mono" id="emergency-text">
-                    ⚠️ ALARM DARURAT: TOMBOL SOS PADA BILIK AKTIF DITEKAN! SEGERA TINDAK LANJUTI!
+                    ⚠️ ALARM DARURAT: TOMBOL SOS PADA BILIK TERDETEKSI AKTIF! SEGERA TINDAK LANJUTI!
                 </span>
             </div>
-            <button onclick="dismissEmergency()" class="bg-red-950/50 hover:bg-red-950/70 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg border border-red-400/40 transition">
+            <button onclick="dismissEmergency()" class="bg-red-950/60 hover:bg-red-950 text-white font-bold text-xs px-4 py-2 rounded-xl border border-red-400/50 transition shrink-0">
                 Tutup Peringatan
             </button>
         </div>
     </div>
 
     <!-- MAIN FLUID CONTAINER: FULL CANVAS WIDTH -->
-    <main class="flex-grow w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6">
+    <main class="flex-grow w-full px-6 sm:px-8 lg:px-12 py-8">
         
-        <!-- TOP CONTROL BAR: FACILITY CONTEXT & CLOCK -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between pb-5 mb-6 border-b border-slate-200 gap-4">
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-[#FFD400]/20 text-[#0F1B3D] border border-[#FFD400]/50">
+        <!-- SUBHEADER / CONTEXT BAR -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between pb-6 mb-8 border-b border-slate-200/80 gap-6">
+            <div class="flex flex-col">
+                <div class="flex items-center gap-2.5 flex-wrap mb-2">
+                    <span class="px-3 py-1 rounded-lg text-xs font-extrabold tracking-wider uppercase bg-[#FFD400]/25 text-[#0F1B3D] border border-[#FFD400]/60">
                         ZONA DARURAT PASCA-BENCANA
                     </span>
-                    <span class="text-xs text-slate-500 font-mono">Posko Utama &bull; Sektor Sanitasi Modular #01</span>
-                    <span class="text-xs text-slate-400">&bull;</span>
-                    <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Bilik Operasional Aktif</span>
+                    <span class="text-xs text-slate-500 font-semibold">Posko Utama &bull; Sektor Sanitasi Modular #01</span>
+                    <span class="text-slate-300">&bull;</span>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200/70">Bilik Operasional Aktif</span>
                 </div>
-                <h2 class="text-2xl font-extrabold text-[#0F1B3D] mt-1 tracking-tight">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-[#0F1B3D] tracking-tight leading-tight">
                     Pusat Pemantauan Lingkungan & Pengendalian Sanitasi (EMS)
                 </h2>
-                <p class="text-xs text-slate-500 mt-0.5 font-medium">
-                    Radio LoRa SX1278 (Half-Duplex 915 MHz) &bull; Edge Gateway ESP32 RTClib &bull; Go Pipeline &bull; PostgreSQL 17 UUIDv7
+                <p class="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+                    Radio LoRa SX1278 (Half-Duplex 915 MHz) &bull; Edge Gateway ESP32 RTClib &bull; Go Event-Driven Pipeline &bull; PostgreSQL 17 UUIDv7
                 </p>
             </div>
 
-            <!-- Metrics Summary Badge & Time -->
-            <div class="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start md:self-auto">
-                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 badge-pulse"></div>
-                <div class="flex flex-col text-right">
-                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Sinkronisasi Terakhir</span>
-                    <span id="last-update" class="text-xs font-mono font-bold text-slate-800">Menghubungkan...</span>
+            <!-- Sync Card with guaranteed line-height & spacing -->
+            <div class="flex items-center gap-3.5 bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm self-start lg:self-auto shrink-0">
+                <div class="w-3 h-3 rounded-full bg-emerald-500 badge-pulse shrink-0"></div>
+                <div class="flex flex-col text-right justify-center gap-1">
+                    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 leading-none">Sinkronisasi Terakhir</span>
+                    <span id="last-update" class="text-sm font-mono font-bold text-slate-800 leading-none">Memuat...</span>
                 </div>
             </div>
         </div>
 
-        <!-- 4 SCADA KPI METRIC CARDS (Full Width Grid) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+        <!-- 4 SCADA KPI METRIC CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
             
-            <!-- 1. Water Level -->
-            <div class="scada-card p-5 flex flex-col justify-between">
+            <!-- 1. Water Level Card -->
+            <div class="scada-card p-6 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-                        <span class="uppercase tracking-wider">Ketinggian Air Tangki</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">LIVE JSN-SR04T</span>
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-snug">Ketinggian Air Tangki</span>
+                        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono shrink-0 whitespace-nowrap">JSN-SR04T</span>
                     </div>
-                    <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-water" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                    <div class="flex items-baseline space-x-2 my-2">
+                        <span id="val-water" class="text-4xl font-black text-[#0F1B3D] tracking-tight font-mono leading-none">--</span>
                         <span class="text-sm font-bold text-slate-400">cm</span>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
-                        <span>Kapasitas (Maks 200cm)</span>
-                        <span id="txt-water-pct" class="font-mono font-bold text-slate-700">--%</span>
+                <div class="mt-4 pt-3 border-t border-slate-100">
+                    <div class="flex justify-between text-xs font-semibold text-slate-500 mb-1.5">
+                        <span>Kapasitas Tangki (Maks 200cm)</span>
+                        <span id="txt-water-pct" class="font-mono font-bold text-slate-800">--%</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
                         <div id="bar-water" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
@@ -210,22 +196,22 @@
                 </div>
             </div>
 
-            <!-- 2. Battery Voltage -->
-            <div class="scada-card p-5 flex flex-col justify-between">
+            <!-- 2. Battery Voltage Card -->
+            <div class="scada-card p-6 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-                        <span class="uppercase tracking-wider">Tegangan Catu Baterai</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">1S4P LiPo 18650</span>
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-snug">Tegangan Catu Baterai</span>
+                        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono shrink-0 whitespace-nowrap">1S4P LiPo</span>
                     </div>
-                    <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-batt" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                    <div class="flex items-baseline space-x-2 my-2">
+                        <span id="val-batt" class="text-4xl font-black text-[#0F1B3D] tracking-tight font-mono leading-none">--</span>
                         <span class="text-sm font-bold text-slate-400">Volt DC</span>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
-                        <span>Status Daya Mandiri</span>
-                        <span id="txt-batt-pct" class="font-mono font-bold text-slate-700">--%</span>
+                <div class="mt-4 pt-3 border-t border-slate-100">
+                    <div class="flex justify-between text-xs font-semibold text-slate-500 mb-1.5">
+                        <span>Status Pasokan Daya Mandiri</span>
+                        <span id="txt-batt-pct" class="font-mono font-bold text-slate-800">--%</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
                         <div id="bar-batt" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
@@ -233,113 +219,113 @@
                 </div>
             </div>
 
-            <!-- 3. Ammonia (NH3) -->
-            <div class="scada-card p-5 flex flex-col justify-between">
+            <!-- 3. Ammonia Card -->
+            <div class="scada-card p-6 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-                        <span class="uppercase tracking-wider">Amonia (MQ-137)</span>
-                        <span id="badge-nh3" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono">NORMAL</span>
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-snug">Amonia (MQ-137)</span>
+                        <span id="badge-nh3" class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono shrink-0 whitespace-nowrap">NORMAL</span>
                     </div>
-                    <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-nh3" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                    <div class="flex items-baseline space-x-2 my-2">
+                        <span id="val-nh3" class="text-4xl font-black text-[#0F1B3D] tracking-tight font-mono leading-none">--</span>
                         <span class="text-sm font-bold text-slate-400">ppm</span>
                     </div>
                 </div>
-                <div class="mt-4 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 gap-2">
+                    <span class="flex items-center gap-1.5 font-medium truncate">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                         Ambang Normal: &le; 15 ppm
                     </span>
-                    <span class="font-mono text-slate-400">Target Udara Bersih</span>
+                    <span class="text-slate-400 font-mono text-[11px] shrink-0">Target Bersih</span>
                 </div>
             </div>
 
-            <!-- 4. Hydrogen Sulfide (H2S) -->
-            <div class="scada-card p-5 flex flex-col justify-between">
+            <!-- 4. H2S Card -->
+            <div class="scada-card p-6 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-                        <span class="uppercase tracking-wider">H₂S Bau Busuk (MQ-136)</span>
-                        <span id="badge-h2s" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono">NORMAL</span>
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-snug">H₂S Bau Busuk (MQ-136)</span>
+                        <span id="badge-h2s" class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 font-mono shrink-0 whitespace-nowrap">NORMAL</span>
                     </div>
-                    <div class="flex items-baseline space-x-1.5 my-1">
-                        <span id="val-h2s" class="text-4xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                    <div class="flex items-baseline space-x-2 my-2">
+                        <span id="val-h2s" class="text-4xl font-black text-[#0F1B3D] tracking-tight font-mono leading-none">--</span>
                         <span class="text-sm font-bold text-slate-400">ppm</span>
                     </div>
                 </div>
-                <div class="mt-4 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 gap-2">
+                    <span class="flex items-center gap-1.5 font-medium truncate">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                         Ambang Bahaya: &le; 2.0 ppm
                     </span>
-                    <span class="font-mono text-slate-400">Indikator Sanitasi</span>
+                    <span class="text-slate-400 font-mono text-[11px] shrink-0">Indikator Bau</span>
                 </div>
             </div>
 
         </div>
 
         <!-- MAIN EXPANSIVE WORKSPACE: CHARTS & SIDEBAR CONTROLS -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-8">
             
-            <!-- LEFT AREA (CHARTS): Spans 2 cols on lg, 3 cols on xl (75% width) -->
-            <div class="lg:col-span-2 xl:col-span-3 space-y-6">
+            <!-- LEFT AREA (CHARTS & AUDIT TABLE): 3 cols on xl (75% width) -->
+            <div class="lg:col-span-2 xl:col-span-3 space-y-8">
                 
                 <!-- 2 Side-by-Side Charts on XL screens -->
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <!-- Chart 1: Air Quality (Gas Trend) -->
-                    <div class="scada-card p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="flex items-center space-x-2.5">
-                                <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Tren Kualitas Udara (NH₃ & H₂S)</h4>
+                    <div class="scada-card p-6">
+                        <div class="flex items-center justify-between pb-4 mb-3 border-b border-slate-100 gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></div>
+                                <h4 class="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Tren Kualitas Udara (NH₃ & H₂S)</h4>
                             </div>
-                            <span class="text-[11px] font-mono text-slate-400">Real-Time Ingestion</span>
+                            <span class="text-[11px] font-mono text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shrink-0">Real-Time</span>
                         </div>
-                        <div class="h-64 w-full">
-                            <canvas id="gasChart"></canvas>
+                        <div class="h-68 w-full">
+                            <canvas id="gasChart" style="max-height: 270px;"></canvas>
                         </div>
                     </div>
 
                     <!-- Chart 2: Water Level Trend -->
-                    <div class="scada-card p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="flex items-center space-x-2.5">
-                                <div class="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Ketinggian Air Tangki Sanitasi</h4>
+                    <div class="scada-card p-6">
+                        <div class="flex items-center justify-between pb-4 mb-3 border-b border-slate-100 gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></div>
+                                <h4 class="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Ketinggian Air Tangki Sanitasi</h4>
                             </div>
-                            <span class="text-[11px] font-mono text-slate-400">Ultrasonik JSN-SR04T</span>
+                            <span class="text-[11px] font-mono text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shrink-0">JSN-SR04T</span>
                         </div>
-                        <div class="h-64 w-full">
-                            <canvas id="waterChart"></canvas>
+                        <div class="h-68 w-full">
+                            <canvas id="waterChart" style="max-height: 270px;"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- LIVE PACKET TELEMETRY AUDIT LOG TABLE (AMR-RS Stream Table) -->
-                <div class="scada-card p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-[#0F1B3D]"></div>
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Log Paket Telemetri Terkini (Stream Audit)</h4>
+                <!-- LIVE PACKET TELEMETRY AUDIT LOG TABLE -->
+                <div class="scada-card p-6">
+                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-[#0F1B3D] shrink-0"></div>
+                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Log Paket Telemetri Terkini (Stream Audit)</h4>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-500">PostgreSQL Ingestion Feed &bull; Max 8 Record</span>
+                        <span class="text-xs font-mono text-slate-500 bg-slate-50 px-3 py-1 rounded-lg border border-slate-200">PostgreSQL Ingestion Feed</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs font-mono">
-                            <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                            <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-200">
                                 <tr>
-                                    <th class="py-2.5 px-3">Waktu (WIB)</th>
-                                    <th class="py-2.5 px-3">Seq #</th>
-                                    <th class="py-2.5 px-3">Node</th>
-                                    <th class="py-2.5 px-3">Level Air</th>
-                                    <th class="py-2.5 px-3">NH₃</th>
-                                    <th class="py-2.5 px-3">H₂S</th>
-                                    <th class="py-2.5 px-3">Tegangan</th>
-                                    <th class="py-2.5 px-3 text-right">Status SOS</th>
+                                    <th class="py-3 px-4">Waktu (WIB)</th>
+                                    <th class="py-3 px-4">Seq #</th>
+                                    <th class="py-3 px-4">Node</th>
+                                    <th class="py-3 px-4">Level Air</th>
+                                    <th class="py-3 px-4">NH₃</th>
+                                    <th class="py-3 px-4">H₂S</th>
+                                    <th class="py-3 px-4">Tegangan</th>
+                                    <th class="py-3 px-4 text-right">Status SOS</th>
                                 </tr>
                             </thead>
                             <tbody id="telemetry-table-body" class="divide-y divide-slate-100 text-slate-700">
                                 <tr>
-                                    <td colspan="8" class="py-4 text-center text-slate-400 font-sans">Menunggu aliran paket pertama dari simulator...</td>
+                                    <td colspan="8" class="py-6 text-center text-slate-400 font-sans text-xs">Menghubungkan ke aliran data telemetri...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -348,28 +334,28 @@
 
             </div>
 
-            <!-- RIGHT SIDEBAR (CONTROLS & SPEC): 1 col (25% width on xl) -->
+            <!-- RIGHT SIDEBAR (CONTROLS & HARDWARE SPEC): 1 col (25% width on xl) -->
             <div class="lg:col-span-1 xl:col-span-1 space-y-6">
                 
-                <!-- Panel Kontrol Katup Aktuator (AMR-RS Action Panel) -->
-                <div class="scada-card p-5">
-                    <div class="flex items-center space-x-2.5 pb-3 mb-4 border-b border-slate-100">
-                        <div class="w-8 h-8 rounded-lg bg-[#0F1B3D] text-[#FFD400] flex items-center justify-center font-bold text-sm">
+                <!-- Panel Kontrol Katup Aktuator -->
+                <div class="scada-card p-6">
+                    <div class="flex items-center gap-3 pb-4 mb-5 border-b border-slate-100">
+                        <div class="w-9 h-9 rounded-xl bg-[#0F1B3D] text-[#FFD400] flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
                             ⚙️
                         </div>
                         <div>
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Kendali Katup Pembilasan</h4>
-                            <p class="text-[10px] text-slate-500">Downlink LoRa Servo MG996R</p>
+                            <h4 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Kendali Katup Pembilasan</h4>
+                            <p class="text-[11px] text-slate-500 font-medium">Downlink LoRa Servo MG996R</p>
                         </div>
                     </div>
 
-                    <div class="space-y-2.5">
+                    <div class="space-y-3">
                         <button onclick="sendCommand('OPEN_VALVE', 90)" id="btn-open" 
-                                class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#0F1B3D] hover:bg-[#1C2E5E] text-white border-b-2 border-[#FFD400] shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
+                                class="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#0F1B3D] hover:bg-[#1C2E5E] text-white border-b-2 border-[#FFD400] shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
                             <span>💧 Buka Katup Bilik (90°)</span>
                         </button>
                         <button onclick="sendCommand('CLOSE_VALVE', 0)" id="btn-close" 
-                                class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition active:scale-[0.98] flex items-center justify-center gap-2">
+                                class="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition active:scale-[0.98] flex items-center justify-center gap-2">
                             <span>🔒 Tutup Katup Bilik (0°)</span>
                         </button>
                     </div>
@@ -383,10 +369,10 @@
                     </div>
 
                     <!-- Parameter Downlink Radio -->
-                    <div class="mt-5 pt-3.5 border-t border-slate-100 text-[10px] text-slate-500 space-y-1 font-mono">
+                    <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-500 space-y-2 font-mono">
                         <div class="flex justify-between">
                             <span>Downlink Window:</span>
-                            <span class="font-bold text-slate-700">2s RX Window (Half-Duplex)</span>
+                            <span class="font-bold text-slate-700">2s RX (Half-Duplex)</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Idempotency:</span>
@@ -400,11 +386,11 @@
                 </div>
 
                 <!-- Spesifikasi Teknis Node & Jaringan SCADA -->
-                <div class="scada-card p-5 bg-gradient-to-br from-white to-slate-50/70">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                <div class="scada-card p-6 bg-gradient-to-br from-white to-slate-50/70">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
                         <span>📡 Arsitektur Fisik & Jaringan</span>
                     </h4>
-                    <div class="space-y-2 text-[11px] font-mono">
+                    <div class="space-y-2.5 text-xs font-mono">
                         <div class="flex justify-between py-1 border-b border-slate-100">
                             <span class="text-slate-500 font-sans">Node Target:</span>
                             <span class="font-bold text-slate-800">WC_01 (Posko)</span>
@@ -439,8 +425,8 @@
     </main>
 
     <!-- FOOTER: Institutional Academic Footer -->
-    <footer class="bg-white border-t border-slate-200 py-3.5 mt-auto w-full">
-        <div class="w-full px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto w-full">
+        <div class="w-full px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
             <div>
                 &copy; 2026 <strong>Universitas Indonesia</strong> &bull; Departemen Teknik Elektro FTUI &bull; Capstone Desain Proyek 2 (Kelompok 4)
             </div>
@@ -457,10 +443,9 @@
         let ws;
         let reconnectTimer;
         const TARGET_NODE = "WC_01";
-        const tableRows = [];
 
         // Setup Chart.js with Clean SCADA Theme
-        Chart.defaults.color = '#64748B'; // slate-500
+        Chart.defaults.color = '#64748B';
         Chart.defaults.font.family = '"Plus Jakarta Sans", sans-serif';
 
         const chartOptions = {
@@ -497,7 +482,7 @@
                     {
                         label: 'Amonia (ppm)',
                         data: [],
-                        borderColor: '#D97706', // amber-600
+                        borderColor: '#D97706',
                         backgroundColor: 'rgba(217, 119, 6, 0.08)',
                         borderWidth: 2,
                         pointRadius: 2,
@@ -507,7 +492,7 @@
                     {
                         label: 'H₂S (ppm)',
                         data: [],
-                        borderColor: '#DC2626', // red-600
+                        borderColor: '#DC2626',
                         backgroundColor: 'rgba(220, 38, 38, 0.08)',
                         borderWidth: 2,
                         pointRadius: 2,
@@ -529,7 +514,7 @@
                     {
                         label: 'Level Air Tangki (cm)',
                         data: [],
-                        borderColor: '#2563EB', // blue-600
+                        borderColor: '#2563EB',
                         backgroundColor: 'rgba(37, 99, 235, 0.08)',
                         borderWidth: 2,
                         pointRadius: 2,
@@ -541,6 +526,22 @@
             options: chartOptions
         });
 
+        // Initial Data Fetch from REST API (Immediate Display)
+        async function fetchInitialTelemetry() {
+            try {
+                const res = await fetch(`/api/v1/nodes/${TARGET_NODE}/telemetry/latest`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.data) {
+                        console.log("[eSOS EMS] Initial telemetry fetched:", json.data);
+                        updateTelemetryUI(json.data);
+                    }
+                }
+            } catch (err) {
+                console.warn("[eSOS EMS] Gagal fetch telemetry awal:", err);
+            }
+        }
+
         // WebSocket Hub Connection
         function connectWebSocket() {
             const wsUrl = `ws://${window.location.host || 'localhost:8000'}/api/v1/ws`;
@@ -551,7 +552,7 @@
             ws.onopen = () => {
                 console.log("[eSOS EMS] WebSocket Terhubung.");
                 document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse";
-                document.getElementById('ws-status-text').className = "text-emerald-400 uppercase tracking-wider";
+                document.getElementById('ws-status-text').className = "text-emerald-400 tracking-wider uppercase";
                 document.getElementById('ws-status-text').innerText = "CONNECTED";
                 if (reconnectTimer) clearTimeout(reconnectTimer);
             };
@@ -568,7 +569,7 @@
             ws.onclose = () => {
                 console.warn("[eSOS EMS] WebSocket Terputus. Menghubungkan ulang...");
                 document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-amber-400";
-                document.getElementById('ws-status-text').className = "text-amber-400 uppercase tracking-wider";
+                document.getElementById('ws-status-text').className = "text-amber-400 tracking-wider uppercase";
                 document.getElementById('ws-status-text').innerText = "RECONNECTING...";
                 reconnectTimer = setTimeout(connectWebSocket, 3000);
             };
@@ -600,10 +601,10 @@
             document.getElementById('last-update').innerText = now + " WIB";
 
             // Update Card Values
-            document.getElementById('val-water').innerText = data.water_level_cm.toFixed(1);
-            document.getElementById('val-batt').innerText = data.battery_voltage.toFixed(2);
-            document.getElementById('val-nh3').innerText = data.ammonia_ppm.toFixed(1);
-            document.getElementById('val-h2s').innerText = data.h2s_ppm.toFixed(1);
+            document.getElementById('val-water').innerText = Number(data.water_level_cm).toFixed(1);
+            document.getElementById('val-batt').innerText = Number(data.battery_voltage).toFixed(2);
+            document.getElementById('val-nh3').innerText = Number(data.ammonia_ppm).toFixed(1);
+            document.getElementById('val-h2s').innerText = Number(data.h2s_ppm).toFixed(1);
 
             // Water Percentage & Progress
             const waterPct = Math.min(100, Math.max(0, Math.round((data.water_level_cm / 200) * 100)));
@@ -626,25 +627,25 @@
             // Gas Badges
             const badgeNh3 = document.getElementById('badge-nh3');
             if (data.ammonia_ppm > 25.0) {
-                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono";
+                badgeNh3.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono shrink-0 whitespace-nowrap";
                 badgeNh3.innerText = "CRITICAL";
             } else if (data.ammonia_ppm > 15.0) {
-                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono";
+                badgeNh3.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono shrink-0 whitespace-nowrap";
                 badgeNh3.innerText = "WARNING";
             } else {
-                badgeNh3.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono";
+                badgeNh3.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono shrink-0 whitespace-nowrap";
                 badgeNh3.innerText = "NORMAL";
             }
 
             const badgeH2s = document.getElementById('badge-h2s');
             if (data.h2s_ppm > 5.0) {
-                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono";
+                badgeH2s.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-mono shrink-0 whitespace-nowrap";
                 badgeH2s.innerText = "CRITICAL";
             } else if (data.h2s_ppm > 2.0) {
-                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono";
+                badgeH2s.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 font-mono shrink-0 whitespace-nowrap";
                 badgeH2s.innerText = "WARNING";
             } else {
-                badgeH2s.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono";
+                badgeH2s.className = "px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 font-mono shrink-0 whitespace-nowrap";
                 badgeH2s.innerText = "NORMAL";
             }
 
@@ -654,8 +655,8 @@
             }
 
             // Update Chart.js Data
-            updateChartData(gasChart, now, [data.ammonia_ppm, data.h2s_ppm]);
-            updateChartData(waterChart, now, [data.water_level_cm]);
+            updateChartData(gasChart, now, [Number(data.ammonia_ppm), Number(data.h2s_ppm)]);
+            updateChartData(waterChart, now, [Number(data.water_level_cm)]);
 
             // Prepend Row to Telemetry Table
             addTableRow(now, data);
@@ -678,19 +679,19 @@
             const row = document.createElement('tr');
             row.className = "hover:bg-slate-50 transition-colors";
 
-            const sosHtml = data.sos_triggered 
-                ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">SOS ACTIVE</span>` 
-                : `<span class="text-slate-400">NORMAL</span>`;
+            const sosHtml = (data.sos_triggered === true || data.sos_triggered === 1)
+                ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">SOS ACTIVE</span>` 
+                : `<span class="text-slate-400 font-semibold text-[10px]">NORMAL</span>`;
 
             row.innerHTML = `
-                <td class="py-2 px-3 text-slate-800 font-bold">${timeStr}</td>
-                <td class="py-2 px-3 text-slate-500">#${data.sequence_no || '-'}</td>
-                <td class="py-2 px-3 font-semibold text-slate-700">${data.node_code}</td>
-                <td class="py-2 px-3 font-bold text-blue-600">${data.water_level_cm.toFixed(1)} cm</td>
-                <td class="py-2 px-3 font-bold text-amber-600">${data.ammonia_ppm.toFixed(1)} ppm</td>
-                <td class="py-2 px-3 font-bold text-red-600">${data.h2s_ppm.toFixed(1)} ppm</td>
-                <td class="py-2 px-3 font-bold text-emerald-600">${data.battery_voltage.toFixed(2)} V</td>
-                <td class="py-2 px-3 text-right">${sosHtml}</td>
+                <td class="py-2.5 px-4 text-slate-800 font-bold">${timeStr}</td>
+                <td class="py-2.5 px-4 text-slate-500">#${data.sequence_no || '-'}</td>
+                <td class="py-2.5 px-4 font-semibold text-slate-700">${data.node_code}</td>
+                <td class="py-2.5 px-4 font-bold text-blue-600">${Number(data.water_level_cm).toFixed(1)} cm</td>
+                <td class="py-2.5 px-4 font-bold text-amber-600">${Number(data.ammonia_ppm).toFixed(1)} ppm</td>
+                <td class="py-2.5 px-4 font-bold text-red-600">${Number(data.h2s_ppm).toFixed(1)} ppm</td>
+                <td class="py-2.5 px-4 font-bold text-emerald-600">${Number(data.battery_voltage).toFixed(2)} V</td>
+                <td class="py-2.5 px-4 text-right">${sosHtml}</td>
             `;
 
             // If first child was placeholder, remove it
@@ -710,11 +711,11 @@
             const text = document.getElementById('gw-status-text');
             if (status === 'ONLINE') {
                 dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-                text.className = "text-emerald-400 uppercase tracking-wider";
+                text.className = "text-emerald-400 tracking-wider uppercase";
                 text.innerText = "ONLINE";
             } else {
                 dot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
-                text.className = "text-red-400 uppercase tracking-wider";
+                text.className = "text-red-400 tracking-wider uppercase";
                 text.innerText = "OFFLINE";
             }
         }
@@ -797,7 +798,10 @@
             }
         }
 
-        window.addEventListener('load', connectWebSocket);
+        window.addEventListener('load', () => {
+            fetchInitialTelemetry();
+            connectWebSocket();
+        });
     </script>
 </body>
 </html>
