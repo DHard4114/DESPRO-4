@@ -12,6 +12,7 @@ import (
 // ESP32 Payload Structure (Sesuai dengan kode firmware Siti)
 type TelemetryPayload struct {
 	NodeCode       string  `json:"node_code"`
+	SequenceNo     uint32  `json:"sequence_no"`
 	Timestamp      int64   `json:"timestamp"`
 	WaterLevelCM   float64 `json:"water_level_cm"`
 	AmmoniaPPM     float64 `json:"ammonia_ppm"`
@@ -46,8 +47,10 @@ func main() {
 	ammonia := 5.0
 	h2s := 0.5
 	batt := 4.0
+	var seq uint32 = uint32(time.Now().Unix() % 100000)
 
 	for {
+		seq++
 		// Buat pergerakan grafik terlihat realistis (random walk)
 		waterLevel += (rand.Float64() * 4) - 2
 		ammonia += (rand.Float64() * 2) - 1
@@ -65,6 +68,7 @@ func main() {
 
 		payload := TelemetryPayload{
 			NodeCode:       "WC_01",
+			SequenceNo:     seq,
 			Timestamp:      time.Now().Unix(),
 			WaterLevelCM:   waterLevel,
 			AmmoniaPPM:     ammonia,

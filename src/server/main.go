@@ -13,6 +13,7 @@ import (
 	"smart-sanitation-esos/server/config"
 	"smart-sanitation-esos/server/database"
 	"smart-sanitation-esos/server/etl"
+	"smart-sanitation-esos/server/models"
 	mqttclient "smart-sanitation-esos/server/mqtt"
 )
 
@@ -51,6 +52,12 @@ func main() {
 
 	// 5. Inisialisasi Mesin ETL (Pipeline)
 	pipeline := etl.NewPipeline(db.Pool)
+	pipeline.BroadcastTelemetry = func(rec models.TelemetryRecord) {
+		wsHub.Broadcast <- api.WSEvent{
+			Type:    "TELEMETRY_STREAM",
+			Payload: rec,
+		}
+	}
 	pipeline.StartWorkers(8) // 8 Goroutine Workers
 	pipeline.StartBatchInserter()
 	log.Println("Mesin ETL Pipeline berjalan.")

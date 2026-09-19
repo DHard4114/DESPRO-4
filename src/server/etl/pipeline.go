@@ -13,9 +13,10 @@ import (
 )
 
 type Pipeline struct {
-	InStream  chan models.RawMQTTMessage
-	OutStream chan models.TelemetryRecord
-	DBPool    *pgxpool.Pool
+	InStream           chan models.RawMQTTMessage
+	OutStream          chan models.TelemetryRecord
+	DBPool             *pgxpool.Pool
+	BroadcastTelemetry func(models.TelemetryRecord)
 
 	// LRU Cache untuk deduplikasi (node_code -> last_sequence_no)
 	muDedup sync.RWMutex
@@ -101,6 +102,10 @@ func (p *Pipeline) StartWorkers(workerCount int) {
 				}
 
 				p.OutStream <- record
+
+				if p.BroadcastTelemetry != nil {
+					p.BroadcastTelemetry(record)
+				}
 			}
 		}(i)
 	}
