@@ -1,18 +1,39 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart-Sanitation eSOS - Pusat Kendali</title>
+    <title>eSOS EMS - Enterprise Sanitation Management System</title>
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    },
                     colors: {
-                        slate: { 950: '#020617' }
+                        brand: {
+                            gold: '#FFD400',
+                            goldLight: '#FFFDE6',
+                            goldDark: '#998000',
+                            navy: '#0F1B3D',
+                            navyLight: '#1C2E5E',
+                            navyDark: '#0A1229'
+                        },
+                        ui: {
+                            bg: '#F7F5EF',
+                            surface: '#FFFFFF',
+                            border: '#E2E8F0',
+                            text: '#1C2233',
+                            muted: '#64748B'
+                        }
                     }
                 }
             }
@@ -20,226 +41,456 @@
     </script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #F7F5EF;
+            color: #1C2233;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .scada-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(15, 27, 61, 0.03);
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+        }
+        .scada-card:hover {
+            box-shadow: 0 10px 25px rgba(15, 27, 61, 0.06);
+            border-color: #CBD5E1;
+        }
+        .badge-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.1); }
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-200 font-sans min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col antialiased">
 
-    <!-- Header Navigasi -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 shadow-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white">
-                    eS
+    <!-- TOPBAR: AMR-RS Makara Navy Header -->
+    <header class="bg-[#0F1B3D] text-white border-b-2 border-[#FFD400] sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Left Branding -->
+            <div class="flex items-center space-x-3.5">
+                <div class="w-10 h-10 rounded-xl bg-[#FFD400] text-[#0F1B3D] flex items-center justify-center font-extrabold text-lg shadow-inner">
+                    UI
                 </div>
-                <h1 class="text-xl font-bold text-slate-100 tracking-wide">Smart-Sanitation <span class="text-blue-400">eSOS</span></h1>
+                <div class="flex flex-col">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold uppercase tracking-widest text-[#FFD400]">Sinergi1 EMS</span>
+                        <span class="text-xs text-slate-400 font-mono">/</span>
+                        <span class="text-xs text-slate-300 font-medium">Smart Sanitation eSOS</span>
+                    </div>
+                    <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                        Autonomous Facility SCADA
+                        <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">v5.1 LIVE</span>
+                    </h1>
+                </div>
             </div>
-            
-            <div class="flex items-center space-x-6 text-sm font-medium">
-                <!-- Indikator WebSocket -->
-                <div class="flex items-center space-x-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
-                    <span class="text-slate-400">Sistem:</span>
-                    <span class="relative flex h-3 w-3">
-                        <span id="ws-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                        <span id="ws-dot" class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
-                    </span>
-                    <span id="ws-status-text" class="text-yellow-400">MENYAMBUNG...</span>
+
+            <!-- Right Status Badges (AMR-RS Status Bar) -->
+            <div class="flex items-center space-x-3 text-xs">
+                <!-- WebSocket Hub Status -->
+                <div class="hidden sm:flex items-center space-x-2 bg-[#1C2E5E] px-3 py-1.5 rounded-lg border border-slate-700/60">
+                    <span class="text-slate-300 font-medium">Telemetry Stream:</span>
+                    <div class="flex items-center space-x-1.5 font-mono font-semibold">
+                        <span id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse"></span>
+                        <span id="ws-status-text" class="text-emerald-400 uppercase tracking-wider">CONNECTED</span>
+                    </div>
                 </div>
-                
-                <!-- Indikator Gateway LoRa -->
-                <div class="flex items-center space-x-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
-                    <span class="text-slate-400">Gateway:</span>
-                    <span id="gw-dot" class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    <span id="gw-status-text" class="text-red-400">OFFLINE</span>
+
+                <!-- Gateway LoRa Status -->
+                <div class="flex items-center space-x-2 bg-[#1C2E5E] px-3 py-1.5 rounded-lg border border-slate-700/60">
+                    <span class="text-slate-300 font-medium">Gateway 01:</span>
+                    <div class="flex items-center space-x-1.5 font-mono font-semibold">
+                        <span id="gw-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                        <span id="gw-status-text" class="text-emerald-400 uppercase tracking-wider">ONLINE</span>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Banner Darurat (Hidden by default) -->
-    <div id="emergency-banner" class="hidden bg-red-600 text-white font-bold text-center py-3 animate-pulse shadow-lg shadow-red-900/50 border-b border-red-400">
-        <div class="flex items-center justify-center space-x-2 max-w-7xl mx-auto">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span id="emergency-text">PERINGATAN DARURAT: TOMBOL SOS DITEKAN! SEGERA TINDAK LANJUTI!</span>
-            <button onclick="dismissEmergency()" class="ml-4 bg-red-800 hover:bg-red-900 px-3 py-1 rounded text-sm transition-colors border border-red-700">Tutup</button>
+    <!-- BANNER DARURAT (High Priority SCADA Alert) -->
+    <div id="emergency-banner" class="hidden bg-[#C0392B] text-white py-3.5 px-4 shadow-lg border-b-2 border-red-300">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="flex h-3 w-3 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                </span>
+                <span class="font-bold tracking-wide uppercase text-sm" id="emergency-text">
+                    ⚠️ ALARM DARURAT: TOMBOL SOS PADA BILIK TERDETEKSI DITEKAN!
+                </span>
+            </div>
+            <button onclick="dismissEmergency()" class="bg-red-950/40 hover:bg-red-950/60 text-white font-semibold text-xs px-3 py-1.5 rounded-lg border border-red-400/40 transition">
+                Tutup Peringatan
+            </button>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="flex-grow p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         
-        <!-- Kolom Kiri: Metrik & Kontrol -->
-        <div class="lg:col-span-1 space-y-6">
-            
-            <!-- Telemetry Cards -->
-            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm">
-                <h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    Metrik Real-Time <span class="ml-2 text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-400" id="node-id-label">Node: WC_01</span>
+        <!-- DASHBOARD HEADER / FACILITY METADATA -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-200 gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-[#FFD400]/20 text-[#0F1B3D] border border-[#FFD400]/50">
+                        ZONA DARURAT BENCANA
+                    </span>
+                    <span class="text-xs text-slate-500 font-mono">Posko 01 &bull; Bilik Modular 01</span>
+                </div>
+                <h2 class="text-2xl font-extrabold text-[#1C2233] mt-1.5 tracking-tight">
+                    Smart-Sanitation Environmental Monitoring System
                 </h2>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- Water Level -->
-                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                        <div class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Level Air</div>
-                        <div class="flex items-baseline space-x-1">
-                            <span id="val-water" class="text-3xl font-bold text-white">--</span>
-                            <span class="text-sm text-slate-400">cm</span>
-                        </div>
-                        <div class="mt-2 w-full bg-slate-700 rounded-full h-1.5">
-                            <div id="bar-water" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div>
-                        </div>
+                <p class="text-xs text-slate-500 mt-0.5 font-medium">
+                    Akuisisi Sensor LoRa Transmisi Half-Duplex &bull; PostgreSQL 17 UUIDv7 &bull; MQTT Real-Time Dispatcher
+                </p>
+            </div>
+
+            <!-- Last Updated Timestamp -->
+            <div class="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
+                <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Pembaruan Terakhir</span>
+                    <span id="last-update" class="text-xs font-mono font-bold text-slate-700">Menghubungkan...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCADA SECTION SEPARATOR 1: TELEMETRI -->
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-1.5 h-7 rounded-full bg-[#0F1B3D]"></div>
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-slate-800">Telemetri Real-Time & Sensor Fisik</h3>
+                <p class="text-[11px] text-slate-500">Parameter Kualitas Udara, Debit Air Tangki, dan Pasokan Daya Mandiri</p>
+            </div>
+        </div>
+
+        <!-- 4 AMR-RS METRIC KPI CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            
+            <!-- 1. Water Level -->
+            <div class="scada-card p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
+                        <span class="uppercase tracking-wider">Ketinggian Air Tangki</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">LIVE</span>
                     </div>
-                    
-                    <!-- Battery -->
-                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                        <div class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Baterai</div>
-                        <div class="flex items-baseline space-x-1">
-                            <span id="val-batt" class="text-3xl font-bold text-white">--</span>
-                            <span class="text-sm text-slate-400">V</span>
-                        </div>
-                        <div class="mt-2 w-full bg-slate-700 rounded-full h-1.5">
-                            <div id="bar-batt" class="bg-green-500 h-1.5 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Ammonia -->
-                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                        <div class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Amonia (NH3)</div>
-                        <div class="flex items-baseline space-x-1">
-                            <span id="val-nh3" class="text-3xl font-bold text-white transition-colors">--</span>
-                            <span class="text-sm text-slate-400">ppm</span>
-                        </div>
-                    </div>
-                    
-                    <!-- H2S -->
-                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                        <div class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Hidrogen Sulfida</div>
-                        <div class="flex items-baseline space-x-1">
-                            <span id="val-h2s" class="text-3xl font-bold text-white transition-colors">--</span>
-                            <span class="text-sm text-slate-400">ppm</span>
-                        </div>
+                    <div class="flex items-baseline space-x-1.5 my-1">
+                        <span id="val-water" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-xs font-bold text-slate-400">cm</span>
                     </div>
                 </div>
-                <div class="mt-4 text-xs text-slate-500 flex justify-between">
-                    <span>Pembaruan terakhir:</span>
-                    <span id="last-update">Menunggu data...</span>
+                <div class="mt-4">
+                    <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                        <span>Kapasitas (Maks 200cm)</span>
+                        <span id="txt-water-pct" class="font-mono">--%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                        <div id="bar-water" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Panel Kontrol Aktuator -->
-            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm">
-                <h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Kendali Aktuator (Valve)
-                </h2>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="sendCommand('OPEN_VALVE', 90)" id="btn-open" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-4 rounded-lg transition-colors border border-indigo-500 shadow-md shadow-indigo-900/20 active:scale-95 flex flex-col items-center justify-center">
-                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-                        Buka Katup
-                    </button>
-                    <button onclick="sendCommand('CLOSE_VALVE', 0)" id="btn-close" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-4 rounded-lg transition-colors border border-slate-600 shadow-md active:scale-95 flex flex-col items-center justify-center">
-                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                        Tutup Katup
-                    </button>
+            <!-- 2. Battery Voltage -->
+            <div class="scada-card p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
+                        <span class="uppercase tracking-wider">Tegangan Catu Baterai</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">1S4P LiPo</span>
+                    </div>
+                    <div class="flex items-baseline space-x-1.5 my-1">
+                        <span id="val-batt" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-xs font-bold text-slate-400">Volt DC</span>
+                    </div>
                 </div>
-                
-                <!-- Notifikasi Aktuator -->
-                <div id="actuator-alert" class="mt-4 p-3 rounded-md border text-sm hidden transition-all duration-300">
-                    <div class="flex items-center">
-                        <span id="actuator-alert-icon" class="mr-2"></span>
-                        <span id="actuator-alert-text"></span>
+                <div class="mt-4">
+                    <div class="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                        <span>State of Charge</span>
+                        <span id="txt-batt-pct" class="font-mono">--%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                        <div id="bar-batt" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
-            
-        </div>
-        
-        <!-- Kolom Kanan: Charts -->
-        <div class="lg:col-span-2 space-y-6 flex flex-col">
-            <!-- Chart Kualitas Udara -->
-            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm flex-grow">
-                <h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    Tren Kualitas Udara (Gas)
-                </h2>
-                <div class="h-64 w-full">
-                    <canvas id="gasChart"></canvas>
+
+            <!-- 3. Ammonia (NH3) -->
+            <div class="scada-card p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
+                        <span class="uppercase tracking-wider">Amonia (MQ-137)</span>
+                        <span id="badge-nh3" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">NORMAL</span>
+                    </div>
+                    <div class="flex items-baseline space-x-1.5 my-1">
+                        <span id="val-nh3" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-xs font-bold text-slate-400">ppm</span>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span>Ambang Batas Nyaman: &le; 15 ppm</span>
                 </div>
             </div>
-            
-            <!-- Chart Level Air -->
-            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm flex-grow">
-                <h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    Tren Ketinggian Air
-                </h2>
-                <div class="h-64 w-full">
-                    <canvas id="waterChart"></canvas>
+
+            <!-- 4. Hydrogen Sulfide (H2S) -->
+            <div class="scada-card p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
+                        <span class="uppercase tracking-wider">H₂S Bau Busuk (MQ-136)</span>
+                        <span id="badge-h2s" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">NORMAL</span>
+                    </div>
+                    <div class="flex items-baseline space-x-1.5 my-1">
+                        <span id="val-h2s" class="text-3xl font-extrabold text-[#0F1B3D] tracking-tight font-mono">--</span>
+                        <span class="text-xs font-bold text-slate-400">ppm</span>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span>Ambang Batas Bahaya: &le; 2.0 ppm</span>
                 </div>
             </div>
+
         </div>
+
+        <!-- MIDDLE GRID: CHARTS + ACTUATOR CONTROL -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            
+            <!-- LEFT 2 COLUMNS: REALTIME ANALYTICAL CHARTS -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Chart 1: Air Quality (Gas Trend) -->
+                <div class="scada-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Tren Kualitas Udara (NH₃ & H₂S)</h4>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400">Jendela Geser 20 Sampel</span>
+                    </div>
+                    <div class="h-60 w-full">
+                        <canvas id="gasChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Water Level Trend -->
+                <div class="scada-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Profil Ketinggian Air Tangki Sanitasi</h4>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400">Sensor Ultrasonik JSN-SR04T</span>
+                    </div>
+                    <div class="h-60 w-full">
+                        <canvas id="waterChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT 1 COLUMN: ACTUATOR CONTROL & LOG -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- Panel Kontrol Katup (AMR-RS Enterprise Action Card) -->
+                <div class="scada-card p-6">
+                    <div class="flex items-center space-x-2 pb-4 mb-4 border-b border-slate-100">
+                        <div class="w-8 h-8 rounded-lg bg-[#0F1B3D] text-[#FFD400] flex items-center justify-center font-bold">
+                            ⚙️
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Kendali Aktuator Katup</h4>
+                            <p class="text-[11px] text-slate-500">Downlink LoRa Servo MG996R</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="sendCommand('OPEN_VALVE', 90)" id="btn-open" 
+                                class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#0F1B3D] hover:bg-[#1C2E5E] text-white border-b-2 border-[#FFD400] shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
+                            <span>💧 Buka Katup Pembilasan (90°)</span>
+                        </button>
+                        <button onclick="sendCommand('CLOSE_VALVE', 0)" id="btn-close" 
+                                class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition active:scale-[0.98] flex items-center justify-center gap-2">
+                            <span>🔒 Tutup Katup Pembilasan (0°)</span>
+                        </button>
+                    </div>
+
+                    <!-- Notifikasi Status Aksi -->
+                    <div id="actuator-alert" class="mt-4 p-3 rounded-xl border text-xs hidden transition-all duration-300">
+                        <div class="flex items-center gap-2">
+                            <span id="actuator-alert-icon"></span>
+                            <span id="actuator-alert-text" class="font-medium"></span>
+                        </div>
+                    </div>
+
+                    <!-- Spesifikasi SCADA Downlink -->
+                    <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5 font-mono">
+                        <div class="flex justify-between">
+                            <span>Downlink Window:</span>
+                            <span class="font-semibold text-slate-700">2s RX Window (Half-Duplex)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Idempotency:</span>
+                            <span class="font-semibold text-slate-700">UUIDv7 Guaranteed</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>QoS Protocol:</span>
+                            <span class="font-semibold text-slate-700">MQTT Level 1 (At Least Once)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Info Node & Health Diagnostics -->
+                <div class="scada-card p-6 bg-gradient-to-br from-white to-slate-50/50">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Diagnostik Fisik Posko</h4>
+                    <div class="space-y-2.5 text-xs">
+                        <div class="flex justify-between py-1.5 border-b border-slate-100">
+                            <span class="text-slate-500">ID Node Lapangan:</span>
+                            <span class="font-mono font-bold text-slate-800">WC_01</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-100">
+                            <span class="text-slate-500">Modulasi Frekuensi:</span>
+                            <span class="font-mono font-bold text-slate-800">LoRa 915 MHz SF7</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-100">
+                            <span class="text-slate-500">Panel Surya:</span>
+                            <span class="font-mono font-bold text-slate-800">20 Wp 18V Output</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-100">
+                            <span class="text-slate-500">Basis Data:</span>
+                            <span class="font-mono font-bold text-slate-800">PostgreSQL 17 / esos_db</span>
+                        </div>
+                        <div class="flex justify-between py-1.5">
+                            <span class="text-slate-500">Enclosure Rating:</span>
+                            <span class="font-mono font-bold text-emerald-700">IP54 Weatherproof</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
     </main>
 
-    <!-- JavaScript Logika Inti -->
+    <!-- FOOTER: Institutional AMR-RS Style -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <div>
+                &copy; 2026 <strong>Universitas Indonesia</strong> &bull; Departemen Teknik Elektro FTUI &bull; Capstone Proyek 2 (Kelompok 4)
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Dosen Pembimbing: <strong>Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.</strong></span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- LOGIKA JAVASCRIPT & WEBSOCKET -->
     <script>
         const MAX_DATAPOINTS = 20;
         let ws;
         let reconnectTimer;
-        const TARGET_NODE = "WC_01"; // Default untuk dashboard ini
+        const TARGET_NODE = "WC_01";
 
-        // --- Inisialisasi Chart.js ---
-        Chart.defaults.color = '#94a3b8'; // slate-400
-        Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui';
-        
-        const commonOptions = {
+        // Setup Chart.js with Clean Light Theme
+        Chart.defaults.color = '#64748B'; // slate-500
+        Chart.defaults.font.family = '"Plus Jakarta Sans", sans-serif';
+
+        const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 400 },
+            animation: { duration: 300 },
             scales: {
-                x: { grid: { color: '#1e293b' }, ticks: { maxTicksLimit: 8 } },
-                y: { grid: { color: '#1e293b' }, beginAtZero: true }
+                x: {
+                    grid: { color: '#F1F5F9' },
+                    ticks: { maxTicksLimit: 8, font: { size: 10, family: 'monospace' } }
+                },
+                y: {
+                    grid: { color: '#F1F5F9' },
+                    beginAtZero: true,
+                    ticks: { font: { size: 10 } }
+                }
             },
-            plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6 } } }
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: { usePointStyle: true, boxWidth: 6, font: { size: 11, weight: '600' } }
+                }
+            }
         };
 
+        // Initialize Gas Chart
         const ctxGas = document.getElementById('gasChart').getContext('2d');
         const gasChart = new Chart(ctxGas, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'Amonia (ppm)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 2, fill: true, tension: 0.4 },
-                    { label: 'H2S (ppm)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 2, fill: true, tension: 0.4 }
+                    {
+                        label: 'Amonia (ppm)',
+                        data: [],
+                        borderColor: '#D97706', // amber-600
+                        backgroundColor: 'rgba(217, 119, 6, 0.08)',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        fill: true,
+                        tension: 0.35
+                    },
+                    {
+                        label: 'H₂S (ppm)',
+                        data: [],
+                        borderColor: '#DC2626', // red-600
+                        backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        fill: true,
+                        tension: 0.35
+                    }
                 ]
             },
-            options: commonOptions
+            options: chartOptions
         });
 
+        // Initialize Water Chart
         const ctxWater = document.getElementById('waterChart').getContext('2d');
         const waterChart = new Chart(ctxWater, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'Level Air (cm)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, fill: true, tension: 0.4 }
+                    {
+                        label: 'Level Air Tangki (cm)',
+                        data: [],
+                        borderColor: '#2563EB', // blue-600
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        fill: true,
+                        tension: 0.35
+                    }
                 ]
             },
-            options: commonOptions
+            options: chartOptions
         });
 
-        // --- WebSocket Logic ---
+        // WebSocket Hub Connection
         function connectWebSocket() {
-            // Ganti URL dengan host server yang sebenarnya. Fallback ke localhost untuk dev.
             const wsUrl = `ws://${window.location.host || 'localhost:8000'}/api/v1/ws`;
-            console.log("Mencoba menyambung ke WebSocket:", wsUrl);
-            
+            console.log("[eSOS SCADA] Menghubungkan ke WebSocket Hub:", wsUrl);
+
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                console.log("WebSocket TERSAMBUNG.");
-                document.getElementById('ws-dot').className = "relative inline-flex rounded-full h-3 w-3 bg-green-500";
-                document.getElementById('ws-ping').className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 hidden";
-                document.getElementById('ws-status-text').className = "text-green-400";
-                document.getElementById('ws-status-text').innerText = "TERSAMBUNG";
+                console.log("[eSOS SCADA] WebSocket Terhubung.");
+                document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 badge-pulse";
+                document.getElementById('ws-status-text').className = "text-emerald-400 uppercase tracking-wider";
+                document.getElementById('ws-status-text').innerText = "CONNECTED";
                 if (reconnectTimer) clearTimeout(reconnectTimer);
             };
 
@@ -248,18 +499,16 @@
                     const msg = JSON.parse(event.data);
                     handleIncomingEvent(msg);
                 } catch (e) {
-                    console.error("Gagal memproses pesan WS:", e);
+                    console.error("Gagal parse pesan WS:", e);
                 }
             };
 
             ws.onclose = () => {
-                console.log("WebSocket TERPUTUS. Mencoba kembali dalam 3 detik...");
-                document.getElementById('ws-dot').className = "relative inline-flex rounded-full h-3 w-3 bg-yellow-500";
-                document.getElementById('ws-ping').className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75";
-                document.getElementById('ws-status-text').className = "text-yellow-400";
-                document.getElementById('ws-status-text').innerText = "MENCOBA ULANG...";
-                
-                reconnectTimer = setTimeout(connectWebSocket, 3000); // Auto-Reconnect [MUTLAK]
+                console.warn("[eSOS SCADA] WebSocket Terputus. Menghubungkan ulang...");
+                document.getElementById('ws-dot').className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+                document.getElementById('ws-status-text').className = "text-amber-400 uppercase tracking-wider";
+                document.getElementById('ws-status-text').innerText = "RECONNECTING...";
+                reconnectTimer = setTimeout(connectWebSocket, 3000);
             };
 
             ws.onerror = (err) => {
@@ -268,99 +517,114 @@
             };
         }
 
-        // --- Event Handler ---
+        // Process Real-Time Dispatch Events
         function handleIncomingEvent(event) {
             const { type, payload } = event;
 
             if (type === 'TELEMETRY_STREAM') {
                 if (payload.node_code !== TARGET_NODE) return;
                 updateTelemetryUI(payload);
-            } 
-            else if (type === 'EMERGENCY_ALERT') {
-                showEmergency(payload.message || 'DARURAT! Anomali terdeteksi.');
-            }
-            else if (type === 'GATEWAY_STATUS') {
-                updateGatewayStatus(payload.status); // "ONLINE" atau "OFFLINE"
-            }
-            else if (type === 'ACTUATOR_STATUS') {
+            } else if (type === 'EMERGENCY_ALERT') {
+                showEmergency(payload.message || 'DARURAT: Panggilan bantuan sanitasi aktif!');
+            } else if (type === 'GATEWAY_STATUS') {
+                updateGatewayStatus(payload.status);
+            } else if (type === 'ACTUATOR_STATUS') {
                 showActuatorNotification(payload.status, payload.message);
             }
         }
 
         function updateTelemetryUI(data) {
-            // Update Teks Real-time
+            const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            document.getElementById('last-update').innerText = now + " WIB";
+
+            // Update Card Values
             document.getElementById('val-water').innerText = data.water_level_cm.toFixed(1);
+            document.getElementById('val-batt').innerText = data.battery_voltage.toFixed(2);
             document.getElementById('val-nh3').innerText = data.ammonia_ppm.toFixed(1);
             document.getElementById('val-h2s').innerText = data.h2s_ppm.toFixed(1);
-            document.getElementById('val-batt').innerText = data.battery_voltage.toFixed(2);
-            
-            const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
-            document.getElementById('last-update').innerText = now;
 
-            // Indikator Warna Dinamis
-            const nh3El = document.getElementById('val-nh3');
-            if (data.ammonia_ppm > 25.0) { nh3El.className = "text-3xl font-bold text-red-500 transition-colors"; } 
-            else if (data.ammonia_ppm > 15.0) { nh3El.className = "text-3xl font-bold text-yellow-500 transition-colors"; }
-            else { nh3El.className = "text-3xl font-bold text-white transition-colors"; }
+            // Water Percentage & Progress
+            const waterPct = Math.min(100, Math.max(0, Math.round((data.water_level_cm / 200) * 100)));
+            document.getElementById('txt-water-pct').innerText = `${waterPct}%`;
+            document.getElementById('bar-water').style.width = `${waterPct}%`;
 
-            const h2sEl = document.getElementById('val-h2s');
-            if (data.h2s_ppm > 5.0) { h2sEl.className = "text-3xl font-bold text-red-500 transition-colors"; }
-            else if (data.h2s_ppm > 2.0) { h2sEl.className = "text-3xl font-bold text-yellow-500 transition-colors"; }
-            else { h2sEl.className = "text-3xl font-bold text-white transition-colors"; }
-
-            // Update Progress Bar
-            const waterPercent = Math.min(100, Math.max(0, (data.water_level_cm / 200) * 100)); // Asumsi maks 200cm
-            document.getElementById('bar-water').style.width = `${waterPercent}%`;
-            
-            const battPercent = Math.min(100, Math.max(0, ((data.battery_voltage - 2.8) / (4.2 - 2.8)) * 100)); // LiPo 2.8V - 4.2V
+            // Battery Percentage & Color
+            const battPct = Math.min(100, Math.max(0, Math.round(((data.battery_voltage - 3.2) / (4.2 - 3.2)) * 100)));
+            document.getElementById('txt-batt-pct').innerText = `${battPct}%`;
             const barBatt = document.getElementById('bar-batt');
-            barBatt.style.width = `${battPercent}%`;
-            if (battPercent < 20) barBatt.className = "bg-red-500 h-1.5 rounded-full";
-            else if (battPercent < 50) barBatt.className = "bg-yellow-500 h-1.5 rounded-full";
-            else barBatt.className = "bg-green-500 h-1.5 rounded-full";
-
-            // Deteksi SOS dari raw telemetry
-            if (data.sos_triggered === true || data.sos_triggered === 1) {
-                showEmergency(`TOMBOL SOS DITEKAN PADA NODE ${data.node_code}!`);
+            barBatt.style.width = `${battPct}%`;
+            if (battPct < 20) {
+                barBatt.className = "bg-red-500 h-2 rounded-full transition-all duration-500";
+            } else if (battPct < 50) {
+                barBatt.className = "bg-amber-500 h-2 rounded-full transition-all duration-500";
+            } else {
+                barBatt.className = "bg-emerald-500 h-2 rounded-full transition-all duration-500";
             }
 
-            // Update Chart.js Arrays
+            // Gas Badges
+            const badgeNh3 = document.getElementById('badge-nh3');
+            if (data.ammonia_ppm > 25.0) {
+                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300";
+                badgeNh3.innerText = "CRITICAL";
+            } else if (data.ammonia_ppm > 15.0) {
+                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300";
+                badgeNh3.innerText = "WARNING";
+            } else {
+                badgeNh3.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300";
+                badgeNh3.innerText = "NORMAL";
+            }
+
+            const badgeH2s = document.getElementById('badge-h2s');
+            if (data.h2s_ppm > 5.0) {
+                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300";
+                badgeH2s.innerText = "CRITICAL";
+            } else if (data.h2s_ppm > 2.0) {
+                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300";
+                badgeH2s.innerText = "WARNING";
+            } else {
+                badgeH2s.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300";
+                badgeH2s.innerText = "NORMAL";
+            }
+
+            // SOS Alert
+            if (data.sos_triggered === 1 || data.sos_triggered === true) {
+                showEmergency(`PERINGATAN: TOMBOL SOS PADA ${data.node_code} AKTIF!`);
+            }
+
+            // Update Chart.js Data
             updateChartData(gasChart, now, [data.ammonia_ppm, data.h2s_ppm]);
             updateChartData(waterChart, now, [data.water_level_cm]);
         }
 
-        function updateChartData(chart, label, dataArr) {
+        function updateChartData(chart, label, values) {
             chart.data.labels.push(label);
-            dataArr.forEach((val, i) => {
+            values.forEach((val, i) => {
                 chart.data.datasets[i].data.push(val);
             });
-
-            // Sliding Window (Shift array if exceeds max points)
             if (chart.data.labels.length > MAX_DATAPOINTS) {
                 chart.data.labels.shift();
-                chart.data.datasets.forEach(dataset => dataset.data.shift());
+                chart.data.datasets.forEach(ds => ds.data.shift());
             }
             chart.update();
         }
 
-        function updateGatewayStatus(statusStr) {
+        function updateGatewayStatus(status) {
             const dot = document.getElementById('gw-dot');
             const text = document.getElementById('gw-status-text');
-            if (statusStr === 'ONLINE') {
-                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-green-500";
-                text.className = "text-green-400";
+            if (status === 'ONLINE') {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+                text.className = "text-emerald-400 uppercase tracking-wider";
                 text.innerText = "ONLINE";
             } else {
-                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-red-500";
-                text.className = "text-red-400";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+                text.className = "text-red-400 uppercase tracking-wider";
                 text.innerText = "OFFLINE";
             }
         }
 
         function showEmergency(msg) {
             const banner = document.getElementById('emergency-banner');
-            const text = document.getElementById('emergency-text');
-            text.innerText = msg;
+            document.getElementById('emergency-text').innerText = msg;
             banner.classList.remove('hidden');
         }
 
@@ -369,43 +633,40 @@
         }
 
         function showActuatorNotification(status, msg) {
-            const alertBox = document.getElementById('actuator-alert');
-            const alertText = document.getElementById('actuator-alert-text');
-            const alertIcon = document.getElementById('actuator-alert-icon');
-            
-            alertBox.classList.remove('hidden', 'bg-blue-900/40', 'border-blue-500', 'text-blue-300', 'bg-green-900/40', 'border-green-500', 'text-green-300', 'bg-red-900/40', 'border-red-500', 'text-red-300');
-            
+            const box = document.getElementById('actuator-alert');
+            const txt = document.getElementById('actuator-alert-text');
+            const icon = document.getElementById('actuator-alert-icon');
+
+            box.className = "mt-4 p-3 rounded-xl border text-xs transition-all duration-300 ";
+
             if (status === 'PENDING' || status === 'SENT') {
-                alertBox.classList.add('bg-blue-900/40', 'border-blue-500', 'text-blue-300');
-                alertIcon.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                box.className += "bg-blue-50 border-blue-200 text-blue-800";
+                icon.innerHTML = `<span class="animate-spin inline-block">⏳</span>`;
             } else if (status === 'EXECUTED_SUCCESS') {
-                alertBox.classList.add('bg-green-900/40', 'border-green-500', 'text-green-300');
-                alertIcon.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+                box.className += "bg-emerald-50 border-emerald-200 text-emerald-800";
+                icon.innerHTML = `✅`;
             } else {
-                alertBox.classList.add('bg-red-900/40', 'border-red-500', 'text-red-300');
-                alertIcon.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                box.className += "bg-red-50 border-red-200 text-red-800";
+                icon.innerHTML = `❌`;
             }
-            
-            alertText.innerText = msg;
-            
-            // Auto hide after 5 seconds if success or fail
+
+            txt.innerText = msg;
+            box.classList.remove('hidden');
+
             if (status !== 'PENDING') {
-                setTimeout(() => {
-                    alertBox.classList.add('hidden');
-                }, 5000);
+                setTimeout(() => box.classList.add('hidden'), 5000);
             }
         }
 
-        // --- REST API Calls ---
+        // REST API Downlink Command
         async function sendCommand(type, angle) {
             const btnOpen = document.getElementById('btn-open');
             const btnClose = document.getElementById('btn-close');
-            
-            // UI Feedback
+
             btnOpen.disabled = true; btnClose.disabled = true;
             btnOpen.classList.add('opacity-50'); btnClose.classList.add('opacity-50');
-            
-            showActuatorNotification('PENDING', 'Mengirim perintah ke server...');
+
+            showActuatorNotification('PENDING', 'Mengirim instruksi aktuasi ke Go Server...');
 
             const payload = {
                 node_code: TARGET_NODE,
@@ -413,11 +674,10 @@
                 target_angle_deg: angle
             };
 
-            // MUTLAK: Idempotency-Key UUID [ADR-05]
             const idempotencyKey = crypto.randomUUID();
 
             try {
-                const response = await fetch('/api/v1/actuator/commands', {
+                const res = await fetch('/api/v1/actuator/commands', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -426,27 +686,21 @@
                     body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
-                
-                if (response.status === 202) {
-                    showActuatorNotification('SENT', 'Perintah diterima DB, menunggu ACK dari Gateway (LoRa)...');
+                const data = await res.json();
+                if (res.status === 202) {
+                    showActuatorNotification('SENT', 'Perintah diterima Server. Menunggu jendela ACK LoRa Gateway...');
                 } else {
-                    showActuatorNotification('ERROR', data.error?.message || 'Gagal mengirim perintah');
+                    showActuatorNotification('ERROR', data.error?.message || 'Gagal mengirim instruksi.');
                 }
             } catch (err) {
-                console.error("API Error:", err);
-                showActuatorNotification('ERROR', 'Gagal terhubung ke API Server.');
+                showActuatorNotification('ERROR', 'Koneksi ke API Server gagal.');
             } finally {
                 btnOpen.disabled = false; btnClose.disabled = false;
                 btnOpen.classList.remove('opacity-50'); btnClose.classList.remove('opacity-50');
             }
         }
 
-        // --- Boot ---
-        window.addEventListener('load', () => {
-            connectWebSocket();
-        });
-
+        window.addEventListener('load', connectWebSocket);
     </script>
 </body>
 </html>
