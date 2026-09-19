@@ -10,7 +10,7 @@
 | Kelompok | 4 (Empat) |
 | Judul Proyek | Rancang Bangun Sistem Monitoring Smart-Sanitation eSOS Berbasis IoT untuk Wilayah Blank Spot Pasca-Bencana |
 | Pekan ke- | 4 (Empat) |
-| Periode | 13 September 2026 – 19 September 2026 |
+| Periode | 14 September 2026 – 19 September 2026 |
 | Tanggal | 19 September 2026 |
 | Dosen Pembimbing | Prof. Dr. Muhammad Suryanegara, S.T., M.Sc. |
 
