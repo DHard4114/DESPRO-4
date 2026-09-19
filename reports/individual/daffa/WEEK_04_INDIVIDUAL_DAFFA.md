@@ -17,63 +17,64 @@
 ### B. Target Mingguan
 | No | Target Pekerjaan | Luaran yang Diharapkan | Status |
 |:---:|:---|:---|:---:|
-| 1 | Finalisasi Web Dashboard (WebSocket) & Intersep Timestamp | UI Tervalidasi & Sinkronisasi Waktu (`time_sync`) bekerja | [x] Selesai &nbsp; [ ] Belum |
-| 2 | Pengujian Jaringan Outdoor TP-Link CPE220 | Hasil Ping test stabil di area *blank spot* simulasi | [x] Selesai &nbsp; [ ] Belum |
+| 1 | Pembuatan *Base Code* Firmware Sensor & Aktuator | *Draft source code* ESP32 C++ untuk pembacaan I/O | [x] Selesai &nbsp; [ ] Belum |
+| 2 | Bantuan Perakitan Fisik (*Wiring*) Komponen | Rangkaian kelistrikan terhubung | [x] Selesai &nbsp; [ ] Belum |
 | 3 | Evaluasi Logbook PM & Dokumentasi Uji Fungsional | Pembaruan Google Sheets W4 & *Evidence Register* | [x] Selesai &nbsp; [ ] Belum |
 
 ### C. Logbook Aktivitas Harian
 | Hari/Tanggal | Uraian Aktivitas | Waktu (Jam) | Bukti/Dokumen |
 |:---|:---|:---:|:---|
-| Selasa, 15 Sep 2026 | Membantu tim Firmware (Siti) memvalidasi injeksi *True Timestamping* via MQTT `time_sync`. | 3 | Log terminal Go Server |
-| Rabu, 16 Sep 2026 | Uji coba integrasi Web Dashboard dengan *native WebSocket* untuk visualisasi *real-time*. | 2 | Tampilan UI Dashboard |
-| Jumat, 18 Sep 2026 | Pendampingan pengujian jaringan *outdoor* TP-Link CPE220 (simulasi area *blank spot*). | 3 | Hasil *Ping Test* |
-| Sabtu, 19 Sep 2026 | Mengisi catatan performa sistem & melengkapi konsolidasi logbook W4 di Google Sheets. | 2 | Bukti Tracker Sheets W4 |
+| Selasa, 15 Sep 2026 | Menulis *base code* (C++) untuk inisialisasi sensor dan motor servo (aktuator). | 4 | *Screenshot Base Code* |
+| Rabu, 16 Sep 2026 | Bertemu luring untuk membantu Ilman melakukan perakitan kabel (*wiring*) perangkat keras. | 4 | Foto Rangkaian Fisik |
+| Sabtu, 19 Sep 2026 | Melengkapi konsolidasi logbook W4 di Google Sheets dan menyusun laporan deviasi. | 2 | Bukti Tracker Sheets W4 |
 
 **Total Jam Kerja Minggu Ini : 10 Jam**
 
 ### D. Realisasi Pekerjaan
 **1. Aktivitas yang Berhasil Diselesaikan**
-Pada pekan keempat ini, aktivitas teknis saya bergeser dari pengembangan kode murni menuju fase **Pengujian Integrasi**. Saya mendampingi *Firmware Engineer* (Siti) untuk memastikan Gateway ESP32 berhasil menangkap injeksi Unix Epoch (`time_sync`) dari Go Server setiap kali status berubah menjadi `ONLINE`. Selain itu, kami telah mengeksekusi uji coba pemancaran jaringan lokal (*intranet*) menggunakan TP-Link CPE220 di area *outdoor* guna memvalidasi resiliensi topologi jaringan posko pengungsian. Sebagai PM, saya juga memastikan setiap tahap uji fungsional ini dicatat metrik performanya sesuai instruksi Dosen Pembimbing pada evaluasi minggu lalu.
+Pada pekan keempat ini, terdapat **penyesuaian rencana kerja**. Karena modul radio LoRa fisik saat ini masih dipegang oleh rekan setim untuk penyempurnaan, target pengujian jaringan transmisi CPE220 dan *Ping Test* harus ditunda. Untuk tetap menjaga progres pengerjaan agar linimasa tidak tertinggal, saya turun tangan lintas divisi (*cross-functional*):
+1. **Software/Firmware:** Saya mengambil inisiatif menulis *base code* (kerangka dasar kode C++) untuk pembacaan sensor dan kendali aktuator ESP32. Kode dasar ini kemudian diserahkan kepada *Firmware Engineer* (Siti) untuk dilakukan *debugging* dan penyempurnaan.
+2. **Hardware:** Saya membantu proses perakitan fisik kelistrikan (*wiring*) kabel *jumper* dan modul elektronika bersama Ilman.
 
 **2. Luaran yang Dihasilkan**
-- Validasi fungsional fitur *True Timestamping* MQTT.
-- Data hasil *Ping Test* jaringan TP-Link CPE220.
+- Kerangka kode sumber (*Base Code*) C++ untuk operasional I/O ESP32.
+- Sebagian rangkaian fisik (*wiring*) modul keras terhubung.
 - Pembaruan *Daily Logbook Tracker* W4.
 
 ### E. Capaian Teknis Mingguan
 **Komponen/Subsistem yang Dikerjakan**
 | Subsistem | Target | Realisasi | Persentase |
 |:---|:---|:---|:---:|
-| Hardware | Pendampingan uji jaringan CPE220 | Area cakupan Wi-Fi terpetakan dengan baik | 100% |
-| Software | Validasi injeksi `time_sync` ke Gateway | Gateway sukses melakukan sinkronisasi waktu | 100% |
+| Hardware | Bantuan *wiring* kelistrikan fisik | Modul dasar tersambung kabel | 100% |
+| Software | Pembuatan *Base Code* Aktuator & Sensor | Kode berhasil ditulis untuk disempurnakan tim | 100% |
 | Mekanik | - | - | 0% |
-| Pengujian | *Ping test* & Uji latensi WebSocket | Dashboard merespon perubahan data tanpa *delay* berarti | 100% |
-| Dokumentasi | *Update* kinerja fungsional di buku log | Log performa tercatat di tracker | 100% |
+| Pengujian | - | Ditunda (menunggu modul LoRa) | 0% |
+| Dokumentasi | *Update* rekapitulasi pekan 4 | Logbook W4 terkonsolidasi | 100% |
 
 **Ringkasan Kemajuan**
-Oleh karena tulang punggung arsitektur lokal (DB, MQTT Worker) sudah stabil sejak pekan lalu (W3), pekan ini saya dapat mengalokasikan waktu penuh untuk mendampingi rekan-rekan tim lain (*Firmware* & *Hardware*) yang mulai memasuki fase perakitan dan integrasi fisik.
+Meski terjadi deviasi dari target awal (pengujian tertunda karena keterbatasan unit LoRa), partisipasi aktif (*cross-functional*) dalam ranah *hardware* dan *firmware* berhasil memastikan progres keseluruhan tim tetap berjalan dengan efektif.
 
 ### F. Permasalahan dan Kendala
 | No | Kendala | Dampak | Tingkat Risiko |
 |:---:|:---|:---|:---:|
-| 1 | Fluktuasi sinyal (*packet loss*) pada uji CPE220 di area banyak halangan (*Non-Line-of-Sight*). | Keandalan komunikasi MQTT dari Gateway bisa terputus sesaat. | Sedang |
+| 1 | Pengujian transmisi luar ruangan (CPE220 & Ping Test) belum bisa dilakukan karena modul radio LoRa masih dalam tahap penyempurnaan di lokasi anggota lain. | Jadwal uji coba lapangan mundur. | Sedang |
 
 **Analisis Penyebab**
-Pohon dan tembok gedung menghalangi propagasi sinyal 2.4GHz dari CPE220, sehingga *Gateway* kadang mengalami *disconnect*. Namun, ini justru memvalidasi perlunya fitur *Store-and-Forward* via LittleFS di ESP32 yang sedang dikerjakan Siti.
+Komponen kritis (LoRa) belum siap 100% secara fisik di satu titik kumpul, sehingga integrasi sistem secara utuh (*End-to-End*) belum memungkinkan pekan ini.
 
 ### G. Tindakan Korektif dan Solusi
 | Kendala | Solusi/Tindak Lanjut | PIC | Target Penyelesaian |
 |:---|:---|:---|:---|
-| Fluktuasi sinyal | Mengaktifkan pengaturan QoS 1 pada *publisher* dan merevisi *timeout* MQTT. Fitur *Store-and-Forward* akan menutupi celah ini saat data di-*flush* ke server setelah *reconnect*. | Daffa & Siti | Berjalan |
+| Penundaan Pengujian Lapangan | Mengalihkan alokasi jam kerja PM minggu ini untuk membantu percepatan *base code* firmware dan perakitan kabel (*wiring*) agar modul LoRa cepat selesai. Pengujian dijadwalkan ulang ke Pekan 5. | Daffa H. | Pekan 5 |
 
 ### H. Dokumentasi Kemajuan
-> **[PLACEHOLDER BUKTI 1: SCREENSHOT PING TEST CPE220]**
-> *Cara mengambil bukti: Screenshot Command Prompt Windows saat melakukan `ping` ke IP Gateway di area outdoor.*
-> `![Bukti Ping Test](../media/w4_daffa_ping_test.png)`
+> **[PLACEHOLDER BUKTI 1: SCREENSHOT KODE FIRMWARE (BASE CODE)]**
+> *Cara mengambil bukti: Screenshot kode C++ (PlatformIO / Arduino IDE) bagian inisialisasi sensor atau aktuator servo yang Anda buat.*
+> `![Bukti Base Code](../media/w4_daffa_base_code.png)`
 
-> **[PLACEHOLDER BUKTI 2: SCREENSHOT LOG TIME_SYNC]**
-> *Cara mengambil bukti: Screenshot terminal server saat mengirim "esos/gateway_01/time_sync" ke broker.*
-> `![Bukti Time Sync](../media/w4_daffa_time_sync.png)`
+> **[PLACEHOLDER BUKTI 2: FOTO WIRING / PERAKITAN]**
+> *Cara mengambil bukti: Masukkan foto fisik dari kabel, breadboard, atau komponen ESP32 yang Anda bantu rakit.*
+> `![Bukti Foto Wiring](../media/w4_daffa_wiring_hardware.jpg)`
 
 > **[PLACEHOLDER BUKTI 3: SCREENSHOT TRACKER SHEETS W4]**
 > *Cara mengambil bukti: Screenshot Tab 'Daily_Logbook_Tracking' di Google Sheets untuk pekan keempat.*
@@ -81,27 +82,25 @@ Pohon dan tembok gedung menghalangi propagasi sinyal 2.4GHz dari CPE220, sehingg
 
 ### I. Kontribusi Terhadap Tim
 **Koordinasi yang Dilakukan**
-- **Diskusi Lapangan:** Berkolaborasi dengan Siti untuk menguji integrasi *time_sync* secara *end-to-end*.
-- **Koordinasi Pengujian:** Menjalankan skenario *stress-test* jaringan dengan Ilman/Raka.
+- **Kerja Sama Lintas Divisi:** Turun langsung membantu Ilman di bagian *Hardware* (perakitan) dan membantu Siti di bagian *Firmware* (penulisan kode dasar).
 
 **Kontribusi Pribadi**
-Fokus pada integrasi *Software* dengan realita fisik di lapangan (Hardware/Jaringan) serta memastikan bahwa pesan revisi arsitektur dari Dosen Pembimbing (terkait metrik performa fungsional) tereksekusi dengan baik.
+Fokus menyelamatkan linimasa tim dengan mengambil porsi kerja rekan yang sedang mengalami *bottleneck*, memastikan bahwa anggota tim tidak kewalahan dan target proyek secara makro tetap tercapai.
 
 ### J. Evaluasi Diri
 **Yang Berjalan Baik**
-- Proses intersep waktu (Unix Epoch) via MQTT berjalan sangat mulus dan sinkron dengan arsitektur Go.
-- Pengujian lapangan memberikan gambaran *real* tentang *blind spot* sinyal 2.4GHz.
+- Kolaborasi tim berjalan luar biasa; pembagian beban kerja secara dinamis terbukti efektif mengatasi hambatan fisik komponen.
 
 **Yang Perlu Diperbaiki**
-- UI/UX dari Web Dashboard masih berupa purwarupa dasar; perlu dipoles lebih elegan dengan Tailwind CSS agar layak didemonstrasikan saat *Mid-Term Review*.
+- Perlu menjadwalkan kumpul luring (*offline*) secara penuh di mana semua komponen fisik dibawa ke satu tempat (MRPQ) agar pengujian integrasi bisa dilakukan.
 
 **Pelajaran yang Didapat Minggu Ini**
-- Pengujian di dunia nyata (*outdoor*) jauh lebih menantang daripada simulasi di dalam *localhost*, terutama terkait keandalan sinyal (*resilience*).
+- Dalam proyek *hardware*, fleksibilitas peran (*role flexibility*) sangat krusial ketika komponen fisik tertahan di satu orang. 
 
 ### K. Rencana Pekan Berikutnya
 | No | Rencana Kegiatan | Target Luaran | Estimasi Jam |
 |:---:|:---|:---|:---:|
-| 1 | Membantu integrasi *Store-and-Forward* (LittleFS) dengan sistem ETL backend. | Log data *offline* sukses ter-ingest ke PostgreSQL tanpa kerusakan *timestamp*. | 5 Jam |
+| 1 | Melakukan uji coba integrasi *End-to-End* (LoRa ke Gateway ke MQTT Server). | Data LoRa masuk ke PostgreSQL. | 5 Jam |
 | 2 | Optimasi *Frontend* Web Dashboard & Persiapan Presentasi UTS (Phase Gate 3). | Antarmuka *Dashboard* Final & Materi Presentasi. | 5 Jam |
 
 ### L. Persetujuan
