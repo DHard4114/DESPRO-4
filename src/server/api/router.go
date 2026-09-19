@@ -33,8 +33,8 @@ func SetupRouter(dbPool *pgxpool.Pool, wsHub *WSHub) http.Handler {
 	// WebSocket Endpoint
 	v1.HandleFunc("/ws", wsHub.ServeWS)
 
-	// Opsional: Serve file statis Swagger UI jika diaktifkan nanti
-	// v1.PathPrefix("/swagger/").Handler(httpStripPrefix("/api/v1/swagger/", http.FileServer(http.Dir("./docs"))))
+	// Sajikan file statis Dashboard UI (index.html) pada root "/"
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static")))
 
 	// Terapkan CORS
 	handler := c.Handler(router)
