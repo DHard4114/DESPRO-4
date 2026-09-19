@@ -601,7 +601,8 @@
             const { type, payload } = event;
 
             if (type === 'TELEMETRY_STREAM') {
-                if (payload.node_code !== TARGET_NODE) return;
+                const node = payload.node_code || payload.NodeCode;
+                if (node && node !== TARGET_NODE) return;
                 updateTelemetryUI(payload);
             } else if (type === 'EMERGENCY_ALERT') {
                 showEmergency(payload.message || 'DARURAT: Panggilan bantuan sanitasi aktif!');
@@ -612,15 +613,26 @@
             }
         }
 
-        function updateTelemetryUI(data) {
+        function updateTelemetryUI(raw) {
             const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
             document.getElementById('last-update').innerText = now + " WIB";
 
+            // Normalisasi data (mendukung snake_case dari REST & PascalCase dari Go struct)
+            const data = {
+                node_code: raw.node_code || raw.NodeCode || TARGET_NODE,
+                sequence_no: raw.sequence_no !== undefined ? raw.sequence_no : (raw.SequenceNo !== undefined ? raw.SequenceNo : '-'),
+                water_level_cm: Number(raw.water_level_cm !== undefined ? raw.water_level_cm : raw.WaterLevelCM || 0),
+                ammonia_ppm: Number(raw.ammonia_ppm !== undefined ? raw.ammonia_ppm : raw.AmmoniaPPM || 0),
+                h2s_ppm: Number(raw.h2s_ppm !== undefined ? raw.h2s_ppm : raw.H2SPPM || 0),
+                battery_voltage: Number(raw.battery_voltage !== undefined ? raw.battery_voltage : raw.BatteryVoltage || 0),
+                sos_triggered: raw.sos_triggered !== undefined ? raw.sos_triggered : raw.SOSTriggered
+            };
+
             // Update Card Values
-            document.getElementById('val-water').innerText = Number(data.water_level_cm).toFixed(1);
-            document.getElementById('val-batt').innerText = Number(data.battery_voltage).toFixed(2);
-            document.getElementById('val-nh3').innerText = Number(data.ammonia_ppm).toFixed(1);
-            document.getElementById('val-h2s').innerText = Number(data.h2s_ppm).toFixed(1);
+            document.getElementById('val-water').innerText = data.water_level_cm.toFixed(1);
+            document.getElementById('val-batt').innerText = data.battery_voltage.toFixed(2);
+            document.getElementById('val-nh3').innerText = data.ammonia_ppm.toFixed(1);
+            document.getElementById('val-h2s').innerText = data.h2s_ppm.toFixed(1);
 
             // Water Percentage & Progress
             const waterPct = Math.min(100, Math.max(0, Math.round((data.water_level_cm / 200) * 100)));
@@ -671,8 +683,8 @@
             }
 
             // Update Chart.js Data
-            updateChartData(gasChart, now, [Number(data.ammonia_ppm), Number(data.h2s_ppm)]);
-            updateChartData(waterChart, now, [Number(data.water_level_cm)]);
+            updateChartData(gasChart, now, [data.ammonia_ppm, data.h2s_ppm]);
+            updateChartData(waterChart, now, [data.water_level_cm]);
 
             // Prepend Row to Telemetry Table
             addTableRow(now, data);
@@ -703,10 +715,10 @@
                 <td class="py-2.5 px-4 text-slate-800 font-bold">${timeStr}</td>
                 <td class="py-2.5 px-4 text-slate-500">#${data.sequence_no || '-'}</td>
                 <td class="py-2.5 px-4 font-semibold text-slate-700">${data.node_code}</td>
-                <td class="py-2.5 px-4 font-bold text-blue-600">${Number(data.water_level_cm).toFixed(1)} cm</td>
-                <td class="py-2.5 px-4 font-bold text-amber-600">${Number(data.ammonia_ppm).toFixed(1)} ppm</td>
-                <td class="py-2.5 px-4 font-bold text-red-600">${Number(data.h2s_ppm).toFixed(1)} ppm</td>
-                <td class="py-2.5 px-4 font-bold text-emerald-600">${Number(data.battery_voltage).toFixed(2)} V</td>
+                <td class="py-2.5 px-4 font-bold text-blue-600">${data.water_level_cm.toFixed(1)} cm</td>
+                <td class="py-2.5 px-4 font-bold text-amber-600">${data.ammonia_ppm.toFixed(1)} ppm</td>
+                <td class="py-2.5 px-4 font-bold text-red-600">${data.h2s_ppm.toFixed(1)} ppm</td>
+                <td class="py-2.5 px-4 font-bold text-emerald-600">${data.battery_voltage.toFixed(2)} V</td>
                 <td class="py-2.5 px-4 text-right">${sosHtml}</td>
             `;
 

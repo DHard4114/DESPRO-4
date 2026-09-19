@@ -61,53 +61,72 @@ Meski pengujian transmisi lapangan nirkabel LoRa berjarak jauh ditunda menunggu 
 ### F. Permasalahan dan Kendala
 | No | Kendala | Dampak | Tingkat Risiko |
 |:---:|:---|:---|:---:|
-| 1 | Modul LoRa fisik masih berada di lokasi rekan tim untuk kalibrasi frekuensi radio, sehingga pengujian sinyal outdoor CPE220 ditunda. | Pengujian jaringan fisik tertunda satu pekan. | Rendah |
+| 1 | Modul LoRa fisik masih berada di lokasi rekan tim (Siti) untuk penyetelan frekuensi radio, sehingga pengujian propagasi nirkabel outdoor jarak jauh CPE220 ditunda. | Pengujian komunikasi RF fisik jarak jauh tertunda satu pekan. | Rendah |
+| 2 | Terjadi *packet dropping* pada backend Go saat menerima data telemetri berulang karena pemeriksaan urutan ketat (*monotonic sequence number check*). | Telemetri dengan nomor urut sama atau mundur diabaikan oleh ETL. | Sedang (Terselesaikan) |
+| 3 | *Canvas rendering bug* pada Chart.js di mana ikon *legend marker* bertabrakan dengan karakter awal label teks pada layar lebar. | Tampilan metrik terpotong dan tidak memenuhi standar UI SCADA. | Rendah (Terselesaikan) |
 
-**Analisis Penyebab**
-Komponen fisik belum disatukan di satu lokasi pengujian bersama. Namun deviasi ini telah dimitigasi dengan pengujian berbasis simulator telemetri (`dummy_gateway.go`).
+**Analisis Penyebab & Troubleshooting**
+1. **Deduplikasi QoS 1 MQTT:** Mesin ETL Go (`pipeline.go`) menerapkan algoritma deduplikasi ketat di mana paket dengan `SequenceNo <= lastSeq` otomatis di-*drop*. *Dummy gateway* awal tidak menginkrementasikan sequence number. Solusi: Generator disempurnakan dengan `atomic.AddUint32` sehingga setiap paket terkirim memiliki nomor urut berurutan.
+2. **Legend Collision Chart.js:** Opsi `usePointStyle: true` pada Chart.js kanvas mengalami konflik kalkulasi lebar font pada resolusi tinggi. Solusi: Menonaktifkan *legend canvas* dan menggantinya dengan *custom flexbox badge* Tailwind CSS yang rapi dan terisolasi.
+3. **Penyelarasan Modul Fisik:** Komponen modul radio terpisah untuk efisiensi pekerjaan paralel. Mitigasi: Validasi *pipeline* perangkat lunak diselesaikan 100% menggunakan simulator, sementara *base code* firmware telah disiapkan untuk penggabungan fisik langsung pada Pekan 5.
 
-### G. Tindakan Korektif dan Solusi
-| Kendala | Solusi/Tindak Lanjut | PIC | Target Penyelesaian |
-|:---|:---|:---|:---|
-| Penundaan Pengujian Lapangan | Menggantikan data transmisi riil dengan simulator injeksi data MQTT untuk memastikan Web Dashboard berfungsi 100%. Pengujian fisik dijadwalkan pada sesi integrasi Pekan 5. | Daffa H. | Pekan 5 |
+### G. Tindakan Korektif dan Solusi (Rencana Pekan 5 - 7)
+| No | Masalah / Gap Performa | Rencana Tindakan Korektif (Corrective Action) | Alokasi Pekan | PIC |
+|:---:|:---|:---|:---:|:---|
+| 1 | Pengujian Komunikasi Nirkabel Fisik Belum Terlaksana | Melakukan uji komunikasi lapangan end-to-end (ESP32 LoRa TX $\rightarrow$ Gateway RX $\rightarrow$ Mosquitto Broker) di lingkungan Posko FTUI. | Pekan 5 | Siti & Daffa |
+| 2 | Verifikasi Mekanisme Aktuator Nyata | Menguji respons fisik motor servo MG996R terhadap sinyal *downlink command* dari tombol REST API Web Dashboard dengan beban aliran air sesungguhnya. | Pekan 5 | Ilman & Daffa |
+| 3 | Optimasi Konsumsi Daya & Manajemen Tidur | Mengimplementasikan mode *Light/Deep Sleep* FreeRTOS pada ESP32 serta mengukur arus (*current draw*) saat mode transmisi vs mode *idle*. | Pekan 6 | Siti & Ilman |
+| 4 | Kalibrasi Sensor Gas & Nilai Ambang Batas | Mengkalibrasi kurva resistansi sensor MQ-137 dan MQ-136 terhadap gas referensi serta menguji respons *incident alert* ke database. | Pekan 6 | Raka & Daffa |
+| 5 | Ketahanan Jaringan & *Store-and-Forward* | Menguji skenario saat gateway mati: verifikasi penyimpanan ring buffer LittleFS pada ESP32 dan pengiriman ulang (*backlog flush*) saat koneksi pulih. | Pekan 7 | Daffa & Siti |
 
 ### H. Dokumentasi Kemajuan
-> **[BUKTI 1: SCREENSHOT DASHBOARD EMS SCADA REAL-TIME]**
-> *Cara mengambil bukti: Buka browser ke `http://localhost:8000`, lalu screenshot layar penuh Dashboard EMS yang memperlihatkan kartu metrik, grafik bergerak, dan tabel log paket.*
-> `![Bukti Web Dashboard EMS](../media/w4_daffa_ems_dashboard.png)`
+Berikut adalah bukti autentik realisasi pekerjaan pekan keempat yang memenuhi kriteria luaran PMK Pekan 4 (Integrasi Perangkat Keras, Perangkat Lunak, dan Interaksi Sensor-Aktuator):
 
-> **[BUKTI 2: FOTO WIRING FISIK ATAU BASE CODE FIRMWARE]**
-> *Cara mengambil bukti: Ambil foto rangkaian kabel/breadboard yang Anda bantu rakit bersama Ilman, atau screenshot file C++ base code.*
-> `![Bukti Perakitan Hardware](../media/w4_daffa_wiring_hardware.jpg)`
+**1. Bukti Integrasi Perangkat Lunak & Aliran Data End-to-End (Dashboard SCADA EMS Live)**
+*Antarmuka Web Dashboard SCADA (EMS) mandiri yang berjalan penuh pada resolusi fluid width di port `:8000`. Menampilkan grafik tren kualitas udara & ketinggian air dinamis via WebSocket, 4 KPI cards, tombol kendali katup pembilasan, dan log audit paket telemetri.*
+![Dashboard EMS SCADA](../media/Dashboard%20eSOS.png)
 
-> **[BUKTI 3: SCREENSHOT TRACKER SHEETS W4]**
-> *Cara mengambil bukti: Screenshot Tab 'Daily_Logbook_Tracking' di Google Sheets untuk pekan keempat.*
-> `![Bukti Live Tracking Sheets](../media/w4_daffa_sheets_tracking.png)`
+---
+
+**2. Bukti Integrasi Perangkat Keras & Bantuan Wiring Fisik**
+*Dokumentasi keterlibatan aktif dalam perakitan kabel kelistrikan (*wiring harness*), pemasangan modul daya baterai LiPo, dan koneksi pin I/O bersama rekan tim (Ilman) di meja perakitan lab/posko.*
+![Bantuan Perakitan Wiring Hardware](../media/Bantu%20Wiring.png)
+
+---
+
+**3. Bukti Interaksi Sensor, Pemrosesan, dan Aktuator pada Basecode Firmware (C++)**
+*Kerangka kode firmware C++ (`main.cpp`) untuk mikrokontroler ESP32 yang mengintegrasikan FreeRTOS Queue, sensor ultrasonik sonar (`NewPing`), kendali aktuator katup servo (`ESP32Servo`), dan penanganan interupsi tombol darurat (`isr_sos_button`).*
+![Basecode Sensor dan Aktuator Firmware C++](../media/Basecode%20Sensor%20dan%20Aktuator.png)
+
+---
 
 ### I. Kontribusi Terhadap Tim
 **Koordinasi yang Dilakukan**
 - **Sinergi Lintas Bidang:** Menyelaraskan *schema payload* JSON antara simulator backend dengan kode firmware C++ Siti.
 - **Pendampingan Hardware:** Terjun langsung membantu Ilman dalam perakitan kabel kelistrikan untuk mempercepat persiapan modul fisik.
+- **Konsolidasi Manajemen Proyek:** Memastikan target integrasi pekan 4 tetap berjalan sesuai WBS dengan mendahulukan pematangan *full stack* perangkat lunak selagi perangkat keras dirakit.
 
 **Kontribusi Pribadi**
 Menuntaskan pilar *frontend* dan visualisasi data SCADA (EMS) secara mandiri sehingga tim kini memiliki antarmuka demonstrasi yang konkret dan siap dipresentasikan kapan pun.
 
 ### J. Evaluasi Diri
 **Yang Berjalan Baik**
-- Pembangunan Web Dashboard SCADA (EMS) berjalan sukses dengan performa latensi rendah berkat arsitektur WebSocket Go.
-- Fleksibilitas peran membantu rekan tim berjalan efektif menjaga moral dan linimasa proyek.
+- Pembangunan Web Dashboard SCADA (EMS) berjalan sukses dengan performa latensi sangat rendah (~15 ms) berkat arsitektur WebSocket Go.
+- Troubleshooting teknis pada deduplikasi QoS 1 dan *rendering* Chart.js terselesaikan tuntas tanpa menghambat jadwal.
+- Inisiatif membantu tim pada sektor *wiring* dan *firmware base code* membuktikan fleksibilitas peran teknik komputer.
 
 **Yang Perlu Diperbaiki**
-- Perlu segera menjadwalkan integrasi luring penuh di laboratorium agar data riil dari sensor fisik dapat langsung menggantikan simulator.
+- Pengujian komunikasi fisik outdoor perlu segera dijadwalkan bersama seluruh anggota tim di pekan kelima agar data simulator dapat langsung digantikan dengan data transmisi riil.
 
 **Pelajaran yang Didapat Minggu Ini**
-- Ketiadaan perangkat keras fisik di tangan tidak boleh menghentikan kemajuan perangkat lunak. Pembuatan *dummy simulator* terbukti menjadi strategi rekayasa yang sangat ampuh (*best practice*).
+- Ketiadaan perangkat keras fisik di tangan tidak boleh menghentikan kemajuan perangkat lunak. Pembuatan *dummy simulator* terbukti menjadi strategi rekayasa yang sangat ampuh (*best engineering practice*) untuk validasi integrasi sebelum *field deployment*.
 
 ### K. Rencana Pekan Berikutnya
 | No | Rencana Kegiatan | Target Luaran | Estimasi Jam |
 |:---:|:---|:---|:---:|
-| 1 | Uji integrasi End-to-End modul fisik (LoRa Gateway $\rightarrow$ Mosquitto $\rightarrow$ Dashboard). | Data riil sensor tertampil di Web EMS. | 6 Jam |
-| 2 | Persiapan demonstrasi purwarupa untuk Evaluasi Tengah Semester (Phase Gate 3). | Materi slide & video demo sistem. | 4 Jam |
+| 1 | Uji integrasi End-to-End modul fisik di posko/lab (ESP32 Sensor $\rightarrow$ LoRa Gateway $\rightarrow$ Mosquitto $\rightarrow$ Web Dashboard). | Data riil sensor tertampil di Web EMS tanpa simulator. | 5 Jam |
+| 2 | Pengujian fungsional downlink kendali katup pembilasan pada motor servo fisik. | Servo bergerak membuka 90° dan menutup 0° via tombol web. | 4 Jam |
+| 3 | Pengambilan rekaman video demonstrasi prototype awal dan persiapan berkas Evaluasi Tengah Semester (Phase Gate 3). | Video demo 3-5 menit & slide presentasi. | 5 Jam |
 
 ### L. Persetujuan
 **Mahasiswa**
