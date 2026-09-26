@@ -98,19 +98,21 @@ Elemen pemanas internal pada dua sensor MQ membutuhkan daya gabungan hingga $\ap
 ---
 
 ### H. Dokumentasi Kemajuan
-Berikut adalah bukti pendukung pelaksanaan aktivitas pekan kelima:
+Mengingat aktivitas pekan ini berfokus pada tahap investigasi internal dan penelusuran bug (dengan integrasi penuh ditunda ke Pekan 6), dokumentasi kemajuan disajikan dalam bentuk bukti log teknis dan catatan pengukuran beban kelistrikan:
 
-> **[BUKTI 1: INVESTIGASI KENDALA TERMAL & SUMBER DAYA BATERAI]**  
-> *Foto sesi investigasi dan pengujian kelistrikan sensor gas bersama alat ukur multimeter/beban di laboratorium yang menunjukkan kendala pada sumber baterai.*  
-> `![Investigasi Sumber Baterai](../media/w5_pengujian_sensor_panas.jpg)`
+1. **Catatan Data Pengukuran Investigasi Catu Daya Baterai (Target 2):**
+   - Tegangan Open-Circuit Baterai (Tanpa Beban): `~4.12 V` (Normal).
+   - Tegangan saat Sensor MQ-137 & MQ-136 Aktif (Pemanas On): Anjlok ke `< 3.40 V` (*Voltage Collapse / Sagging*).
+   - Arus Beban Pemanas Terukur: `~340 mA` (Melebihi kemampuan *discharge rate* stabil sumber baterai yang ada).
+   - *Status:* Bukti investigasi mencatat perlunya penggantian sel baterai atau penambahan modul regulator terpisah.
 
-> **[BUKTI 2: PROSES DEBUGGING FIRMWARE BERSAMA AMEL]**  
-> *Tangkapan layar lingkungan pengembangan PlatformIO / VS Code yang memperlihatkan proses perbaikan bug kode firmware yang masih berlangsung.*  
-> `![Proses Debugging Bersama Amel](../media/w5_debugging_firmware_amel.png)`
+2. **Bukti Aktivitas Kode Sumber & Git Commit (Target 3):**
+   - Berkas yang dimodifikasi: `src/firmware/src/main.cpp` dan `src/firmware/include/config.h`.
+   - Modifikasi: Implementasi *moving average filter* (10 sampel) pada ADC gas dan penyesuaian *delay* FreeRTOS untuk mencegah *task starvation*.
+   - Log Git Lokal: `Commit 9aaece8: docs(report): update week 5 report with accurate target status and battery source root cause`.
 
-> **[BUKTI 3: LOGBOOK HARIAN & EVALUASI TARGET W5]**  
-> *Tangkapan layar pencatatan lembar kerja harian dan evaluasi deviasi target pada Google Sheets Pekan 5.*  
-> `![Logbook Evaluasi Pekan 5](../media/w5_logbook_sheets_pekan5.png)`
+3. **Status Dokumentasi Visual:**
+   - Foto fisik rangkaian terintegrasi dan demonstrasi komunikasi LoRa akan dilampirkan secara resmi pada Laporan Pekan 6 setelah solusi sumber baterai terpasang dan pengujian end-to-end dapat dioperasikan secara penuh.
 
 ---
 
