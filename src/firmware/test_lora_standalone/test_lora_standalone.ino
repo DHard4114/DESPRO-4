@@ -279,8 +279,9 @@ void setup() {
         Serial.println("   -> Gagal membuat salah satu Task FreeRTOS! Periksa sisa heap.");
         while (true) delay(1000);
     }
-    Serial.println("   -> TaskSensors (Core 0, Prio 1) : [AKTIF]");
-    Serial.println("   -> TaskLoRaTx  (Core 1, Prio 2) : [AKTIF]");
+    Serial.println("   -> TaskSensors (Core 0, Prio 1) : [BERHASIL DIBUAT]");
+    Serial.println("   -> TaskLoRaTx  (Core 1, Prio 2) : [BERHASIL DIBUAT]");
+    Serial.println("      (Pesan ini menandakan alokasi task berhasil, bukan kepastian transmisi berulang)");
     Serial.println("===================================================================\n");
 }
 

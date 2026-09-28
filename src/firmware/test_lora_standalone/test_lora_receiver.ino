@@ -431,6 +431,8 @@ void setup() {
     // 4096 words = 16.384 bytes per task.
     Serial.println("5. Memasang Task FreeRTOS ke Dual Core ESP32:");
 
+    TaskHandle_t xDispatchTaskHandle = NULL;
+
     // Core 0 (PRO_CPU): Dispatcher Serial & Analisis Data
     BaseType_t dispatchStatus = xTaskCreatePinnedToCore(
         vTaskGatewayDispatch, 
@@ -438,7 +440,7 @@ void setup() {
         4096, 
         NULL, 
         1,      // Prioritas 1
-        NULL, 
+        &xDispatchTaskHandle, 
         0       // Core 0 (PRO_CPU)
     );
 
@@ -454,14 +456,20 @@ void setup() {
     );
 
     if (dispatchStatus != pdPASS || rxTaskStatus != pdPASS || xLoRaTaskHandle == NULL) {
-        Serial.println("[FATAL] Gagal membuat salah satu Task FreeRTOS! Periksa ketersediaan heap.");
+        Serial.println("[FATAL] Gagal membuat salah satu Task FreeRTOS! Program dihentikan (fail-stop).");
+        Serial.println("        Catatan: Task yang sempat dibuat akan dibersihkan sebelum berhenti.");
+        if (dispatchStatus == pdPASS && xDispatchTaskHandle != NULL) {
+            vTaskDelete(xDispatchTaskHandle);
+        }
         while (true) delay(1000);
     }
-    Serial.println("   -> TaskDispatch (Core 0 / PRO_CPU, Prio 1) : [AKTIF]");
-    Serial.println("   -> TaskLoRaRx   (Core 1 / APP_CPU, Prio 3) : [AKTIF]");
+    Serial.println("   -> TaskDispatch (Core 0 / PRO_CPU, Prio 1) : [BERHASIL DIBUAT]");
+    Serial.println("   -> TaskLoRaRx   (Core 1 / APP_CPU, Prio 3) : [BERHASIL DIBUAT]");
+    Serial.println("      (Pesan ini menandakan alokasi task berhasil, bukan bukti paket sudah diproses)");
 
     // LANGKAH 6: Mendaftarkan Callback Interupsi Hardware DIO0
-    // Dilakukan SETELAH task dan handle siap guna mengeliminasi race condition pada ISR
+    // Callback didaftarkan setelah handle task RX tersedia untuk mencegah ISR menotifikasi handle NULL.
+    // (Catatan: Ini mengatasi risiko dereferensi handle NULL saat callback aktif, bukan jaminan seluruh interaksi bebas race).
     Serial.print("6. Mendaftarkan Callback Interupsi DIO0 (GPIO 2)... ");
     radio.setPacketReceivedAction(isrDio0RxDone);
     Serial.println("[OK]");
@@ -476,8 +484,8 @@ void setup() {
     Serial.println("[OK]");
 
     Serial.println("=================================================================");
-    Serial.println(">>> GATEWAY SIAP MENERIMA PAKET DI FREKUENSI 433.175 MHz <<<");
-    Serial.println(">>> Menunggu transmisi paket dari Node Toilet...              <<<");
+    Serial.println(">>> MODE RX ASINKRON DIAKTIFKAN DI FREKUENSI 433.175 MHz <<<");
+    Serial.println(">>> (Radio siap mendengarkan; keberhasilan penerimaan bergantung pada paket fisik) <<<");
     Serial.println("=================================================================\n");
 }
 
