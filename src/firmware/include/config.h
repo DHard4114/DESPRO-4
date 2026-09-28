@@ -11,18 +11,21 @@
 #define NODE_CODE "WC_01"  // Identitas sentral [ADR-06]
 
 // Parameter Radio (SX1278 - Ai-Thinker Ra-02)
-// Sesuai Regulasi Kominfo No. 2/2019 (Pita LPWAN/SRD Indonesia: 433,050 - 434,790 MHz)
-// Frekuensi 433.175 MHz dengan BW 125 kHz menempati kanal 433,1125 - 433,2375 MHz (100% legal)
+// Rujukan Regulasi: Permenkomdigi No. 2 Tahun 2025 (Pita LPWAN/SRD Non-Lisensi: 433,050 - 434,790 MHz)
+// Bandwidth kanal maksimum: 125 kHz. Batas emisi radiasi: 12,15 dBm EIRP (setara 10 dBm ERP / 10 mW).
+// Frekuensi tengah 433.175 MHz dengan BW 125 kHz menempati rentang nominal 433,1125 - 433,2375 MHz.
+// Kepatuhan emisi nyata bergantung pada EIRP = P_conducted - L_kabel + G_antena.
 #define LORA_FREQ         433.175
 #define LORA_BW           125.0
 #define LORA_SF           9
 #define LORA_CR           7
 #define LORA_SYNC_WORD    0x12
 
-// Batas regulasi EIRP Indonesia: Maks 12,15 dBm (10 dBm ERP / 10 mW)
-// Conducted 10 dBm + Antena 2 dBi = 12 dBm EIRP <= 12,15 dBm EIRP
-#define LORA_TX_POWER     10      // Default patuh regulasi lapangan (dBm)
-#define LORA_TX_POWER_MAX 17      // Opsi lab berpelindung / atenuator (+17 dBm PA_BOOST)
+// Daya Pancar Chip (Conducted Power):
+// Disetel 10 dBm. Dengan asumsi antena 2 dBi dan rugi kabel mendekati 0 dB,
+// estimasi EIRP nominal adalah ~12 dBm (di bawah batas regulasi 12,15 dBm EIRP).
+#define LORA_TX_POWER     10      // Default daya conducted lapangan (dBm)
+#define LORA_TX_POWER_MAX 17      // Khusus pengujian laboratorium berpelindung / dummy load RF
 
 // ==========================================
 // 2. DEFINISI PIN GPIO (ESP32 DevKit V1)

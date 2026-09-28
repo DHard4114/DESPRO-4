@@ -29,14 +29,13 @@
  *      pindahkan DIO0 ke pin alternatif (misal GPIO 4) dan sesuaikan macro PIN_LORA_DIO0.
  *
  * 3. KEPATUHAN REGULASI SPEKTRUM RADIO INDONESIA:
- *    - Regulasi Acuan : Peraturan Menteri Kominfo No. 2/2019 & Standar Teknis SDPPI (LPWAN/SRD).
- *    - Alokasi Pita   : 433,050 MHz – 434,790 MHz.
- *    - Frekuensi Uji  : 433.175 MHz (Pusat kanal BW 125 kHz: 433,1125 – 433,2375 MHz, 100% legal).
- *      (Frekuensi 433.0 MHz sebelumnya menempatkan kanal di 432,9375–433,0625 MHz, di luar alokasi).
- *    - Batas Daya     : Maks. 12,15 dBm EIRP (10 dBm ERP / 10 mW).
- *    - Daya Pilihan   : 
- *        * Default Legal Lapangan: +10 dBm (Conducted + Antena 2 dBi = 12 dBm EIRP <= 12,15 dBm).
- *        * Khusus Lab Berpelindung: +17 dBm (Gunakan dummy load/atenuator untuk uji jangkauan isolasi).
+ *    - Regulasi Acuan : Peraturan Menteri Komdigi (Permenkomdigi) No. 2 Tahun 2025 (Pita LPWAN/SRD).
+ *    - Alokasi Pita   : 433,050 MHz – 434,790 MHz (Bandwidth kanal maksimum: 125 kHz).
+ *    - Frekuensi Uji  : 433.175 MHz (Pusat kanal rentang nominal: 433,1125 – 433,2375 MHz).
+ *    - Batas Daya     : Maks. 12,15 dBm EIRP (setara 10 dBm ERP / 10 mW).
+ *    - Catatan EIRP   : Kepatuhan emisi nyata bergantung pada EIRP = P_conducted - L_kabel + G_antena.
+ *        * Default Lapangan: +10 dBm conducted. Dengan antena 2 dBi dan kabel pendek, EIRP ~12 dBm (<= 12,15 dBm).
+ *        * Khusus Lab Berpelindung: +17 dBm (Hanya dengan atenuator RF/dummy load untuk uji terisolasi).
  *
  * 4. ATURAN KESELAMATAN RF & PERINGATAN:
  *    - Antena 433 MHz WAJIB terpasang sebelum modul dinyalakan. Keberhasilan inisialisasi SPI
