@@ -96,8 +96,8 @@ static_assert(sizeof(TelemetryPayload) == 34, "FATAL: Ukuran TelemetryPayload ha
 // 4. INSTANSIASI OBJEK HARDWARE RADIOLIB
 // ===================================================================
 // Koreksi Argumen: Argumen ke-4 Module(cs, irq, rst, gpio) adalah GPIO tambahan (DIO1),
-// BUKAN pin MISO! MISO dikonfigurasi melalui objek SPIClass. Maka gunakan RADIOLIB_NC.
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC);
+// BUKAN pin MISO! MISO dikonfigurasi melalui objek SPIClass. Gunakan RADIOLIB_NC dan oper objek SPI.
+SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI);
 
 // Handle Antrean FreeRTOS
 QueueHandle_t xLoRaQueue = NULL;
@@ -212,6 +212,31 @@ void setup() {
     Serial.print("1. Inisialisasi Hardware SPI Bus (SCK:18, MISO:19, MOSI:23, SS:5)... ");
     SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_NSS);
     Serial.println("[OK]");
+
+    // Uji Diagnostik Langsung Jalur Fisik SPI Register 0x42 (RegVersion)
+    pinMode(PIN_LORA_NSS, OUTPUT);
+    digitalWrite(PIN_LORA_NSS, HIGH);
+    delay(10);
+    digitalWrite(PIN_LORA_NSS, LOW);
+    SPI.transfer(0x42 & 0x7F); // Alamat 0x42, bit MSB 0 untuk Read
+    uint8_t rawVersion = SPI.transfer(0x00);
+    digitalWrite(PIN_LORA_NSS, HIGH);
+
+    Serial.printf("   [DIAGNOSTIK FISIK SPI] Pembacaan Langsung RegVersion (0x42): 0x%02X\n", rawVersion);
+    if (rawVersion == 0x12) {
+        Serial.println("   -> [STATUS SPI] Chip SX1278 merespons normal (0x12)! Jalur SPI dan VCC berfungsi.");
+    } else if (rawVersion == 0x00) {
+        Serial.println("   -> [ANALISIS 0x00] Jalur MISO selalu LOW! Periksa:");
+        Serial.println("      * Modul Ra-02 TIDAK mendapatkan tegangan 3.3V (Kabel VCC/GND putus atau rel breadboard terputus di tengah).");
+        Serial.println("      * Pin RST (GPIO 14) terhubung ke GND atau tertahan LOW (Chip dalam kondisi Reset).");
+    } else if (rawVersion == 0xFF) {
+        Serial.println("   -> [ANALISIS 0xFF] Jalur MISO selalu HIGH / Mengambang! Periksa:");
+        Serial.println("      * Pin NSS (GPIO 5) TIDAK terhubung ke pin NSS modul Ra-02 (Chip tidak ter-select).");
+        Serial.println("      * Pin MOSI (GPIO 23) atau SCK (GPIO 18) tidak terhubung.");
+        Serial.println("      * Pin MOSI dan MISO TERTUKAR (MOSI disambung ke MISO, dsb).");
+    } else {
+        Serial.printf("   -> [ANALISIS 0x%02X] Nilai acak! Sinyal SPI tidak stabil / jumper longgar.\n", rawVersion);
+    }
 
     // 2. Inisialisasi Radio SX1278
     Serial.print("2. Menghubungi Register Chip Semtech SX1278... ");
