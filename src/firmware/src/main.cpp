@@ -184,6 +184,7 @@ void setup() {
         while (true) vTaskDelay(pdMS_TO_TICKS(1000));
     }
     Serial.println("LoRa INIT SUCCESS (433.175 MHz)!");
+    radio.setCRC(true);
 
     // Pembuatan Task FreeRTOS sesuai Pemetaan Topologi Task [ADR-01]
     xTaskCreatePinnedToCore(vTaskSensors,  "TaskSensors",  3072, NULL, 1, NULL, 0);

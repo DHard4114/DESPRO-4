@@ -223,6 +223,14 @@ void setup() {
         Serial.println("   -> Chip SX1278 merespons normal pada bus SPI.");
         Serial.println("   -> PERINGATAN FISIK: Pastikan antena 433 MHz terpasang kencang!");
         Serial.println("      Respon SPI TIDAK mendeteksi ada/tidaknya antena fisik.");
+        
+        // Aktifkan hardware CRC secara eksplisit agar cocok dengan sisi penerima
+        int crcState = radio.setCRC(true);
+        if (crcState != RADIOLIB_ERR_NONE) {
+            Serial.printf("   -> [PERINGATAN] Gagal mengaktifkan CRC hardware: %d\n", crcState);
+        } else {
+            Serial.println("   -> Hardware CRC: [AKTIF]");
+        }
     } else {
         Serial.println("[GAGAL]");
         Serial.printf("   -> Kode Galat RadioLib: %d\n", initState);
