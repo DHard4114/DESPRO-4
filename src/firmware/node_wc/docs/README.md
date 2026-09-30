@@ -224,3 +224,12 @@ $$\text{Total Ukuran} = 1 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 1 = 34\text{ Bytes}$$
    pio run -e node_wc -t upload
    pio device monitor
    ```
+
+3. **Uji Mandiri Sensor Gas MQ-137 ($NH_3$) & MQ-136 ($H_2S$):**
+   * Buka skrip `standalone_test/test_mq_sensors/test_mq_sensors.ino` di Arduino IDE atau jalankan via PlatformIO:
+     ```powershell
+     pio run -d src/firmware/node_wc -e test_mq_sensors -t upload
+     ```
+   * Panduan lengkap pengkondisian sinyal ADC, pembagi tegangan, proteksi kelistrikan, dan kalibrasi tertuang pada:
+     [`STANDALONE_MQ_TEST_GUIDE.md`](STANDALONE_MQ_TEST_GUIDE.md).
+
