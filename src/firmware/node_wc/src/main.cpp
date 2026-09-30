@@ -18,8 +18,8 @@ QueueHandle_t xQueueCommand = NULL;
 esp_pm_lock_handle_t active_lock = NULL;
 
 // Koreksi RadioLib: Argumen ke-4 Module(cs, irq, rst, gpio) adalah GPIO tambahan (DIO1),
-// BUKAN MISO! Gunakan RADIOLIB_NC. MISO dikonfigurasi via bus SPIClass.
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC);
+// BUKAN MISO! Gunakan RADIOLIB_NC. MISO dikonfigurasi via bus SPIClass (oper objek SPI eksplisit).
+SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI);
 NewPing sonar(PIN_TRIG_US, PIN_ECHO_US, 400);
 Servo valveServo;
 
@@ -113,14 +113,22 @@ void vTaskLoRaTx(void *pvParameters) {
                 bool received = false;
                 ActuatorCommand rxCmd;
                 
+                // Tunggu instruksi aktuator dari server posko selama 2000 ms (LoRaWAN Class A RX Window)
                 while ((xTaskGetTickCount() - rx_start) * portTICK_PERIOD_MS < 2000) {
                     if (radio.readData((uint8_t*)&rxCmd, sizeof(ActuatorCommand)) == RADIOLIB_ERR_NONE) {
-                        received = true;
-                        break;
+                        // [ZERO-TRUST FILTER]: Hanya eksekusi jika ditujukan khusus untuk NODE_CODE ini!
+                        if (strncmp(rxCmd.node_code, NODE_CODE, sizeof(rxCmd.node_code)) == 0) {
+                            received = true;
+                            Serial.printf("[LORA RX WINDOW] Menemukan komando valid untuk %s: CMD=%u, PARAM=%u\n",
+                                          rxCmd.node_code, rxCmd.command_id, rxCmd.parameter);
+                            break;
+                        } else {
+                            Serial.printf("[ZERO-TRUST] Mengabaikan komando untuk node lain: %s\n", rxCmd.node_code);
+                        }
                     }
                     vTaskDelay(pdMS_TO_TICKS(50));
                 }
-                radio.standby();
+                radio.standby(); // Kembali ke standby mode untuk efisiensi baterai
 
                 if (received && xQueueCommand != NULL) {
                     xQueueSend(xQueueCommand, &rxCmd, portMAX_DELAY);
@@ -142,8 +150,24 @@ void vTaskActuator(void *pvParameters) {
     ActuatorCommand cmd;
     for (;;) {
         if (xQueueReceive(xQueueCommand, &cmd, portMAX_DELAY) == pdTRUE) {
-            // Aktuator tidak diputar dari ISR [ADR-01]
-            valveServo.write(cmd.angle);
+            Serial.printf("[TASK ACTUATOR] Eksekusi komando untuk %s: CMD=%u (Param=%u)\n", 
+                          cmd.node_code, cmd.command_id, cmd.parameter);
+            // 1 = LOCK_DOOR (Kunci Bilik WC)
+            if (cmd.command_id == 1) {
+                uint8_t angle = (cmd.parameter > 0) ? cmd.parameter : 90;
+                valveServo.write(angle);
+                Serial.printf("[TASK ACTUATOR] Pintu Dikunci! Sudut Servo: %u°\n", angle);
+            } 
+            // 2 = UNLOCK_DOOR (Buka Kunci Bilik WC)
+            else if (cmd.command_id == 2) {
+                uint8_t angle = (cmd.parameter > 0) ? cmd.parameter : 0;
+                valveServo.write(angle);
+                Serial.printf("[TASK ACTUATOR] Pintu Dibuka! Sudut Servo: %u°\n", angle);
+            } 
+            // 3 = FLUSH / Custom angle
+            else {
+                valveServo.write(cmd.parameter);
+            }
         }
     }
 }
@@ -173,6 +197,8 @@ void setup() {
     valveServo.attach(PIN_SERVO);
     pinMode(PIN_BTN_SOS, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_BTN_SOS), isr_sos_button, FALLING);
+    // [STRATEGI 2: EVENT-DRIVEN WAKEUP] Daftarkan pin SOS sebagai pemicu bangun Light-Sleep seketika
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN_SOS, 0); // 0 = Pemicu LOW level (saat tombol ditekan ke GND)
 
     // Inisialisasi Bus SPI secara eksplisit untuk ESP32 DevKit V1
     SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_NSS);

@@ -28,11 +28,12 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
 
 ## 2. Rincian Batas Tanggung Jawab Domain (Domain Boundaries)
 
-### 2.1 Daffa Hardhan — *Project Management, System Architecture, Web Dashboard & Data Pipeline*
+### 2.1 Daffa Hardhan — *Project Management, System Architecture, Sensor & Actuator Integrator, Web Dashboard & Data Pipeline*
 * **Tanggung Jawab Utama (Primary PIC):**
-  - **Pembangunan Web Dashboard Pemantauan Real-Time:** Frontend UI interaktif (HTML5, Tailwind CSS, Chart.js) untuk visualisasi level air, konsentrasi gas amonia/H2S, tegangan baterai, alarm SOS, dan kendali servo.
-  - **Pembangunan Pipeline Data Sensor ke Basis Data:** Backend server Go berkinerja tinggi (`src/server/`), Streaming Ingestion, Batch ETL Engine, binary mandiri (`src/bin/esos-server.exe`), basis data SQLite WAL mode, dan skema PostgreSQL ACID UUIDv7 (`src/server/database/postgres_schema.sql`).
-  - **Konfigurasi & Integrasi Jaringan Outdoor TP-Link CPE220:** Jaringan wireless jarak jauh 2.4GHz (`src/config/network_cpe220.conf`) menjembatani gateway sensor bilik sanitasi ke server posko.
+  - **Integrator Subsistem Sensor dan Aktuator:** Mengintegrasikan seluruh subsistem sensor (Siti & Ilman) dengan subsistem aktuator (Raka & Darrel) ke dalam firmware FreeRTOS Node Bilik WC (jendela dengar Class A RX), firmware Gateway Router, stack LoRa downlink, serta pipeline komando end-to-end dari server posko.
+  - **Pembangunan Web Dashboard Pemantauan Real-Time:** Frontend UI interaktif (HTML5, Tailwind CSS, Chart.js) untuk visualisasi level air, konsentrasi gas amonia/H2S, tegangan baterai, alarm SOS, dan kendali aktuasi servo/solenoid.
+  - **Pembangunan Pipeline Data Sensor ke Basis Data:** Backend server Go berkinerja tinggi (`src/server/`), Streaming Ingestion, Batch ETL Engine, basis data PostgreSQL ACID UUIDv7 (`src/data/postgres_schema.sql`).
+  - **Konfigurasi & Integrasi Jaringan Outdoor TP-Link CPE220:** Jaringan wireless jarak jauh 2.4GHz menjembatani gateway sensor bilik sanitasi ke server posko.
   - **Pengadaan Komponen Jaringan:** Eksekusi pembelian Access Point Outdoor TP-Link CPE220 dan kabel jaringan outdoor STP Cat6.
   - Master WBS 14 Pekan, linimasa semester, jalur kritis, dan tautan live Google Sheets.
   - Tata kelola repositori Git dan sistem issue tracker proyek.
@@ -40,22 +41,25 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
   - Konsolidasi Laporan Kemajuan Kelompok Pekanan (Pekan 1 s.d. 14).
 * **Batasan Kerja (Tidak Mengambil Alih):**
   - Wiring elektrikal daya dan kalibrasi sensor analog $\rightarrow$ Ilman.
-  - Firmware mikrokontroler dan stack LoRa $\rightarrow$ Siti.
-  - 3D CAD casing enclosure IoT dan weatherproofing $\rightarrow$ Darrel.
+  - Driver modul sensor dan stack LoRa $\rightarrow$ Siti.
+  - Perancangan mekanik/casing 3D $\rightarrow$ Darrel.
+  - Fabrikasi dan pengujian hardware aktuator $\rightarrow$ Raka.
 
-### 2.2 Raka Arrayan Muttaqien — *Solution Analysis, Sanitation Standards & Financial Consolidation*
+### 2.2 Raka Arrayan Muttaqien — *Solution Analysis, Actuator Hardware & Testing, Sanitation Standards & Financial Consolidation*
 * **Tanggung Jawab Utama (Primary PIC):**
+  - **Implementasi & Pengujian Perangkat Keras Aktuator:** Bertanggung jawab penuh atas pengadaan, perakitan rangkaian penggerak (modul driver/relay), uji torsi/mekanika penguncian (Servo MG996R / Solenoid Door Lock), dan pengujian keandalan aktuasi pembukaan/penutupan bilik sanitasi.
   - Analisis kebutuhan fungsional dan Requirements Traceability Matrix (RTM).
   - Verifikasi kepatuhan terhadap standar sanitasi darurat dan keselamatan (Permenkes).
   - Komparasi spesifikasi teknis 15 komponen BoM terhadap target proposal.
   - Pengumpulan dan pengarsipan lembar data resmi (*datasheets*) pabrikan.
-  - **Konsolidasi Finansial & Audit Pengadaan:** Menghimpun seluruh kuitansi/faktur pembelian dari 5 anggota ke dalam bundel resmi `assets/procurement/receipts_bundle.pdf` (`EV-W2-PROC-001`).
+  - **Konsolidasi Finansial & Audit Pengadaan:** Menghimpun seluruh kuitansi/faktur pembelian dari 5 anggota ke dalam bundel resmi.
   - Pengendalian anggaran proyek (Committed Cost $\le$ Ceiling Rp2.000.000).
   - Penanganan variansi harga sensor gas MQ-137/136 (`GATE-PROC-01` & `GATE-PROC-02`).
   - Pembuatan buku register aset inventaris proyek.
 * **Aturan Penerimaan Teknis (*Technical Acceptance Rule*):**
   - Seluruh 5 anggota membeli komponen sesuai subsistem masing-masing, dan penerimaan teknis wajib diuji oleh Domain Engineer:
-    - *Hardware acceptance* $\rightarrow$ Ilman.
+    - *Hardware acceptance (Daya & Sensor Gas)* $\rightarrow$ Ilman.
+    - *Hardware acceptance (Aktuator & Mekanika)* $\rightarrow$ Raka / Darrel.
     - *Software/tool acceptance* $\rightarrow$ Siti / Daffa.
     - *Mechanical material acceptance* $\rightarrow$ Darrel.
 
@@ -103,7 +107,7 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
 | 3 | **HW-03** | MQ-137 Gas Sensor | Ammonia ($NH_3$) Module (1 unit) | **Ilman** | Siti, Raka | **Ilman** | Uji resistansi pemanas ($R_H$), respon analog terhadap gas |
 | 4 | **HW-04** | MQ-136 Gas Sensor | $H_2S$ Gas Module (1 unit) | **Ilman** | Siti, Raka | **Ilman** | Uji kurva kalibrasi tegangan analog terhadap ppm |
 | 5 | **HW-05** | LoRa RA-02 433 MHz | SX1278 SPI Transceiver (2 unit) | **Siti** | Ilman | **Siti + Ilman** | Uji transmisi nirkabel jarak jauh, Packet Error Rate $< 1\%$ |
-| 6 | **HW-06** | MG996R Servo Motor | Metal Gear High-Torque 180° (1 unit)| **Siti** | Ilman, Darrel | **Siti + Darrel** | Uji torsi mekanik, waktu respon $< 250\text{ ms}$, linkage fit |
+| 6 | **HW-06** | MG996R Servo Motor | Metal Gear High-Torque 180° (1 unit)| **Raka** | Siti, Darrel | **Raka + Darrel** | Uji torsi mekanik, waktu respon $< 250\text{ ms}$, linkage fit |
 | 7 | **HW-07** | TP-Link CPE220 AP | Outdoor Wireless 2.4GHz (1 unit) | **Daffa** | Raka, Ilman | **Daffa** | Uji throughput jaringan $> 54\text{ Mbps}$, jangkauan sinyal |
 | 8 | **HW-08** | Solar Panel 10 Wp | Monocrystalline 18V (1 unit) | **Ilman** | Raka | **Ilman** | Uji tegangan terbuka ($V_{oc}$) dan arus hubung singkat ($I_{sc}$) |
 | 9 | **HW-09** | TP4056 + Protection | Dual BMS Charger Board (2 unit) | **Ilman** | Raka | **Ilman** | Uji pemutusan otomatis overcharge 4.2V & overdischarge 2.5V |
@@ -128,16 +132,17 @@ Struktur pembagian tanggung jawab ini mengikat seluruh anggota tim tanpa tumpang
 | 6 | Fabrikasi 3D Printing Casing PETG | **Darrel** | **Darrel** | Ilman | All | Casing 3D Fisik IP54 |
 | 7 | Power Management & Wiring Harness | **Ilman** | **Ilman** | Siti, Darrel | Daffa, Raka | Sirkuit Daya Solar & Harness Fisik |
 | 8 | Setup Kalibrasi Sensor Gas Analog MQ | **Ilman** | **Ilman** | Siti, Raka | All | Dataset Kurva Kalibrasi Gas |
-| 9 | Firmware ESP32 & Driver Modular | **Siti** | **Siti** | Ilman, Daffa | Darrel, Raka | Repositori Kode `/src/firmware/` |
+| 9 | Firmware ESP32 & Driver Sensor Modular | **Siti** | **Siti** | Ilman, Daffa | Darrel, Raka | Repositori Kode `/src/firmware/node_wc` |
 | 10 | Stack Komunikasi LoRa 433 MHz | **Siti** | **Siti** | Ilman | Daffa | Modul Transmisi Nirkabel |
 | 11 | Local Server Dashboard & CPE220 AP | **Daffa** | **Daffa** | Ilman, Siti | All | Backend & Dashboard Telemetri |
-| 12 | Integrasi Fisik & Fungsional Sistem | **Daffa** | **Daffa + Domain PICs** | All | All | Prototipe Terintegrasi eSOS |
-| 13 | Master Test Plan & Eksekusi QA (TC-01..06)| **Darrel** | **Darrel + Domain PICs**| All | Dosen | Laporan Hasil Pengujian QA |
-| 14 | Evaluasi Tengah Semester (UTS / Gate 3) | **All (Lead: Daffa)**| **All** | — | Dosen | Berkas Presentasi Midterm |
-| 15 | Laporan Kemajuan Kelompok Mingguan | **Daffa** | **Daffa** | All | Dosen | `reports/group/WEEK_XX_...` |
-| 16 | Laporan Logbook Mingguan Individu | **Setiap Anggota**| **Setiap Anggota** | Daffa | Dosen | `reports/individual/...` |
-| 17 | Master Evidence Register & Audit | **Daffa** | **Masing-Masing PIC** | Darrel | All | `05_EVIDENCE_REGISTER.md` |
-| 18 | Evaluasi Akhir Semester (UAS / Demo) | **All (Lead: Daffa)**| **All** | — | Dosen | Live Prototype Demo & Sidang Akhir |
+| 12 | Integrasi Sensor & Aktuator Sistem (End-to-End)| **Daffa** | **Daffa (Integrator) + All PICs** | All | All | Prototipe Terintegrasi eSOS |
+| 13 | Hardware Aktuator & Pengujian Locking Bilik | **Raka** | **Raka + Darrel** | Siti, Daffa | All | Subsistem Penguncian Aktuator |
+| 14 | Master Test Plan & Eksekusi QA (TC-01..06)| **Darrel** | **Darrel + Domain PICs**| All | Dosen | Laporan Hasil Pengujian QA |
+| 15 | Evaluasi Tengah Semester (UTS / Gate 3) | **All (Lead: Daffa)**| **All** | — | Dosen | Berkas Presentasi Midterm |
+| 16 | Laporan Kemajuan Kelompok Mingguan | **Daffa** | **Daffa** | All | Dosen | `reports/group/WEEK_XX_...` |
+| 17 | Laporan Logbook Mingguan Individu | **Setiap Anggota**| **Setiap Anggota** | Daffa | Dosen | `reports/individual/...` |
+| 18 | Master Evidence Register & Audit | **Daffa** | **Masing-Masing PIC** | Darrel | All | `05_EVIDENCE_REGISTER.md` |
+| 19 | Evaluasi Akhir Semester (UAS / Demo) | **All (Lead: Daffa)**| **All** | — | Dosen | Live Prototype Demo & Sidang Akhir |
 
 ---
 

@@ -107,14 +107,14 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
   - **Daffa:** Pengembangan backend database server lokal (PostgreSQL/TimescaleDB, UUIDv7) dan skeleton **MQTT Subscriber Worker Pool**.
   - **Raka:** Audit anggaran pengeluaran riil dan evaluasi kepatuhan komponen terhadap standar sanitasi.
 
-### Fase 4: Integrasi Nirkabel MQTT dan Mekanisme Aktuator (Pekan 5 – Pekan 6)
+### Fase 4: Integrasi Nirkabel LoRa/MQTT dan Mekanisme Aktuator (Pekan 5 – Pekan 6)
 - **Target Periode:** 23 September 2026 – 06 Oktober 2026
 - **Aktivitas Utama:**
-  - **Siti & Ilman:** **[REVISI]** Implementasi firmware **ESP32 Gateway** terpisah (`vTaskLoRaListener`, `vTaskMqttPublisher`, `vTaskMqttSubscriber`, `vTaskWiFiSupervisor` dengan *store-and-forward ring buffer*), pengujian *Packet Error Rate* LoRa Node→Gateway.
-  - **Darrel & Siti:** Perakitan mekanisme linkage transmisi putar motor servo MG996R untuk pembukaan katup nirsentuh, terhubung ke `vTaskActuator` yang menerima perintah dari `xQueueActuatorCmd`.
+  - **Siti & Ilman:** Implementasi firmware **ESP32 Gateway** terpisah (`vTaskLoRaListener`, `vTaskMqttPublisher`, `vTaskWiFiSupervisor` dengan *store-and-forward ring buffer*), pengujian *Packet Error Rate* LoRa Node→Gateway.
+  - **Raka & Darrel:** **[IMPLEMENTASI AKTUATOR]** Pengadaan dan perakitan perangkat keras aktuator (Servo MG996R / Solenoid Door Lock), modul driver/relay daya penggerak, pengujian mekanika penguncian pintu bilik sanitasi, dan verifikasi waktu respons aktuasi.
   - **Darrel & Ilman:** Pemasangan terpadu seluruh modul elektrikal ke dalam casing 3D IoT (fit check 100% pas) — dua varian casing: Node WC dan Gateway.
-  - **Daffa:** **[REVISI]** Pengujian koneksi MQTT Gateway→Broker via TP-Link CPE220, implementasi Threshold Cache (LISTEN/NOTIFY), dan visualisasi dashboard live via WebSocket.
-  - **Raka:** Penyusunan dokumen keterlacakan verifikasi komponen terhadap matriks RTM.
+  - **Daffa:** **[INTEGRATOR SENSOR & AKTUATOR]** Mengintegrasikan subsistem sensor (Siti & Ilman) dengan subsistem aktuator (Raka & Darrel) ke dalam arsitektur FreeRTOS (jendela dengar Class A RX), pengujian koneksi MQTT Gateway→Broker via TP-Link CPE220, implementasi Threshold Cache (LISTEN/NOTIFY), dan kendali tombol aktuator dari Dashboard web.
+  - **Raka:** Penyusunan dokumen keterlacakan verifikasi komponen terhadap matriks RTM dan audit realisasi biaya aktuator.
 
 ### Fase 5: Evaluasi Tengah Semester / UTS (Pekan 7)
 - **Target Periode:** 07 Oktober 2026 – 13 Oktober 2026

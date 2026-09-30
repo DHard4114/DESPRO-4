@@ -38,14 +38,14 @@
 #include <math.h>
 
 // ===================================================================
-// 1. PINOUT PERANGKAT KERAS (ESP32 DevKit V1 30-pin)
+// 1. PINOUT PERANGKAT KERAS (SESUAI WIRING JUMPER FISIK AKTIF)
 // ===================================================================
-#define PIN_LORA_NSS      5     // SPI Chip Select
-#define PIN_LORA_DIO0     2     // DIO0 SX1278 (Interupsi RX_DONE, Strapping pin)
-#define PIN_LORA_RESET    14    // Hardware Reset
-#define PIN_LORA_MISO     19    // SPI MISO
-#define PIN_LORA_MOSI     23    // SPI MOSI
-#define PIN_LORA_SCK      18    // SPI SCK
+#define PIN_LORA_SCK      21    // Cokelat (D21 ESP32)
+#define PIN_LORA_MISO     19    // Merah   (D19 ESP32)
+#define PIN_LORA_MOSI     18    // Oranye  (D18 ESP32)
+#define PIN_LORA_NSS      5     // Kuning  (D5  ESP32)
+#define PIN_LORA_DIO0     2     // Ungu    (D2  ESP32) - Interupsi RX_DONE
+#define PIN_LORA_RESET    15    // Biru    (D15 ESP32) - Reset Hardware SX1278
 
 // ===================================================================
 // 2. PARAMETER MODULASI RF (IDENTIK DENGAN TRANSMITTER STANDALONE)
@@ -98,8 +98,8 @@ struct NodeTracker {
 // ===================================================================
 // 4. INSTANSIASI HARDWARE & OBJEK KERNEL FREERTOS
 // ===================================================================
-// Argumen ke-4 Module(cs, irq, rst, gpio) adalah RADIOLIB_NC (bukan MISO)
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC);
+// Argumen ke-4 Module(cs, irq, rst, gpio) adalah RADIOLIB_NC (bukan MISO), oper objek SPI secara eksplisit
+SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI);
 
 // Handle Kernel FreeRTOS
 static QueueHandle_t xGatewayQueue = NULL;
@@ -393,17 +393,45 @@ void setup() {
     // Inisialisasi tabel pelacak multi-node
     memset(trackedNodes, 0, sizeof(trackedNodes));
 
-    // LANGKAH 1: Inisialisasi Bus SPI Perangkat Keras
-    Serial.print("1. Inisialisasi Hardware SPI Bus (SCK:18, MISO:19, MOSI:23, NSS:5)... ");
-    SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_NSS);
+    // LANGKAH 0: Pre-init Pin NSS (CS) ke HIGH agar bus SPI dalam kondisi idle sebelum reset
+    pinMode(PIN_LORA_NSS, OUTPUT);
+    digitalWrite(PIN_LORA_NSS, HIGH);
+
+    // LANGKAH 1: Hard Reset Hardware SX1278 (20ms LOW, lalu 100ms settling time untuk osilator kristal 32MHz Ra-02)
+    Serial.printf("1. Melakukan Hardware Reset SX1278 (RST:%d)... ", PIN_LORA_RESET);
+    pinMode(PIN_LORA_RESET, OUTPUT);
+    digitalWrite(PIN_LORA_RESET, LOW);
+    delay(20);
+    digitalWrite(PIN_LORA_RESET, HIGH);
+    delay(100); // Waktu stabilisasi osilator kristal 32 MHz dan internal regulator SX1278
     Serial.println("[OK]");
 
-    // LANGKAH 2: Inisialisasi Chip SX1278
-    Serial.print("2. Inisialisasi Register Chip Semtech SX1278... ");
-    int initState = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, 10);
+    // LANGKAH 2: Inisialisasi Bus SPI Perangkat Keras (SS=-1 agar tidak konflik dengan manual toggle CS RadioLib)
+    Serial.printf("2. Inisialisasi Hardware SPI Bus (SCK:%d, MISO:%d, MOSI:%d, SS:Manual)... ",
+                  PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI);
+    SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, -1);
+    Serial.println("[OK]");
+
+    // LANGKAH 3: Inisialisasi Register Chip SX1278 (dengan mekanisme retry otomatis)
+    Serial.print("3. Inisialisasi Register Chip Semtech SX1278... ");
+    int initState = RADIOLIB_ERR_UNKNOWN;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        initState = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, 10);
+        if (initState == RADIOLIB_ERR_NONE) {
+            break;
+        }
+        Serial.printf("[Retry %d/3: %d] ", attempt, initState);
+        delay(100);
+    }
     if (initState != RADIOLIB_ERR_NONE) {
         Serial.printf("[GAGAL] Kode Galat: %d\n", initState);
-        Serial.println("   -> Periksa kabel jumper SPI dan catu daya 3.3V modul Ra-02.");
+        if (initState == -16) {
+            Serial.println("   -> [DIAGNOSIS] Error -16 (SPI_WRITE_FAILED): Chip terdeteksi tetapi register gagal diverifikasi tepat waktu.");
+            Serial.println("   -> Coba tekan tombol EN (Reset ESP32) satu kali untuk re-sync power.");
+        } else {
+            Serial.printf("   -> Periksa kabel jumper SPI (MOSI:%d, MISO:%d, SCK:%d, NSS:%d, RST:%d) dan catu daya 3.3V.\n",
+                          PIN_LORA_MOSI, PIN_LORA_MISO, PIN_LORA_SCK, PIN_LORA_NSS, PIN_LORA_RESET);
+        }
         while (true) delay(1000);
     }
     Serial.println("[OK]");

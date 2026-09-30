@@ -30,13 +30,13 @@
 // ==========================================
 // 2. DEFINISI PIN GPIO (ESP32 DevKit V1)
 // ==========================================
-// Pin Radio SX1278 (Hardware SPI)
-#define PIN_LORA_NSS      5
-#define PIN_LORA_DIO0     2       // Strapping pin / Onboard LED (Pindah ke GPIO 4 jika boot terganggu)
-#define PIN_LORA_RESET    14
+// Pin Radio SX1278 (Hardware SPI Bus - Jumper Fisik Aktif)
+#define PIN_LORA_SCK      21
 #define PIN_LORA_MISO     19
-#define PIN_LORA_MOSI     23
-#define PIN_LORA_SCK      18
+#define PIN_LORA_MOSI     18
+#define PIN_LORA_NSS      5
+#define PIN_LORA_DIO0     2       // Strapping pin / Onboard LED
+#define PIN_LORA_RESET    15      // Hardware Reset (Pin D15)
 
 // Pin Sensor & Aktuator
 #define PIN_TRIG_US       13
@@ -66,11 +66,13 @@ struct __attribute__((packed)) TelemetryPayload {
 // Verifikasi compile-time ukuran struct
 static_assert(sizeof(TelemetryPayload) == 34, "FATAL: Ukuran TelemetryPayload harus tepat 34 bytes!");
 
+// Struktur Komando Aktuator (Downlink 10 Bytes dari Gateway) [Zero-Trust Multi-Node]
 struct __attribute__((packed)) ActuatorCommand {
-    uint8_t command_id; // 1 = OPEN, 2 = CLOSE, 3 = FLUSH
-    uint8_t angle;
+    char    node_code[8]; // Offset 0 | 8 bytes : Target Node ("WC_01\0\0\0")
+    uint8_t command_id;   // Offset 8 | 1 byte  : 1 = LOCK_DOOR, 2 = UNLOCK_DOOR, 3 = FLUSH
+    uint8_t parameter;    // Offset 9 | 1 byte  : Sudut servo (0-180 derajat) atau parameter kontrol
 };
-static_assert(sizeof(ActuatorCommand) == 2, "FATAL: Ukuran ActuatorCommand harus tepat 2 bytes!");
+static_assert(sizeof(ActuatorCommand) == 10, "FATAL: Ukuran ActuatorCommand harus tepat 10 bytes!");
 
 #endif // IS_NODE_WC
 

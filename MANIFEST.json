@@ -3,7 +3,7 @@
   "projectCode": "DESPRO2_SMART_SANITATION_MODULAR",
   "institution": "Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)",
   "course": "Desain Proyek 2 (Gasal 2026/2027)",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "status": "CONTROLLED / DOCS-FIRST ARCHITECTURE (MQTT-NATIVE, FREERTOS, REST-V1)",
   "architectureAuthority": "docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md",
   "proposalReference": "Bab 4.4 & Bab 5 Proposal Desain Proyek 1 DTE FTUI 2026",
@@ -20,37 +20,39 @@
     "ADR-05: Kontrak REST API mengikuti konvensi enterprise IoT (versioned path /api/v1, API Key + JWT, idempotency key, cursor pagination, error envelope standar).",
     "ADR-06: Seluruh Primary Key database memakai UUIDv7 (time-ordered) secara konsisten, tidak ada campuran UUIDv4.",
     "ADR-07: Ambang batas alarm dibaca dari in-memory cache yang di-refresh real-time via PostgreSQL LISTEN/NOTIFY, bukan hardcoded.",
-    "ADR-08: Path dokumentasi resmi adalah docs/architecture/ dan docs/hardware_references/ (root-level), bukan src/server/docs/."
+    "ADR-08: Path dokumentasi resmi adalah docs/architecture/ dan docs/hardware_references/ (root-level), serta docs/ di setiap modul."
   ],
   "specialDesignDecisions": [
     "Darrel Alfath designs and fabricates the 3D Parametric CAD Enclosure/Casing for the IoT device with IP54 weatherproofing.",
     "Hardware assembly utilizes standard off-the-shelf breakout boards and high-reliability perfboard/terminal wiring harness by Muhammad Ilman Zuhriy (No custom group fabricated PCB).",
-    "Prinsip Docs-First: seluruh implementasi kode (src/) mengacu ke docs/architecture/ sebagai kontrak mengikat; kode existing dianggap draf usang yang akan direfaktor total mengikuti dokumen arsitektur final."
+    "Daffa Hardhan bertindak sebagai Integrator Sensor dan Aktuator, mengintegrasikan subsistem sensor (Siti & Ilman) dengan subsistem aktuator (Raka & Darrel) ke dalam arsitektur FreeRTOS Node/Gateway dan pipeline server posko.",
+    "Raka Arrayan Muttaqien bertanggung jawab atas implementasi perangkat keras dan pengujian aktuator (Servo MG996R / Solenoid Door Lock, modul driver/relay, dan mekanisme penguncian bilik).",
+    "Prinsip Docs-First: seluruh implementasi kode (src/) mengacu ke docs/ dan src/firmware/docs/ sebagai kontrak mengikat."
   ],
   "team": [
     {
       "name": "Daffa Hardhan",
       "npm": "2306161763",
-      "proposalRole": "Manajer Proyek dan Pengembang",
-      "primaryDomain": "Project management, system architecture, Go backend server (MQTT Subscriber Worker Pool, Batch & Streaming ETL), Web Dashboard UI, TP-Link CPE220 outdoor router pipeline, Mosquitto MQTT Broker administration",
+      "proposalRole": "Manajer Proyek dan Pengembang (Integrator Sensor & Aktuator)",
+      "primaryDomain": "Project management, system architecture, integrator subsistem sensor dan aktuator, FreeRTOS Gateway & Node integration, Go backend server (MQTT Subscriber Worker Pool, Batch & Streaming ETL), Web Dashboard UI, TP-Link CPE220 outdoor router pipeline, Mosquitto MQTT Broker administration",
       "allocatedHours": 40,
-      "reportFolder": "reports/individual/daffa/"
+      "reportFolder": "management/reports/individual/daffa/"
     },
     {
       "name": "Raka Arrayan Muttaqien",
       "npm": "2306161800",
-      "proposalRole": "Analis Solusi dan Integrasi Layanan",
-      "primaryDomain": "Requirement analysis, sanitation standards, BoM 15 items, component comparison, procurement coordination, budget control",
+      "proposalRole": "Analis Solusi, Integrasi Layanan & Penanggung Jawab Aktuator",
+      "primaryDomain": "Requirement analysis, sanitation standards, BoM 15 items, component comparison, procurement coordination, budget control, penanggung jawab implementasi perangkat keras aktuator (Servo MG996R / Solenoid Door Lock, pengujian locking mechanism, proteksi driver aktuasi)",
       "allocatedHours": 35,
-      "reportFolder": "reports/individual/raka/"
+      "reportFolder": "management/reports/individual/raka/"
     },
     {
       "name": "Siti Amalia Nurfaidah",
       "npm": "2306161851",
       "proposalRole": "Pengembang Perangkat Lunak",
-      "primaryDomain": "Firmware ESP32 FreeRTOS multi-task, embedded logic, ADC/PWM signal processing, LoRa RA-02 433 MHz protocol (RadioLib, non-blocking), servo actuator automation",
+      "primaryDomain": "Firmware ESP32 FreeRTOS multi-task, embedded logic sensor, ADC/PWM signal processing, LoRa RA-02 433 MHz protocol (RadioLib, non-blocking), servo control algorithms",
       "allocatedHours": 45,
-      "reportFolder": "reports/individual/siti/"
+      "reportFolder": "management/reports/individual/siti/"
     },
     {
       "name": "Muhammad Ilman Zuhriy",
@@ -58,7 +60,7 @@
       "proposalRole": "Perancang Perangkat Keras",
       "primaryDomain": "Power architecture, solar 10Wp + battery 18650 1S4P, TP4056 BMS, wiring harness assembly (No custom PCB), analog gas sensor calibration",
       "allocatedHours": 45,
-      "reportFolder": "reports/individual/ilman/"
+      "reportFolder": "management/reports/individual/ilman/"
     },
     {
       "name": "Darrel Alfath",
@@ -66,25 +68,25 @@
       "proposalRole": "Desainer Mekanis dan Penguji Kualitas",
       "primaryDomain": "3D CAD parametric casing design, 3D printing PETG, weatherproofing IP54, mounting bracket, Master Test Plan, QA verification",
       "allocatedHours": 40,
-      "reportFolder": "reports/individual/darrel/"
+      "reportFolder": "management/reports/individual/darrel/"
     }
   ],
   "directories": {
     "root": "DESPRO2_SMART_SANITATION_MODULAR/",
     "assets": "assets/",
-    "reports": "reports/",
+    "management": "management/",
+    "reports": "management/reports/",
     "src": "src/",
-    "src_bin": "src/bin/",
-    "src_config": "src/config/",
     "src_data": "src/data/",
     "src_firmware": "src/firmware/",
+    "src_firmware_node_wc": "src/firmware/node_wc/",
+    "src_firmware_gateway": "src/firmware/gateway/",
     "src_server": "src/server/",
+    "src_scripts": "src/scripts/",
+    "docs": "docs/",
     "docs_architecture": "docs/architecture/",
     "docs_hardware_references": "docs/hardware_references/"
   },
-  "binaries": [
-    "src/bin/esos-server.exe"
-  ],
   "configurations": [
     "src/config/sensor_thresholds.json",
     "src/config/lora_config.json",
@@ -101,16 +103,19 @@
     "src/server/main.go",
     "src/server/models/models.go",
     "src/server/database/database.go",
-    "src/server/database/postgres_schema.sql",
     "src/server/mqtt/subscriber.go",
     "src/server/etl/pipeline.go",
     "src/server/api/handlers.go",
     "src/server/api/websocket.go",
     "src/server/static/index.html",
-    "src/firmware/platformio.ini",
-    "src/firmware/include/config.h",
-    "src/firmware/src/main.cpp",
-    "src/firmware_gateway/src/main.cpp"
+    "src/firmware/node_wc/platformio.ini",
+    "src/firmware/node_wc/include/config.h",
+    "src/firmware/node_wc/src/main.cpp",
+    "src/firmware/gateway/platformio.ini",
+    "src/firmware/gateway/include/config.h",
+    "src/firmware/gateway/src/main.cpp",
+    "src/data/postgres_schema.sql",
+    "src/scripts/dummy_gateway.go"
   ],
   "technicalDocs": [
     "docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md",
@@ -120,10 +125,16 @@
     "docs/architecture/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md",
     "docs/architecture/05_LORA_MQTT_TELEMETRY_PIPELINE.md",
     "docs/architecture/06_REST_API_OPENAPI_SPEC.md",
-    "docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md"
+    "docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md",
+    "src/firmware/docs/README.md",
+    "src/firmware/node_wc/docs/README.md",
+    "src/firmware/gateway/docs/README.md",
+    "src/server/docs/README.md",
+    "src/data/docs/README.md",
+    "src/scripts/docs/README.md"
   ],
   "procurementDocs": [
-    "02_BOM_PROCUREMENT.md"
+    "management/02_BOM_PROCUREMENT.md"
   ],
   "sheetsTemplates": [
     "assets/sheets_templates/01_DAILY_LOGBOOK_TRACKING.csv",

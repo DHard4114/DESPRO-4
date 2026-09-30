@@ -7,41 +7,28 @@
  * 1. IDENTIFIKASI BOARD & HARDWARE:
  *    - Target Board   : DOIT ESP32 DevKit V1 (30-pin / ESP32-WROOM-32)
  *    - Modul LoRa     : Ai-Thinker Ra-02 (Semtech SX1278)
- *    - Interface      : Hardware SPI Bus + Dedicated Control Lines
+ *    - Interface      : Hardware SPI Bus (GPIO Matrix) + Dedicated Control Lines
  *
- * 2. TABEL PENGKABELAN FISIK (WIRING HARNESS):
- *    +-------------------+--------------------+---------------------------------------+
- *    | Pin Ra-02 (SX1278)| Pin ESP32 DevKit V1| Fungsi & Catatan Teknis               |
- *    +-------------------+--------------------+---------------------------------------+
- *    | VCC               | 3V3 (3.3V)         | WAJIB 3.3V! (Dilarang ke 5V/VIN)      |
- *    | GND               | GND                | Ground bersama (Common Ground)        |
- *    | NSS (CS)          | GPIO 5             | SPI Chip Select                       |
- *    | MOSI              | GPIO 23            | SPI Master Out Slave In               |
- *    | MISO              | GPIO 19            | SPI Master In Slave Out               |
- *    | SCK               | GPIO 18            | SPI Clock                             |
- *    | RST (RESET)       | GPIO 14            | Reset Hardware SX1278                 |
- *    | DIO0              | GPIO 2             | Interupsi TX_DONE & RX_DONE           |
- *    +-------------------+--------------------+---------------------------------------+
- *    * CATATAN STRAPPING PIN (GPIO 2):
- *      Pada ESP32, GPIO 2 adalah strapping pin (harus LOW saat boot/flashing) dan terhubung
- *      ke onboard LED biru pada DevKit V1. Saat standby/sleep, SX1278 menahan DIO0 LOW
- *      sehingga boot normal. Jika terjadi kegagalan boot/flash saat modul terpasang,
- *      pindahkan DIO0 ke pin alternatif (misal GPIO 4) dan sesuaikan macro PIN_LORA_DIO0.
+ * 2. TABEL PENGKABELAN FISIK (WIRING HARNESS SESUAI JUMPER AKTIF):
+ *    +-------------------+--------------------+------------------+-----------------------+
+ *    | Pin Ra-02 (SX1278)| Pin ESP32 DevKit V1| Warna Kabel Fisik| Fungsi & Catatan      |
+ *    +-------------------+--------------------+------------------+-----------------------+
+ *    | 3.3V (Kiri Pin 3) | 3V3 (Kanan Pin 1)  | Putih            | Catu Daya 3.3V Stabil |
+ *    | GND  (Kiri Pin 2) | GND (Kanan Pin 2)  | Hitam            | Ground Bersama        |
+ *    | RST  (Kiri Pin 4) | D15 (Kanan Pin 3)  | Biru             | Reset Hardware SX1278 |
+ *    | DIO0 (Kiri Pin 5) | D2  (Kanan Pin 4)  | Ungu             | Interrupt TX/RX Done  |
+ *    | NSS  (Kanan Pin 2)| D5  (Kanan Pin 8)  | Kuning           | SPI Chip Select (CS)  |
+ *    | MOSI (Kanan Pin 3)| D18 (Kanan Pin 9)  | Oranye           | SPI Master Out Slave In|
+ *    | MISO (Kanan Pin 4)| D19 (Kanan Pin 10) | Merah            | SPI Master In Slave Out|
+ *    | SCK  (Kanan Pin 5)| D21 (Kanan Pin 11) | Cokelat          | SPI Clock Bus         |
+ *    +-------------------+--------------------+------------------+-----------------------+
  *
  * 3. KEPATUHAN REGULASI SPEKTRUM RADIO INDONESIA:
- *    - Regulasi Acuan : Peraturan Menteri Komdigi (Permenkomdigi) No. 2 Tahun 2025 (Pita LPWAN/SRD).
+ *    - Regulasi Acuan : Peraturan Menteri Komdigi (Permenkomdigi) No. 2 Tahun 2025.
  *    - Alokasi Pita   : 433,050 MHz – 434,790 MHz (Bandwidth kanal maksimum: 125 kHz).
- *    - Frekuensi Uji  : 433.175 MHz (Pusat kanal rentang nominal: 433,1125 – 433,2375 MHz).
+ *    - Frekuensi Uji  : 433.175 MHz (Pusat kanal rentang nominal).
  *    - Batas Daya     : Maks. 12,15 dBm EIRP (setara 10 dBm ERP / 10 mW).
- *    - Catatan EIRP   : Kepatuhan emisi nyata bergantung pada EIRP = P_conducted - L_kabel + G_antena.
- *        * Default Lapangan: +10 dBm conducted. Dengan antena 2 dBi dan kabel pendek, EIRP ~12 dBm (<= 12,15 dBm).
- *        * Khusus Lab Berpelindung: +17 dBm (Hanya dengan atenuator RF/dummy load untuk uji terisolasi).
- *
- * 4. ATURAN KESELAMATAN RF & PERINGATAN:
- *    - Antena 433 MHz WAJIB terpasang sebelum modul dinyalakan. Keberhasilan inisialisasi SPI
- *      TIDAK memverifikasi keberadaan antena fisik.
- *    - Status RADIOLIB_ERR_NONE HANYA membuktikan proses modulasi TX di sisi pengirim selesai,
- *      BUKAN jaminan paket diterima di posko atau gelombang RF terpancar jika antena lepas.
+ *    - Daya Pancar TX : +10 dBm (Conducted).
  * ======================================================================================
  */
 
@@ -50,14 +37,14 @@
 #include <RadioLib.h>
 
 // ===================================================================
-// 1. DEFINISI PIN PERANGKAT KERAS (ESP32 DevKit V1)
+// 1. DEFINISI PIN PERANGKAT KERAS (SESUAI WIRING JUMPER FISIK AKTIF)
 // ===================================================================
-#define PIN_LORA_NSS      5     // Chip Select SPI
-#define PIN_LORA_DIO0     2     // Interrupt TX/RX Done (Strapping Pin / LED_BUILTIN)
-#define PIN_LORA_RESET    14    // Hardware Reset
-#define PIN_LORA_MISO     19    // SPI MISO
-#define PIN_LORA_MOSI     23    // SPI MOSI
-#define PIN_LORA_SCK      18    // SPI SCK
+#define PIN_LORA_SCK      21    // Cokelat (D21 ESP32)
+#define PIN_LORA_MISO     19    // Merah   (D19 ESP32)
+#define PIN_LORA_MOSI     18    // Oranye  (D18 ESP32)
+#define PIN_LORA_NSS      5     // Kuning  (D5  ESP32)
+#define PIN_LORA_DIO0     2     // Ungu    (D2  ESP32)
+#define PIN_LORA_RESET    15    // Biru    (D15 ESP32)
 
 // ===================================================================
 // 2. PARAMETER MODULASI RF (PATUH REGULASI KOMINFO INDONESIA)
@@ -67,16 +54,11 @@
 #define LORA_SF           9       // Spreading Factor (SF9: uji ketahanan hambatan bertahap)
 #define LORA_CR           7       // Coding Rate 4/7 (CR = 3)
 #define LORA_SYNC_WORD    0x12    // Sync Word Jaringan Privat eSOS (SX127X)
-
-// Pengaturan Daya: 10 dBm untuk kepatuhan regulasi EIRP lapangan (Maks 12,15 dBm EIRP)
-// Untuk uji laboratorium terisolasi dengan atenuator, dapat disetel hingga +17 dBm (PA_BOOST).
-#define LORA_TX_POWER     10      // Conducted Power (dBm)
+#define LORA_TX_POWER     10      // Conducted Power (dBm) - Target EIRP <= 12,15 dBm
 
 // ===================================================================
 // 3. KONTRAK STRUKTUR PAYLOAD BINER MUTLAK
 // ===================================================================
-// Format Biner: Little-Endian (Arsitektur Xtensa 32-bit LX6 ESP32).
-// Ukuran Total: Tepat 34 Bytes (Tanpa padding compiler).
 struct __attribute__((packed)) TelemetryPayload {
     uint8_t schema_version; // Offset  0 | 1 byte  : Versi skema biner (Selalu 1)
     char node_code[8];      // Offset  1 | 8 bytes : Kode identitas node ("WC_01\0\0\0")
@@ -89,15 +71,13 @@ struct __attribute__((packed)) TelemetryPayload {
     uint8_t sos_triggered;  // Offset 33 | 1 byte  : Flag status darurat (0 = Normal, 1 = Darurat)
 };
 
-// Verifikasi integritas ukuran payload saat kompilasi
 static_assert(sizeof(TelemetryPayload) == 34, "FATAL: Ukuran TelemetryPayload harus tepat 34 bytes!");
 
 // ===================================================================
 // 4. INSTANSIASI OBJEK HARDWARE RADIOLIB
 // ===================================================================
-// Koreksi Argumen: Argumen ke-4 Module(cs, irq, rst, gpio) adalah GPIO tambahan (DIO1),
-// BUKAN pin MISO! MISO dikonfigurasi melalui objek SPIClass. Gunakan RADIOLIB_NC dan oper objek SPI.
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI);
+// Menggunakan SPI 1 MHz untuk kestabilan sinyal tinggi pada kabel jumper breadboard
+SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI, SPISettings(1000000, MSBFIRST, SPI_MODE0));
 
 // Handle Antrean FreeRTOS
 QueueHandle_t xLoRaQueue = NULL;
@@ -116,12 +96,10 @@ void vTaskGenerateTelemetry(void *pvParameters) {
         packet.sequence_no = ++global_packet_counter;
         packet.uptime_seconds = (uint32_t)(millis() / 1000);
 
-        // Nilai simulasi eksplisit (Bukan data sensor riil terkalibrasi)
-        // Sumber daya BoM acuan: Baterai Li-ion 18650 1S4P (3.7V nominal, 4.2V max)
-        packet.water_level_cm = 42.5f;   // Simulasi level tangki (Belum sensor fisik)
-        packet.ammonia_ppm = 8.4f;       // Simulasi amonia (Belum sensor fisik)
-        packet.h2s_ppm = 1.2f;           // Simulasi H2S (Belum sensor fisik)
-        packet.battery_voltage = 3.82f;  // Simulasi Li-ion 18650 (Belum voltage divider riil)
+        packet.water_level_cm = 42.5f;   // Simulasi level tangki
+        packet.ammonia_ppm = 8.4f;       // Simulasi amonia
+        packet.h2s_ppm = 1.2f;           // Simulasi H2S
+        packet.battery_voltage = 3.82f;  // Simulasi Li-ion 18650
         packet.sos_triggered = 0;
 
         UBaseType_t stackRemaining = uxTaskGetStackHighWaterMark(NULL);
@@ -133,7 +111,7 @@ void vTaskGenerateTelemetry(void *pvParameters) {
             Serial.printf("[CORE 0 - PERINGATAN] Antrean penuh! Paket #%u gagal dimasukkan.\n", packet.sequence_no);
         }
 
-        // Interval pengujian: 5000 ms (Melepaskan CPU secara sukarela via FreeRTOS scheduler)
+        // Interval pengujian: 5000 ms
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
@@ -150,8 +128,8 @@ void vTaskLoRaTransmitter(void *pvParameters) {
             
             UBaseType_t stackRemaining = uxTaskGetStackHighWaterMark(NULL);
             
-            // Hitung estimasi teoritis Time-on-Air (ToA) berdasarkan register modulasi RadioLib
-            float estimatedToA = radio.getTimeOnAir(sizeof(TelemetryPayload)) / 1000.0f; // Konversi us ke ms
+            // Hitung estimasi teoritis Time-on-Air (ToA)
+            float estimatedToA = radio.getTimeOnAir(sizeof(TelemetryPayload)) / 1000.0f; // ms
 
             Serial.println("-------------------------------------------------------------------");
             Serial.printf("[CORE 1 - LORA TX] Mengambil Paket #%u dari Queue (Stack Free: %u words)\n", 
@@ -161,7 +139,7 @@ void vTaskLoRaTransmitter(void *pvParameters) {
                           txData.ammonia_ppm, txData.h2s_ppm, txData.battery_voltage);
             Serial.printf("  RF Config     : Frek=%.3f MHz | SF=%d | BW=%.1f kHz | Daya=%d dBm\n",
                           LORA_FREQ, LORA_SF, LORA_BW, LORA_TX_POWER);
-            Serial.printf("  Estimasi ToA  : %.2f ms (Dihitung dari formula Semtech SX1278)\n", estimatedToA);
+            Serial.printf("  Estimasi ToA  : %.2f ms (Formula Semtech SX1278)\n", estimatedToA);
 
             unsigned long startExecTime = millis();
             
@@ -189,9 +167,7 @@ void vTaskLoRaTransmitter(void *pvParameters) {
 // ===================================================================
 void setup() {
     Serial.begin(115200);
-    
-    // Beri jeda 2 detik untuk stabilisasi Serial Monitor laptop
-    delay(2000);
+    delay(1000); // Waktu stabilisasi Serial UART
 
     Serial.println("\n\n===================================================================");
     Serial.println("   SMART-SANITATION eSOS - UJI LORA NODE TRANSMITTER (ESP32 DevKit V1) ");
@@ -206,55 +182,37 @@ void setup() {
     Serial.printf("  - Sync Word           : 0x%02X (Jaringan Privat)\n", LORA_SYNC_WORD);
     Serial.printf("  - Daya Pancar Chip    : +%d dBm (Target EIRP <= 12,15 dBm Kominfo)\n", LORA_TX_POWER);
     Serial.printf("  - Ukuran Struct Biner : %u Bytes (static_assert terverifikasi)\n", (unsigned int)sizeof(TelemetryPayload));
+    Serial.printf("  - Pemetaan Pin Jumper : SCK:%d (Cokelat), MOSI:%d (Oranye), MISO:%d (Merah), NSS:%d (Kuning), RST:%d (Biru), DIO0:%d (Ungu)\n",
+                  PIN_LORA_SCK, PIN_LORA_MOSI, PIN_LORA_MISO, PIN_LORA_NSS, PIN_LORA_RESET, PIN_LORA_DIO0);
     Serial.println("===================================================================");
 
-    // 1. Inisialisasi Bus SPI secara Eksplisit untuk DevKit V1
-    Serial.print("1. Inisialisasi Hardware SPI Bus (SCK:18, MISO:19, MOSI:23, SS:5)... ");
-    
-    // UJI ELEKTRIK 1: Cek apakah GPIO 19 (MISO) korslet ke GND secara fisik
-    pinMode(PIN_LORA_MISO, INPUT_PULLUP);
-    delay(20);
-    int misoPullup = digitalRead(PIN_LORA_MISO);
-
-    SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_NSS);
-    Serial.println("[OK]");
-
-    Serial.printf("   [UJI ELEKTRIK GPIO 19/MISO] Status dengan Internal Pull-up: %s\n",
-                  misoPullup == HIGH ? "HIGH (Normal, tidak terhubung ke Ground)" : "LOW (PERINGATAN: KORSLET / TERCOLOK KE GROUND!)");
-
-    // UJI ELEKTRIK 2: Uji Pembacaan Langsung Raw SPI Register 0x42 (RegVersion) & Register 0x06 (RegFrfMsb)
+    // 0. Pre-inisialisasi NSS ke HIGH agar SX1278 tidak merespons noise boot ESP32
     pinMode(PIN_LORA_NSS, OUTPUT);
     digitalWrite(PIN_LORA_NSS, HIGH);
-    delay(10);
-    
-    digitalWrite(PIN_LORA_NSS, LOW);
-    SPI.transfer(0x42 & 0x7F); // Alamat 0x42 (RegVersion), MSB 0 untuk Read
-    uint8_t rawVersion = SPI.transfer(0x00);
-    digitalWrite(PIN_LORA_NSS, HIGH);
-    delay(5);
 
-    digitalWrite(PIN_LORA_NSS, LOW);
-    SPI.transfer(0x06 & 0x7F); // Alamat 0x06 (RegFrfMsb default SX1278 adalah 0x6C / 434 MHz)
-    uint8_t rawFrf = SPI.transfer(0x00);
-    digitalWrite(PIN_LORA_NSS, HIGH);
+    // 1. Hard Reset Hardware SX1278 (Durasi 20ms LOW, lalu 100ms settling time)
+    Serial.print("1. Melakukan Hardware Reset SX1278 (RST:15)... ");
+    pinMode(PIN_LORA_RESET, OUTPUT);
+    digitalWrite(PIN_LORA_RESET, LOW);
+    delay(20);
+    digitalWrite(PIN_LORA_RESET, HIGH);
+    delay(100); // Memberikan waktu agar kristal osilator 32 MHz dan regulator stabil
+    Serial.println("[OK]");
 
-    Serial.printf("   [DIAGNOSTIK FISIK SPI] RegVersion (0x42): 0x%02X | RegFrfMsb (0x06): 0x%02X\n", rawVersion, rawFrf);
-    if (rawVersion == 0x12) {
-        Serial.println("   -> [STATUS SPI] Chip SX1278 merespons normal (0x12)! Jalur SPI dan VCC berfungsi.");
-    } else if (rawVersion == 0x00 && rawFrf == 0x00) {
-        Serial.println("   -> [ANALISIS 0x00] Jalur MISO flat 0V pada semua register! Penyebab pasti:");
-        Serial.println("      1. Modul Ra-02 TIDAK MENERIMA DAYA 3.3V (Kabel VCC/GND putus atau rel breadboard terputus di tengah).");
-        Serial.println("      2. Pin MISO (GPIO 19) dicolok ke pin GND pada modul Ra-02.");
-        Serial.println("      3. Pin RST Ra-02 terhubung ke GND.");
-    } else if (rawVersion == 0xFF && rawFrf == 0xFF) {
-        Serial.println("   -> [ANALISIS 0xFF] Jalur MISO selalu HIGH / Mengambang! Periksa kabel NSS (5), MOSI (23), SCK (18).");
-    } else {
-        Serial.println("   -> [ANALISIS] Ada aktivitas parsial pada SPI, tetapi data belum stabil.");
+    // 2. Inisialisasi Hardware SPI Bus (SS=-1 agar tidak konflik dengan kontrol manual CS di RadioLib)
+    Serial.printf("2. Inisialisasi Hardware SPI Bus (SCK:%d, MISO:%d, MOSI:%d, SS:Manual)... ",
+                  PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI);
+    SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, -1);
+    Serial.println("[OK]");
+
+    // 3. Inisialisasi Radio SX1278 via RadioLib dengan retry loop
+    Serial.print("3. Menghubungi Register Chip Semtech SX1278... ");
+    int initState = RADIOLIB_ERR_UNKNOWN;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        initState = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
+        if (initState == RADIOLIB_ERR_NONE) break;
+        delay(50);
     }
-
-    // 2. Inisialisasi Radio SX1278
-    Serial.print("2. Menghubungi Register Chip Semtech SX1278... ");
-    int initState = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
 
     if (initState == RADIOLIB_ERR_NONE) {
         Serial.println("[OK]");
@@ -273,15 +231,16 @@ void setup() {
         Serial.println("[GAGAL]");
         Serial.printf("   -> Kode Galat RadioLib: %d\n", initState);
         Serial.println("   -> Langkah Diagnostik:");
-        Serial.println("      1. Periksa kabel SPI (MOSI:23, MISO:19, SCK:18, NSS:5, RST:14).");
+        Serial.printf("      1. Periksa kabel SPI (MOSI:%d, MISO:%d, SCK:%d, NSS:%d, RST:%d, DIO0:%d).\n",
+                      PIN_LORA_MOSI, PIN_LORA_MISO, PIN_LORA_SCK, PIN_LORA_NSS, PIN_LORA_RESET, PIN_LORA_DIO0);
         Serial.println("      2. Pastikan tegangan VCC adalah 3.3V stabil (Bukan 5V).");
         Serial.println("      3. Periksa pin DIO0 (GPIO 2) tidak tertahan tegangan tinggi saat boot.");
         Serial.println("Sistem dihentikan.");
         while (true) delay(1000);
     }
 
-    // 3. Alokasi Antrean FreeRTOS
-    Serial.print("3. Mengalokasikan FreeRTOS Queue (Kapasitas: 5 Paket)... ");
+    // 4. Alokasi Antrean FreeRTOS
+    Serial.print("4. Mengalokasikan FreeRTOS Queue (Kapasitas: 5 Paket)... ");
     xLoRaQueue = xQueueCreate(5, sizeof(TelemetryPayload));
     if (xLoRaQueue == NULL) {
         Serial.println("[GAGAL]");
@@ -290,8 +249,8 @@ void setup() {
     }
     Serial.println("[OK]");
 
-    // 4. Pembagian Multitasking FreeRTOS ke Dual-Core
-    Serial.println("4. Memasang Task FreeRTOS ke Dual Core ESP32:");
+    // 5. Pembagian Multitasking FreeRTOS ke Dual-Core
+    Serial.println("5. Memasang Task FreeRTOS ke Dual Core ESP32:");
     
     BaseType_t taskSensorsStatus = xTaskCreatePinnedToCore(
         vTaskGenerateTelemetry, 
@@ -328,8 +287,5 @@ void setup() {
 // LOOP FUNCTION (Perilaku FreeRTOS pada Arduino-ESP32)
 // ===================================================================
 void loop() {
-    // Pada Arduino-ESP32, loop() berjalan di dalam loopTask bawaan.
-    // Menghapus task ini dengan vTaskDelete(NULL) akan menghentikan eksekusi loopTask
-    // dan membiarkan Task Idle FreeRTOS mereklamasi memori stack-nya secara asinkron.
     vTaskDelete(NULL);
 }
