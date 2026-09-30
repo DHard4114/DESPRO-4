@@ -7,7 +7,7 @@
  * Manual Ver.  : Winsen Manual v1.6 (Valid from: 2021-07-01)
  * Framework    : Arduino-ESP32 (v2.0.17 / ESP-IDF v4.4) + Native Espressif FreeRTOS
  * Author       : AI Engineering Agent (Antigravity) on behalf of Kelompok 4 FTUI
- * Date         : September 2026 (Refactored v2.1)
+ * Date         : September 2026 (Refactored v2.2)
  *
  * CRITICAL ARCHITECTURAL & ELECTRICAL GOVERNANCE:
  * -----------------------------------------------------------------------------------------
@@ -34,18 +34,29 @@
  *      * Rs      : Sensor resistance in Ohms (accounting for parallel divider loading).
  *      * Rs/R0   : Ratio relative to clean-air baseline.
  *
- * 4. ELECTRICAL SAFETY & RESISTOR DIVIDER:
- *    - Breakout Analog Output (AO) can reach 5.0V. ESP32 GPIO breakdown voltage is ~3.6V.
- *    - Resistor divider (R_TOP, R_BOTTOM) is mandatory. Proposed: 10k / 15k (k = 0.60).
- *    - Proposed divider is marked UNCONFIRMED at boot until explicitly set/confirmed by user.
+ * 4. ELECTRICAL SAFETY & UNIFIED RESISTOR DIVIDER VALIDATION:
+ *    - Breakout Analog Output (AO) can reach 5.0V. ESP32 continuous safe pin limit is 3.3V.
+ *    - Resistor divider (R_TOP, R_BOTTOM) is mandatory. Default template: 10k / 15k (k = 0.60).
+ *    - Proposed divider is marked UNCONFIRMED at boot until explicitly set or loaded from valid NVS.
+ *    - Unified validator validateDivider() enforces:
+ *      * Physical range: 100 Ohm <= R <= 10 MOhm.
+ *      * Safe ratio range: 0.1000 <= k <= 0.6600.
+ *        Max k=0.6600 guarantees V_pin <= 3.3V when breakout AO reaches 5.0V.
  *    - Parallel loading effect: RL_eff = (RL * (R_TOP + R_BOTTOM)) / (RL + R_TOP + R_BOTTOM).
- *    - Any change to divider or RL immediately INVALIDATES any existing R0 calibration.
+ *    - Any change to divider or RL immediately INVALIDATES existing R0 and cancels active calibration.
  *
- * 5. SINGLE-OWNER CONCURRENCY & PERSISTENCE SAFETY:
+ * 5. HONEST PERSISTENCE & NVS INTEGRITY:
  *    - TaskMQSampler is the SOLE OWNER of configuration, NVS flash operations, and ADC sampling.
- *    - TaskMQLogger is the SOLE WRITER to the Serial port.
- *    - NVS strictly persists explicit validity flags (r0_ok_137, etc.) and removes stale keys
- *      upon invalidation to prevent stale baseline resurrection after reboot.
+ *    - Configuration persisted as an atomic versioned binary blob (MQNVSRecord, schema v2)
+ *      with 32-bit CRC checksum. All return values verified.
+ *    - Legacy v1 keys are detected and safely ignored (never silently erased without user command).
+ *    - Explicit validity flags persisted per-channel; stale R0 resurrection is impossible.
+ *
+ * 6. STRICT SEPARATION OF RL, RS, AND RS/R0 VALIDITY:
+ *    - MQ_FLAG_RL_OK indicates valid RL configuration.
+ *    - MQ_FLAG_RS_VALID indicates successful, physically bounded Rs calculation.
+ *    - Voltage bounds enforced: 50 mV <= V_AO <= 4950 mV. Out-of-bounds marked SIGNAL_INVALID.
+ *    - Output prints explicit 'N/A [REASON]' instead of sentinel numeric values.
  * =========================================================================================
  */
 
@@ -82,10 +93,11 @@
 // Digital Filter Constant
 #define EMA_ALPHA               0.25f   // Exponential Moving Average smoothing factor
 
-// NVS Persistent Storage Configuration
+// NVS Persistent Storage Configuration (Schema v2)
 #define NVS_NAMESPACE           "mq_cal"
-#define NVS_MAGIC_HEADER        0x4D513031  // ASCII 'MQ01'
-#define NVS_VERSION             1
+#define NVS_BLOB_KEY            "mq_rec"
+#define NVS_MAGIC_HEADER        0x4D513032  // ASCII 'MQ02'
+#define NVS_VERSION             2
 
 // Special value when a parameter cannot be computed
 #define MQ_VALUE_UNCONFIGURED   (-1.0f)
@@ -97,10 +109,11 @@
 #define MQ_FLAG_R0_CALIBRATED   (1 << 3)    // Clean air baseline R0 calibrated
 #define MQ_FLAG_ADC_SATURATED   (1 << 4)    // ADC clipped at raw >= 4095
 #define MQ_FLAG_PREHEAT_WARN    (1 << 5)    // Uptime < 48 hours notice
-#define MQ_FLAG_SIGNAL_INVALID  (1 << 6)    // Out of bounds, open circuit, or saturated
+#define MQ_FLAG_SIGNAL_INVALID  (1 << 6)    // Out of bounds (<50mV or >= Vc-50mV), open circuit, or saturated
+#define MQ_FLAG_RS_VALID        (1 << 7)    // Rs calculated successfully and physically valid
 
-// Calibration Requirements
-#define CALIBRATION_REQUIRED_FLAGS  ((uint8_t)(MQ_FLAG_DIVIDER_OK | MQ_FLAG_RL_OK))
+// Calibration Requirements (Must have valid Rs calculation)
+#define CALIBRATION_REQUIRED_FLAGS  ((uint8_t)(MQ_FLAG_DIVIDER_OK | MQ_FLAG_RL_OK | MQ_FLAG_RS_VALID))
 
 // =========================================================================================
 // 2. DATA STRUCTURES & PROTOCOLS
@@ -194,6 +207,28 @@ struct CalibrationState {
     float last_rs_readings[10];
 };
 
+// Packed Binary Record for Atomic NVS Storage (Schema v2)
+struct __attribute__((packed)) MQChannelRecord {
+    float r_top_ohm;
+    float r_bottom_ohm;
+    float divider_k;
+    float rl_nominal_ohm;
+    float r0_clean_air_ohm;
+    uint8_t is_divider_valid;
+    uint8_t is_rl_valid;
+    uint8_t is_r0_valid;
+    uint8_t reserved;
+};
+
+struct __attribute__((packed)) MQNVSRecord {
+    uint32_t magic;                 // 0x4D513032 ('MQ02')
+    uint16_t schema_version;        // 2
+    uint16_t reserved;
+    MQChannelRecord ch137;
+    MQChannelRecord ch136;
+    uint32_t crc32;                 // CRC32 of preceding fields
+};
+
 // =========================================================================================
 // 3. GLOBAL VARIABLES & RTOS HANDLES
 // =========================================================================================
@@ -209,8 +244,8 @@ static TaskHandle_t xHandleMQLogger = NULL;
 static MQChannelConfig config137 = {
     .gas_name = "NH3 (MQ137)",
     .pin = PIN_ADC_MQ137,
-    .r_top_ohm = 10000.0f,          // 10 kOhm proposed default
-    .r_bottom_ohm = 15000.0f,       // 15 kOhm proposed default
+    .r_top_ohm = 10000.0f,          // 10 kOhm proposed default template
+    .r_bottom_ohm = 15000.0f,       // 15 kOhm proposed default template
     .divider_k = 0.6000f,           // 15 / (10 + 15) = 0.6000
     .rl_nominal_ohm = 0.0f,         // 0 = unconfigured
     .r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED,
@@ -222,8 +257,8 @@ static MQChannelConfig config137 = {
 static MQChannelConfig config136 = {
     .gas_name = "H2S (MQ136)",
     .pin = PIN_ADC_MQ136,
-    .r_top_ohm = 10000.0f,          // 10 kOhm proposed default
-    .r_bottom_ohm = 15000.0f,       // 15 kOhm proposed default
+    .r_top_ohm = 10000.0f,          // 10 kOhm proposed default template
+    .r_bottom_ohm = 15000.0f,       // 15 kOhm proposed default template
     .divider_k = 0.6000f,           // 15 / (10 + 15) = 0.6000
     .rl_nominal_ohm = 0.0f,         // 0 = unconfigured
     .r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED,
@@ -247,7 +282,7 @@ static MQDataFrame s_last_valid_frame;
 static bool s_has_received_frame = false;
 
 // =========================================================================================
-// 4. FORWARD DECLARATIONS
+// 4. FORWARD DECLARATIONS & VALIDATION HELPERS
 // =========================================================================================
 static void TaskMQSampler(void* pvParameters);
 static void TaskMQLogger(void* pvParameters);
@@ -257,12 +292,87 @@ static void loadConfigurationFromNVS();
 static void saveConfigurationToNVS();
 static void resetCalibrationInNVS();
 
+static bool validateDivider(float r_top, float r_bottom, float* out_k, char* err_buf, size_t err_len);
+static bool validateRL(float rl, char* err_buf, size_t err_len);
+static uint32_t calculateCRC32(const uint8_t* data, size_t length);
+
 static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* reading, float* ema_val);
 static void handleIncomingCommand(const MQCommand* cmd);
 static void parseSerialInput(const char* line);
 static void printCommandHelp();
 static void printActiveConfig(const MQChannelConfigSnapshot* c137, const MQChannelConfigSnapshot* c136);
 static void populateConfigSnapshot(MQChannelConfigSnapshot* snap, const MQChannelConfig* cfg);
+
+/**
+ * Standard IEEE 802.3 CRC32 Calculation
+ */
+static uint32_t calculateCRC32(const uint8_t* data, size_t length) {
+    uint32_t crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < length; i++) {
+        crc ^= data[i];
+        for (uint8_t j = 0; j < 8; j++) {
+            if (crc & 1) {
+                crc = (crc >> 1) ^ 0xEDB88320;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    return crc ^ 0xFFFFFFFF;
+}
+
+/**
+ * Unified Voltage Divider Validation
+ *
+ * Enforces:
+ *  1. Physical resistor range: 100 Ohm <= R <= 10 MOhm.
+ *  2. Safe electrical ratio: 0.1000 <= k <= 0.6600.
+ *     k_max = 0.6600 guarantees that a 5.0V breakout AO swing produces V_pin <= 3.3V,
+ *     protecting the ESP32 GPIO from overvoltage damage.
+ */
+static bool validateDivider(float r_top, float r_bottom, float* out_k, char* err_buf, size_t err_len) {
+    if (!isfinite(r_top) || !isfinite(r_bottom) ||
+        r_top < 100.0f || r_top > 10000000.0f ||
+        r_bottom < 100.0f || r_bottom > 10000000.0f) {
+        if (err_buf && err_len > 0) {
+            snprintf(err_buf, err_len, "Resistors must be finite and within 100 Ohm to 10 MOhm");
+        }
+        return false;
+    }
+    float sum = r_top + r_bottom;
+    if (sum <= 0.0f) {
+        if (err_buf && err_len > 0) {
+            snprintf(err_buf, err_len, "Resistor sum must be positive");
+        }
+        return false;
+    }
+    float k = r_bottom / sum;
+    if (k < 0.1000f || k > 0.6600f) {
+        if (err_buf && err_len > 0) {
+            snprintf(err_buf, err_len, "Divider ratio k=%.4f out of safe bounds [0.1000, 0.6600]. Max k=0.66 ensures V_pin <= 3.3V at 5.0V AO", k);
+        }
+        return false;
+    }
+    if (out_k != NULL) {
+        *out_k = k;
+    }
+    return true;
+}
+
+/**
+ * Unified Load Resistor (RL) Validation
+ *
+ * Enforces: 100 Ohm <= RL <= 1 MOhm.
+ */
+static bool validateRL(float rl, char* err_buf, size_t err_len) {
+    if (!isfinite(rl) || rl < 100.0f || rl > 1000000.0f) {
+        if (err_buf && err_len > 0) {
+            snprintf(err_buf, err_len, "RL must be finite and within 100 Ohm to 1 MOhm");
+        }
+        return false;
+    }
+    return true;
+}
 
 // =========================================================================================
 // 5. ARDUINO SETUP & SYSTEM INITIALIZATION
@@ -273,7 +383,7 @@ void setup() {
     
     Serial.println();
     Serial.println(F("========================================================================"));
-    Serial.println(F(" Smart-Sanitation eSOS — ESP32 Dual Gas Sensor Diagnostics [v2.1]       "));
+    Serial.println(F(" Smart-Sanitation eSOS — ESP32 Dual Gas Sensor Diagnostics [v2.2]       "));
     Serial.println(F(" Subsystem: Winsen MQ-137 (NH3) & Winsen MQ-136 (H2S) Test Harness      "));
     Serial.println(F(" Framework: Arduino-ESP32 v2.0.17 / Native Espressif FreeRTOS           "));
     Serial.println(F("========================================================================"));
@@ -380,11 +490,8 @@ static void TaskMQSampler(void* pvParameters) {
             MQChannelReading* targetReading = (calState.target_sensor == 137) ? &frame.mq137 : &frame.mq136;
             MQChannelConfig* targetCfg = (calState.target_sensor == 137) ? &config137 : &config136;
 
-            // Bug fix: Check both flags explicitly and ensure signal is valid
-            if (((targetReading->status_flags & CALIBRATION_REQUIRED_FLAGS) == CALIBRATION_REQUIRED_FLAGS) &&
-                !(targetReading->status_flags & (MQ_FLAG_SIGNAL_INVALID | MQ_FLAG_ADC_SATURATED)) &&
-                targetReading->rs_ohm > 0.0f) {
-                
+            // Strictly require valid Rs calculation before accumulating sample
+            if (targetReading->status_flags & MQ_FLAG_RS_VALID) {
                 calState.last_rs_readings[calState.frame_count] = targetReading->rs_ohm;
                 calState.rs_accumulator += targetReading->rs_ohm;
                 calState.frame_count++;
@@ -421,7 +528,7 @@ static void TaskMQSampler(void* pvParameters) {
                     calState.active = false;
                 }
             } else {
-                samplerLog("[CAL ABORTED] %s: Circuit invalid, ADC saturated, or signal out of range!",
+                samplerLog("[CAL ABORTED] %s: Circuit unconfirmed, ADC saturated, or Rs invalid!",
                            targetCfg->gas_name);
                 calState.active = false;
             }
@@ -510,33 +617,36 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
     reading->status_flags |= MQ_FLAG_RAW_OK;
 
     // 3. Voltage Reconstruction (V_AO = V_ADC / k)
-    if (cfg->is_divider_valid && cfg->divider_k > 0.01f && cfg->divider_k < 0.99f) {
+    float k = 0.0f;
+    if (cfg->is_divider_valid && validateDivider(cfg->r_top_ohm, cfg->r_bottom_ohm, &k, NULL, 0)) {
         reading->status_flags |= MQ_FLAG_DIVIDER_OK;
-        reading->v_ao_mv = reading->v_adc_mv / cfg->divider_k;
+        reading->v_ao_mv = reading->v_adc_mv / k;
     } else {
         reading->v_ao_mv = MQ_VALUE_UNCONFIGURED;
     }
 
-    // Check for abnormal voltage bounds (Open circuit < 100 mV or short circuit > Vc - 50 mV)
-    if (reading->v_ao_mv > 0.0f) {
-        if (reading->v_ao_mv < 100.0f || reading->v_ao_mv >= (V_LOOP_SUPPLY_VOLTS * 1000.0f - 50.0f)) {
+    // 4. Physical Signal Bounds Checking:
+    // If divider confirmed, check if reconstructed V_AO is physically plausible:
+    // Open circuit / disconnected: V_AO < 50 mV
+    // Short circuit / saturated near rail: V_AO >= (Vc - 50 mV)
+    if (reading->status_flags & MQ_FLAG_DIVIDER_OK) {
+        if (reading->v_ao_mv < 50.0f || reading->v_ao_mv >= (V_LOOP_SUPPLY_VOLTS * 1000.0f - 50.0f)) {
             reading->status_flags |= MQ_FLAG_SIGNAL_INVALID;
         }
     }
 
-    // 4. Validate RL Configuration Flag Before Circuit Prerequisite Check
-    if (cfg->is_rl_valid && isfinite(cfg->rl_nominal_ohm) && cfg->rl_nominal_ohm > 0.0f) {
+    // 5. Validate RL Configuration
+    if (cfg->is_rl_valid && validateRL(cfg->rl_nominal_ohm, NULL, 0)) {
         reading->status_flags |= MQ_FLAG_RL_OK;
     }
 
-    // 5. Sensor Resistance Calculation (Rs)
+    // 6. Sensor Resistance Calculation (Rs)
     // Formula: Rs = ((Vc / V_AO) - 1) * RL_eff
-    // Accounting for parallel divider loading:
-    // RL_eff = (RL * (R_top + R_bottom)) / (RL + R_top + R_bottom)
+    // Parallel divider loading: RL_eff = (RL * (R_top + R_bottom)) / (RL + R_top + R_bottom)
     const uint8_t req_circuit = MQ_FLAG_DIVIDER_OK | MQ_FLAG_RL_OK;
     if (((reading->status_flags & req_circuit) == req_circuit) &&
-        !(reading->status_flags & MQ_FLAG_SIGNAL_INVALID) &&
-        reading->v_ao_mv > 0.0f) {
+        !(reading->status_flags & (MQ_FLAG_SIGNAL_INVALID | MQ_FLAG_ADC_SATURATED)) &&
+        reading->v_ao_mv >= 50.0f) {
 
         float v_ao_volts = reading->v_ao_mv / 1000.0f;
         float r_divider_total = cfg->r_top_ohm + cfg->r_bottom_ohm;
@@ -545,6 +655,7 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
         float calculated_rs = ((V_LOOP_SUPPLY_VOLTS / v_ao_volts) - 1.0f) * rl_eff;
         if (isfinite(calculated_rs) && calculated_rs > 0.0f) {
             reading->rs_ohm = calculated_rs;
+            reading->status_flags |= MQ_FLAG_RS_VALID;
         } else {
             reading->rs_ohm = MQ_VALUE_UNCONFIGURED;
             reading->status_flags |= MQ_FLAG_SIGNAL_INVALID;
@@ -553,10 +664,10 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
         reading->rs_ohm = MQ_VALUE_UNCONFIGURED;
     }
 
-    // 6. Ratio Rs / R0 (Clean Air Baseline Ratio)
-    // Zero-Trust: If Rs is invalid or R0 not calibrated, ratio remains UNCONFIGURED
-    if (reading->rs_ohm > 0.0f && cfg->is_r0_valid && cfg->r0_clean_air_ohm > 0.0f &&
-        !(reading->status_flags & MQ_FLAG_SIGNAL_INVALID)) {
+    // 7. Ratio Rs / R0 (Clean Air Baseline Ratio)
+    // Strictly requires MQ_FLAG_RS_VALID and valid R0
+    if ((reading->status_flags & MQ_FLAG_RS_VALID) && cfg->is_r0_valid &&
+        cfg->r0_clean_air_ohm > 0.0f && !(reading->status_flags & MQ_FLAG_SIGNAL_INVALID)) {
         reading->status_flags |= MQ_FLAG_R0_CALIBRATED;
         reading->ratio_rs_r0 = reading->rs_ohm / cfg->r0_clean_air_ohm;
     } else {
@@ -608,55 +719,77 @@ static void handleIncomingCommand(const MQCommand* cmd) {
             }
             break;
 
-        case CMD_SET_DIVIDER_MQ137:
-            config137.r_top_ohm = cmd->param1;
-            config137.r_bottom_ohm = cmd->param2;
-            config137.divider_k = cmd->param2 / (cmd->param1 + cmd->param2);
-            config137.is_divider_valid = true;
-            // Circuit modified: Invalidate old R0 calibration
-            config137.is_r0_valid = false;
-            config137.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
-            if (calState.active && calState.target_sensor == 137) calState.active = false;
-            samplerLog("[CONFIG] MQ137 Divider Confirmed: R_top=%.0f Ohm, R_bot=%.0f Ohm -> k = %.4f",
-                       config137.r_top_ohm, config137.r_bottom_ohm, config137.divider_k);
-            samplerLog("[WARNING] MQ137 baseline R0 invalidated due to circuit change. Recalibration required.");
+        case CMD_SET_DIVIDER_MQ137: {
+            float k = 0.0f;
+            if (validateDivider(cmd->param1, cmd->param2, &k, NULL, 0)) {
+                config137.r_top_ohm = cmd->param1;
+                config137.r_bottom_ohm = cmd->param2;
+                config137.divider_k = k;
+                config137.is_divider_valid = true;
+                // Circuit modified: Invalidate old R0 calibration and cancel any running calibration
+                config137.is_r0_valid = false;
+                config137.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                if (calState.active && calState.target_sensor == 137) calState.active = false;
+                samplerLog("[CONFIG] MQ137 Divider Confirmed: R_top=%.0f Ohm, R_bot=%.0f Ohm -> k = %.4f",
+                           config137.r_top_ohm, config137.r_bottom_ohm, config137.divider_k);
+                samplerLog("[WARNING] MQ137 baseline R0 invalidated due to circuit change. Recalibration required.");
+            } else {
+                samplerLog("[ERROR] MQ137 divider parameters rejected by validator.");
+            }
             break;
+        }
 
-        case CMD_SET_DIVIDER_MQ136:
-            config136.r_top_ohm = cmd->param1;
-            config136.r_bottom_ohm = cmd->param2;
-            config136.divider_k = cmd->param2 / (cmd->param1 + cmd->param2);
-            config136.is_divider_valid = true;
-            // Circuit modified: Invalidate old R0 calibration
-            config136.is_r0_valid = false;
-            config136.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
-            if (calState.active && calState.target_sensor == 136) calState.active = false;
-            samplerLog("[CONFIG] MQ136 Divider Confirmed: R_top=%.0f Ohm, R_bot=%.0f Ohm -> k = %.4f",
-                       config136.r_top_ohm, config136.r_bottom_ohm, config136.divider_k);
-            samplerLog("[WARNING] MQ136 baseline R0 invalidated due to circuit change. Recalibration required.");
+        case CMD_SET_DIVIDER_MQ136: {
+            float k = 0.0f;
+            if (validateDivider(cmd->param1, cmd->param2, &k, NULL, 0)) {
+                config136.r_top_ohm = cmd->param1;
+                config136.r_bottom_ohm = cmd->param2;
+                config136.divider_k = k;
+                config136.is_divider_valid = true;
+                // Circuit modified: Invalidate old R0 calibration and cancel any running calibration
+                config136.is_r0_valid = false;
+                config136.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                if (calState.active && calState.target_sensor == 136) calState.active = false;
+                samplerLog("[CONFIG] MQ136 Divider Confirmed: R_top=%.0f Ohm, R_bot=%.0f Ohm -> k = %.4f",
+                           config136.r_top_ohm, config136.r_bottom_ohm, config136.divider_k);
+                samplerLog("[WARNING] MQ136 baseline R0 invalidated due to circuit change. Recalibration required.");
+            } else {
+                samplerLog("[ERROR] MQ136 divider parameters rejected by validator.");
+            }
             break;
+        }
 
-        case CMD_SET_RL_MQ137:
-            config137.rl_nominal_ohm = cmd->param1;
-            config137.is_rl_valid = true;
-            // Circuit modified: Invalidate old R0 calibration
-            config137.is_r0_valid = false;
-            config137.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
-            if (calState.active && calState.target_sensor == 137) calState.active = false;
-            samplerLog("[CONFIG] MQ137 RL set to %.0f Ohm.", config137.rl_nominal_ohm);
-            samplerLog("[WARNING] MQ137 baseline R0 invalidated due to circuit change. Recalibration required.");
+        case CMD_SET_RL_MQ137: {
+            if (validateRL(cmd->param1, NULL, 0)) {
+                config137.rl_nominal_ohm = cmd->param1;
+                config137.is_rl_valid = true;
+                // Circuit modified: Invalidate old R0 calibration and cancel any running calibration
+                config137.is_r0_valid = false;
+                config137.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                if (calState.active && calState.target_sensor == 137) calState.active = false;
+                samplerLog("[CONFIG] MQ137 RL set to %.0f Ohm.", config137.rl_nominal_ohm);
+                samplerLog("[WARNING] MQ137 baseline R0 invalidated due to circuit change. Recalibration required.");
+            } else {
+                samplerLog("[ERROR] MQ137 RL parameter rejected by validator.");
+            }
             break;
+        }
 
-        case CMD_SET_RL_MQ136:
-            config136.rl_nominal_ohm = cmd->param1;
-            config136.is_rl_valid = true;
-            // Circuit modified: Invalidate old R0 calibration
-            config136.is_r0_valid = false;
-            config136.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
-            if (calState.active && calState.target_sensor == 136) calState.active = false;
-            samplerLog("[CONFIG] MQ136 RL set to %.0f Ohm.", config136.rl_nominal_ohm);
-            samplerLog("[WARNING] MQ136 baseline R0 invalidated due to circuit change. Recalibration required.");
+        case CMD_SET_RL_MQ136: {
+            if (validateRL(cmd->param1, NULL, 0)) {
+                config136.rl_nominal_ohm = cmd->param1;
+                config136.is_rl_valid = true;
+                // Circuit modified: Invalidate old R0 calibration and cancel any running calibration
+                config136.is_r0_valid = false;
+                config136.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                if (calState.active && calState.target_sensor == 136) calState.active = false;
+                samplerLog("[CONFIG] MQ136 RL set to %.0f Ohm.", config136.rl_nominal_ohm);
+                samplerLog("[WARNING] MQ136 baseline R0 invalidated due to circuit change. Recalibration required.");
+            } else {
+                samplerLog("[ERROR] MQ136 RL parameter rejected by validator.");
+            }
             break;
+        }
 
         case CMD_SAVE_NVS:
             saveConfigurationToNVS();
@@ -672,7 +805,7 @@ static void handleIncomingCommand(const MQCommand* cmd) {
 }
 
 // =========================================================================================
-// 11. NVS PERSISTENCE (SOLE OWNER: TaskMQSampler)
+// 11. NVS PERSISTENCE (SOLE OWNER: TaskMQSampler, ATOMIC BINARY RECORD WITH CRC32)
 // =========================================================================================
 static void loadConfigurationFromNVS() {
     Preferences prefs;
@@ -681,84 +814,89 @@ static void loadConfigurationFromNVS() {
         return;
     }
 
-    uint32_t magic = prefs.getUInt("magic", 0);
-    uint32_t version = prefs.getUInt("version", 0);
+    if (prefs.isKey(NVS_BLOB_KEY)) {
+        MQNVSRecord rec;
+        size_t read_bytes = prefs.getBytes(NVS_BLOB_KEY, &rec, sizeof(rec));
+        if (read_bytes == sizeof(rec)) {
+            uint32_t expected_crc = calculateCRC32((const uint8_t*)&rec, offsetof(MQNVSRecord, crc32));
+            if (rec.magic == NVS_MAGIC_HEADER && rec.schema_version == NVS_VERSION && rec.crc32 == expected_crc) {
+                samplerLog("[NVS] Valid binary calibration record found (v%u, CRC: 0x%08X). Validating parameters...",
+                           rec.schema_version, rec.crc32);
 
-    // Validate magic and version strictly
-    if (magic == NVS_MAGIC_HEADER && version == NVS_VERSION) {
-        samplerLog("[NVS] Valid calibration record found (v%u). Validating entries...", version);
+                // Unpack and validate MQ137
+                float k137 = 0.0f;
+                if (rec.ch137.is_divider_valid &&
+                    validateDivider(rec.ch137.r_top_ohm, rec.ch137.r_bottom_ohm, &k137, NULL, 0)) {
+                    config137.r_top_ohm = rec.ch137.r_top_ohm;
+                    config137.r_bottom_ohm = rec.ch137.r_bottom_ohm;
+                    config137.divider_k = k137;
+                    config137.is_divider_valid = true;
+                } else {
+                    config137.is_divider_valid = false;
+                }
 
-        // Load MQ137
-        bool div_ok_137 = prefs.getBool("div_ok_137", false);
-        if (div_ok_137) {
-            float rtop137 = prefs.getFloat("rtop_137", 0.0f);
-            float rbot137 = prefs.getFloat("rbot_137", 0.0f);
-            float k137    = prefs.getFloat("k_137", 0.0f);
+                if (rec.ch137.is_rl_valid && validateRL(rec.ch137.rl_nominal_ohm, NULL, 0)) {
+                    config137.rl_nominal_ohm = rec.ch137.rl_nominal_ohm;
+                    config137.is_rl_valid = true;
+                } else {
+                    config137.is_rl_valid = false;
+                }
 
-            if (isfinite(rtop137) && isfinite(rbot137) && rtop137 >= 100.0f && rbot137 >= 100.0f &&
-                isfinite(k137) && k137 >= 0.05f && k137 <= 0.95f) {
-                config137.r_top_ohm = rtop137;
-                config137.r_bottom_ohm = rbot137;
-                config137.divider_k = k137;
-                config137.is_divider_valid = true;
+                if (rec.ch137.is_r0_valid && config137.is_divider_valid && config137.is_rl_valid &&
+                    isfinite(rec.ch137.r0_clean_air_ohm) && rec.ch137.r0_clean_air_ohm >= 100.0f &&
+                    rec.ch137.r0_clean_air_ohm <= 10000000.0f) {
+                    config137.r0_clean_air_ohm = rec.ch137.r0_clean_air_ohm;
+                    config137.is_r0_valid = true;
+                } else {
+                    config137.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                    config137.is_r0_valid = false;
+                }
+
+                // Unpack and validate MQ136
+                float k136 = 0.0f;
+                if (rec.ch136.is_divider_valid &&
+                    validateDivider(rec.ch136.r_top_ohm, rec.ch136.r_bottom_ohm, &k136, NULL, 0)) {
+                    config136.r_top_ohm = rec.ch136.r_top_ohm;
+                    config136.r_bottom_ohm = rec.ch136.r_bottom_ohm;
+                    config136.divider_k = k136;
+                    config136.is_divider_valid = true;
+                } else {
+                    config136.is_divider_valid = false;
+                }
+
+                if (rec.ch136.is_rl_valid && validateRL(rec.ch136.rl_nominal_ohm, NULL, 0)) {
+                    config136.rl_nominal_ohm = rec.ch136.rl_nominal_ohm;
+                    config136.is_rl_valid = true;
+                } else {
+                    config136.is_rl_valid = false;
+                }
+
+                if (rec.ch136.is_r0_valid && config136.is_divider_valid && config136.is_rl_valid &&
+                    isfinite(rec.ch136.r0_clean_air_ohm) && rec.ch136.r0_clean_air_ohm >= 100.0f &&
+                    rec.ch136.r0_clean_air_ohm <= 10000000.0f) {
+                    config136.r0_clean_air_ohm = rec.ch136.r0_clean_air_ohm;
+                    config136.is_r0_valid = true;
+                } else {
+                    config136.r0_clean_air_ohm = MQ_VALUE_UNCONFIGURED;
+                    config136.is_r0_valid = false;
+                }
+
+                samplerLog("[NVS] Parameters validated and loaded successfully.");
+            } else {
+                samplerLog("[NVS ERROR] Binary record corrupted or version mismatch! CRC: 0x%08X vs 0x%08X. Running in unconfirmed mode.",
+                           rec.crc32, expected_crc);
             }
+        } else {
+            samplerLog("[NVS ERROR] Binary record read size mismatch (%u != %u). Running in unconfirmed mode.",
+                       (uint32_t)read_bytes, (uint32_t)sizeof(rec));
         }
-
-        bool rl_ok_137 = prefs.getBool("rl_ok_137", false);
-        if (rl_ok_137) {
-            float rl137 = prefs.getFloat("rl_137", 0.0f);
-            if (isfinite(rl137) && rl137 >= 100.0f && rl137 <= 1000000.0f) {
-                config137.rl_nominal_ohm = rl137;
-                config137.is_rl_valid = true;
-            }
-        }
-
-        bool r0_ok_137 = prefs.getBool("r0_ok_137", false);
-        if (r0_ok_137 && config137.is_divider_valid && config137.is_rl_valid) {
-            float r0137 = prefs.getFloat("r0_137", 0.0f);
-            if (isfinite(r0137) && r0137 >= 100.0f && r0137 <= 10000000.0f) {
-                config137.r0_clean_air_ohm = r0137;
-                config137.is_r0_valid = true;
-            }
-        }
-
-        // Load MQ136
-        bool div_ok_136 = prefs.getBool("div_ok_136", false);
-        if (div_ok_136) {
-            float rtop136 = prefs.getFloat("rtop_136", 0.0f);
-            float rbot136 = prefs.getFloat("rbot_136", 0.0f);
-            float k136    = prefs.getFloat("k_136", 0.0f);
-
-            if (isfinite(rtop136) && isfinite(rbot136) && rtop136 >= 100.0f && rbot136 >= 100.0f &&
-                isfinite(k136) && k136 >= 0.05f && k136 <= 0.95f) {
-                config136.r_top_ohm = rtop136;
-                config136.r_bottom_ohm = rbot136;
-                config136.divider_k = k136;
-                config136.is_divider_valid = true;
-            }
-        }
-
-        bool rl_ok_136 = prefs.getBool("rl_ok_136", false);
-        if (rl_ok_136) {
-            float rl136 = prefs.getFloat("rl_136", 0.0f);
-            if (isfinite(rl136) && rl136 >= 100.0f && rl136 <= 1000000.0f) {
-                config136.rl_nominal_ohm = rl136;
-                config136.is_rl_valid = true;
-            }
-        }
-
-        bool r0_ok_136 = prefs.getBool("r0_ok_136", false);
-        if (r0_ok_136 && config136.is_divider_valid && config136.is_rl_valid) {
-            float r0136 = prefs.getFloat("r0_136", 0.0f);
-            if (isfinite(r0136) && r0136 >= 100.0f && r0136 <= 10000000.0f) {
-                config136.r0_clean_air_ohm = r0136;
-                config136.is_r0_valid = true;
-            }
-        }
-
-        samplerLog("[NVS] Parameters validated and loaded successfully.");
     } else {
-        samplerLog("[NVS] No valid calibration record. Running in unconfirmed diagnostic mode.");
+        // Safe inspection of legacy keys: do not delete, inform user
+        if (prefs.isKey("magic") || prefs.isKey("div_ok_137")) {
+            samplerLog("[NVS NOTICE] Legacy v1 schema detected without v2 record. Ignoring legacy data; running in unconfirmed diagnostic mode.");
+        } else {
+            samplerLog("[NVS] No persisted configuration found. Running in unconfirmed diagnostic mode.");
+        }
     }
     prefs.end();
 }
@@ -770,75 +908,52 @@ static void saveConfigurationToNVS() {
         return;
     }
 
-    bool write_ok = true;
-    write_ok &= (prefs.putUInt("magic", NVS_MAGIC_HEADER) > 0);
-    write_ok &= (prefs.putUInt("version", NVS_VERSION) > 0);
+    MQNVSRecord rec;
+    memset(&rec, 0, sizeof(rec));
+    rec.magic = NVS_MAGIC_HEADER;
+    rec.schema_version = NVS_VERSION;
+    rec.reserved = 0;
 
-    // MQ137: Write explicit validity booleans and clean stale keys
-    prefs.putBool("div_ok_137", config137.is_divider_valid);
-    if (config137.is_divider_valid) {
-        prefs.putFloat("rtop_137", config137.r_top_ohm);
-        prefs.putFloat("rbot_137", config137.r_bottom_ohm);
-        prefs.putFloat("k_137", config137.divider_k);
-    } else {
-        prefs.remove("rtop_137");
-        prefs.remove("rbot_137");
-        prefs.remove("k_137");
-    }
+    // Pack MQ137
+    rec.ch137.r_top_ohm = config137.r_top_ohm;
+    rec.ch137.r_bottom_ohm = config137.r_bottom_ohm;
+    rec.ch137.divider_k = config137.divider_k;
+    rec.ch137.rl_nominal_ohm = config137.rl_nominal_ohm;
+    rec.ch137.r0_clean_air_ohm = config137.r0_clean_air_ohm;
+    rec.ch137.is_divider_valid = config137.is_divider_valid ? 1 : 0;
+    rec.ch137.is_rl_valid = config137.is_rl_valid ? 1 : 0;
+    rec.ch137.is_r0_valid = config137.is_r0_valid ? 1 : 0;
+    rec.ch137.reserved = 0;
 
-    prefs.putBool("rl_ok_137", config137.is_rl_valid);
-    if (config137.is_rl_valid) {
-        prefs.putFloat("rl_137", config137.rl_nominal_ohm);
-    } else {
-        prefs.remove("rl_137");
-    }
+    // Pack MQ136
+    rec.ch136.r_top_ohm = config136.r_top_ohm;
+    rec.ch136.r_bottom_ohm = config136.r_bottom_ohm;
+    rec.ch136.divider_k = config136.divider_k;
+    rec.ch136.rl_nominal_ohm = config136.rl_nominal_ohm;
+    rec.ch136.r0_clean_air_ohm = config136.r0_clean_air_ohm;
+    rec.ch136.is_divider_valid = config136.is_divider_valid ? 1 : 0;
+    rec.ch136.is_rl_valid = config136.is_rl_valid ? 1 : 0;
+    rec.ch136.is_r0_valid = config136.is_r0_valid ? 1 : 0;
+    rec.ch136.reserved = 0;
 
-    prefs.putBool("r0_ok_137", config137.is_r0_valid);
-    if (config137.is_r0_valid) {
-        prefs.putFloat("r0_137", config137.r0_clean_air_ohm);
-    } else {
-        prefs.remove("r0_137"); // Prevent stale baseline resurrection!
-    }
+    // CRC32 calculated over all bytes preceding the crc32 field
+    rec.crc32 = calculateCRC32((const uint8_t*)&rec, offsetof(MQNVSRecord, crc32));
 
-    // MQ136: Write explicit validity booleans and clean stale keys
-    prefs.putBool("div_ok_136", config136.is_divider_valid);
-    if (config136.is_divider_valid) {
-        prefs.putFloat("rtop_136", config136.r_top_ohm);
-        prefs.putFloat("rbot_136", config136.r_bottom_ohm);
-        prefs.putFloat("k_136", config136.divider_k);
-    } else {
-        prefs.remove("rtop_136");
-        prefs.remove("rbot_136");
-        prefs.remove("k_136");
-    }
-
-    prefs.putBool("rl_ok_136", config136.is_rl_valid);
-    if (config136.is_rl_valid) {
-        prefs.putFloat("rl_136", config136.rl_nominal_ohm);
-    } else {
-        prefs.remove("rl_136");
-    }
-
-    prefs.putBool("r0_ok_136", config136.is_r0_valid);
-    if (config136.is_r0_valid) {
-        prefs.putFloat("r0_136", config136.r0_clean_air_ohm);
-    } else {
-        prefs.remove("r0_136"); // Prevent stale baseline resurrection!
-    }
-
+    size_t written = prefs.putBytes(NVS_BLOB_KEY, &rec, sizeof(rec));
     prefs.end();
 
-    if (write_ok) {
-        samplerLog("[NVS SUCCESS] All validated calibration parameters committed to flash!");
+    if (written == sizeof(rec)) {
+        samplerLog("[NVS SUCCESS] Binary configuration record committed to flash (CRC32: 0x%08X)!", rec.crc32);
     } else {
-        samplerLog("[NVS ERROR] Write operation encountered failures!");
+        samplerLog("[NVS ERROR] Write failed! Wrote %u of %u bytes.", (uint32_t)written, (uint32_t)sizeof(rec));
     }
 }
 
 static void resetCalibrationInNVS() {
     Preferences prefs;
+    bool clear_ok = false;
     if (prefs.begin(NVS_NAMESPACE, false)) {
-        prefs.clear();
+        clear_ok = prefs.clear();
         prefs.end();
     }
 
@@ -862,7 +977,11 @@ static void resetCalibrationInNVS() {
 
     if (calState.active) calState.active = false;
 
-    samplerLog("[NVS] Flash cleared! Restored to unconfirmed diagnostic defaults.");
+    if (clear_ok) {
+        samplerLog("[NVS SUCCESS] Flash namespace cleared! Restored to unconfirmed diagnostic defaults.");
+    } else {
+        samplerLog("[NVS ERROR] Flash clear operation failed! Restored defaults in RAM only.");
+    }
 }
 
 // =========================================================================================
@@ -901,26 +1020,39 @@ static void TaskMQLogger(void* pvParameters) {
                           frame.mq137.adc_raw_mean, frame.mq137.adc_raw_min, frame.mq137.adc_raw_max,
                           frame.mq137.adc_raw_stddev, frame.mq137.adc_raw_ema, frame.mq137.v_adc_mv);
             
+            // Reconstructed V_AO
             if (frame.mq137.status_flags & MQ_FLAG_DIVIDER_OK) {
                 Serial.printf("                 Reconstructed V_AO = %4.0f mV (k=%.4f)",
                               frame.mq137.v_ao_mv, frame.cfg137_snap.divider_k);
             } else {
-                Serial.print(F("                 Reconstructed V_AO = [DIVIDER_UNCONFIRMED]"));
+                Serial.print(F("                 Reconstructed V_AO = N/A [DIVIDER_UNCONFIRMED]"));
             }
 
-            if (frame.mq137.status_flags & MQ_FLAG_SIGNAL_INVALID) {
-                Serial.print(F(" | Rs = [INVALID_SIGNAL]"));
-            } else if (frame.mq137.status_flags & MQ_FLAG_RL_OK) {
+            // Sensor Resistance Rs
+            if (frame.mq137.status_flags & MQ_FLAG_RS_VALID) {
                 Serial.printf(" | Rs = %6.0f Ohm", frame.mq137.rs_ohm);
+            } else if (!(frame.mq137.status_flags & MQ_FLAG_DIVIDER_OK)) {
+                Serial.print(F(" | Rs = N/A [DIVIDER_UNCONFIRMED]"));
+            } else if (!(frame.mq137.status_flags & MQ_FLAG_RL_OK)) {
+                Serial.print(F(" | Rs = N/A [RL_UNCONFIGURED]"));
+            } else if (frame.mq137.status_flags & MQ_FLAG_ADC_SATURATED) {
+                Serial.print(F(" | Rs = N/A [ADC_SATURATED]"));
+            } else if (frame.mq137.status_flags & MQ_FLAG_SIGNAL_INVALID) {
+                Serial.print(F(" | Rs = N/A [SIGNAL_INVALID]"));
             } else {
-                Serial.print(F(" | Rs = [RL_UNCONFIGURED]"));
+                Serial.print(F(" | Rs = N/A [UNAVAILABLE]"));
             }
 
+            // Ratio Rs / R0
             if (frame.mq137.status_flags & MQ_FLAG_R0_CALIBRATED) {
                 Serial.printf(" | Rs/R0 = %4.2f (R0=%.0f)\n",
                               frame.mq137.ratio_rs_r0, frame.cfg137_snap.r0_clean_air_ohm);
+            } else if (!(frame.mq137.status_flags & MQ_FLAG_RS_VALID)) {
+                Serial.print(F(" | Rs/R0 = N/A [RS_INVALID]\n"));
+            } else if (!frame.cfg137_snap.is_r0_valid) {
+                Serial.print(F(" | Rs/R0 = N/A [R0_NOT_CALIBRATED]\n"));
             } else {
-                Serial.print(F(" | Rs/R0 = [R0_NOT_CALIBRATED]\n"));
+                Serial.print(F(" | Rs/R0 = N/A [UNAVAILABLE]\n"));
             }
 
             // Channel 2: MQ136 (Hydrogen Sulfide) — Explicit Mean vs EMA
@@ -928,26 +1060,39 @@ static void TaskMQLogger(void* pvParameters) {
                           frame.mq136.adc_raw_mean, frame.mq136.adc_raw_min, frame.mq136.adc_raw_max,
                           frame.mq136.adc_raw_stddev, frame.mq136.adc_raw_ema, frame.mq136.v_adc_mv);
 
+            // Reconstructed V_AO
             if (frame.mq136.status_flags & MQ_FLAG_DIVIDER_OK) {
                 Serial.printf("                 Reconstructed V_AO = %4.0f mV (k=%.4f)",
                               frame.mq136.v_ao_mv, frame.cfg136_snap.divider_k);
             } else {
-                Serial.print(F("                 Reconstructed V_AO = [DIVIDER_UNCONFIRMED]"));
+                Serial.print(F("                 Reconstructed V_AO = N/A [DIVIDER_UNCONFIRMED]"));
             }
 
-            if (frame.mq136.status_flags & MQ_FLAG_SIGNAL_INVALID) {
-                Serial.print(F(" | Rs = [INVALID_SIGNAL]"));
-            } else if (frame.mq136.status_flags & MQ_FLAG_RL_OK) {
+            // Sensor Resistance Rs
+            if (frame.mq136.status_flags & MQ_FLAG_RS_VALID) {
                 Serial.printf(" | Rs = %6.0f Ohm", frame.mq136.rs_ohm);
+            } else if (!(frame.mq136.status_flags & MQ_FLAG_DIVIDER_OK)) {
+                Serial.print(F(" | Rs = N/A [DIVIDER_UNCONFIRMED]"));
+            } else if (!(frame.mq136.status_flags & MQ_FLAG_RL_OK)) {
+                Serial.print(F(" | Rs = N/A [RL_UNCONFIGURED]"));
+            } else if (frame.mq136.status_flags & MQ_FLAG_ADC_SATURATED) {
+                Serial.print(F(" | Rs = N/A [ADC_SATURATED]"));
+            } else if (frame.mq136.status_flags & MQ_FLAG_SIGNAL_INVALID) {
+                Serial.print(F(" | Rs = N/A [SIGNAL_INVALID]"));
             } else {
-                Serial.print(F(" | Rs = [RL_UNCONFIGURED]"));
+                Serial.print(F(" | Rs = N/A [UNAVAILABLE]"));
             }
 
+            // Ratio Rs / R0
             if (frame.mq136.status_flags & MQ_FLAG_R0_CALIBRATED) {
                 Serial.printf(" | Rs/R0 = %4.2f (R0=%.0f)\n",
                               frame.mq136.ratio_rs_r0, frame.cfg136_snap.r0_clean_air_ohm);
+            } else if (!(frame.mq136.status_flags & MQ_FLAG_RS_VALID)) {
+                Serial.print(F(" | Rs/R0 = N/A [RS_INVALID]\n"));
+            } else if (!frame.cfg136_snap.is_r0_valid) {
+                Serial.print(F(" | Rs/R0 = N/A [R0_NOT_CALIBRATED]\n"));
             } else {
-                Serial.print(F(" | Rs/R0 = [R0_NOT_CALIBRATED]\n"));
+                Serial.print(F(" | Rs/R0 = N/A [UNAVAILABLE]\n"));
             }
 
             // Diagnostic Warnings & FreeRTOS Resource Metrics (Stack watermark in BYTES)
@@ -1015,7 +1160,7 @@ static void parseSerialInput(const char* line) {
         Serial.println(F("------------------------------\n"));
         return;
     } else if (strcasecmp(line, "config") == 0) {
-        // Read configuration from the cached snapshot frame (Point 3 fix)
+        // Read configuration from the cached snapshot frame
         if (s_has_received_frame) {
             printActiveConfig(&s_last_valid_frame.cfg137_snap, &s_last_valid_frame.cfg136_snap);
         } else {
@@ -1027,45 +1172,63 @@ static void parseSerialInput(const char* line) {
     } else if (strcasecmp(line, "cal136") == 0) {
         cmd.type = CMD_CALIBRATE_MQ136;
     } else if (strncasecmp(line, "setdiv137", 9) == 0) {
-        float rtop = 0.0f, rbot = 0.0f;
+        float rtop = 0.0f, rbot = 0.0f, k = 0.0f;
+        char err_buf[96] = {0};
         if (sscanf(line + 9, "%f %f", &rtop, &rbot) == 2 &&
-            isfinite(rtop) && isfinite(rbot) && rtop >= 100.0f && rbot >= 100.0f &&
-            rtop <= 10000000.0f && rbot <= 10000000.0f) {
+            validateDivider(rtop, rbot, &k, err_buf, sizeof(err_buf))) {
             cmd.type = CMD_SET_DIVIDER_MQ137;
             cmd.param1 = rtop;
             cmd.param2 = rbot;
         } else {
-            Serial.println(F("[ERROR] Invalid resistors! Usage: setdiv137 <R_TOP_OHM> <R_BOTTOM_OHM> (>=100 Ohm)"));
+            if (strlen(err_buf) > 0) {
+                Serial.printf("[ERROR] %s\n", err_buf);
+            } else {
+                Serial.println(F("[ERROR] Usage: setdiv137 <R_TOP_OHM> <R_BOTTOM_OHM> (e.g. setdiv137 10000 15000)"));
+            }
             return;
         }
     } else if (strncasecmp(line, "setdiv136", 9) == 0) {
-        float rtop = 0.0f, rbot = 0.0f;
+        float rtop = 0.0f, rbot = 0.0f, k = 0.0f;
+        char err_buf[96] = {0};
         if (sscanf(line + 9, "%f %f", &rtop, &rbot) == 2 &&
-            isfinite(rtop) && isfinite(rbot) && rtop >= 100.0f && rbot >= 100.0f &&
-            rtop <= 10000000.0f && rbot <= 10000000.0f) {
+            validateDivider(rtop, rbot, &k, err_buf, sizeof(err_buf))) {
             cmd.type = CMD_SET_DIVIDER_MQ136;
             cmd.param1 = rtop;
             cmd.param2 = rbot;
         } else {
-            Serial.println(F("[ERROR] Invalid resistors! Usage: setdiv136 <R_TOP_OHM> <R_BOTTOM_OHM> (>=100 Ohm)"));
+            if (strlen(err_buf) > 0) {
+                Serial.printf("[ERROR] %s\n", err_buf);
+            } else {
+                Serial.println(F("[ERROR] Usage: setdiv136 <R_TOP_OHM> <R_BOTTOM_OHM> (e.g. setdiv136 10000 15000)"));
+            }
             return;
         }
     } else if (strncasecmp(line, "setrl137", 8) == 0) {
         float rl = 0.0f;
-        if (sscanf(line + 8, "%f", &rl) == 1 && isfinite(rl) && rl >= 100.0f && rl <= 1000000.0f) {
+        char err_buf[96] = {0};
+        if (sscanf(line + 8, "%f", &rl) == 1 && validateRL(rl, err_buf, sizeof(err_buf))) {
             cmd.type = CMD_SET_RL_MQ137;
             cmd.param1 = rl;
         } else {
-            Serial.println(F("[ERROR] Invalid RL! Usage: setrl137 <RL_OHM> (100 Ohm <= RL <= 1 MOhm)"));
+            if (strlen(err_buf) > 0) {
+                Serial.printf("[ERROR] %s\n", err_buf);
+            } else {
+                Serial.println(F("[ERROR] Usage: setrl137 <RL_OHM> (100 Ohm <= RL <= 1 MOhm)"));
+            }
             return;
         }
     } else if (strncasecmp(line, "setrl136", 8) == 0) {
         float rl = 0.0f;
-        if (sscanf(line + 8, "%f", &rl) == 1 && isfinite(rl) && rl >= 100.0f && rl <= 1000000.0f) {
+        char err_buf[96] = {0};
+        if (sscanf(line + 8, "%f", &rl) == 1 && validateRL(rl, err_buf, sizeof(err_buf))) {
             cmd.type = CMD_SET_RL_MQ136;
             cmd.param1 = rl;
         } else {
-            Serial.println(F("[ERROR] Invalid RL! Usage: setrl136 <RL_OHM> (100 Ohm <= RL <= 1 MOhm)"));
+            if (strlen(err_buf) > 0) {
+                Serial.printf("[ERROR] %s\n", err_buf);
+            } else {
+                Serial.println(F("[ERROR] Usage: setrl136 <RL_OHM> (100 Ohm <= RL <= 1 MOhm)"));
+            }
             return;
         }
     } else if (strcasecmp(line, "save") == 0) {
@@ -1104,7 +1267,7 @@ static void populateConfigSnapshot(MQChannelConfigSnapshot* snap, const MQChanne
 
 static void printCommandHelp() {
     Serial.println(F("\n========================================================================"));
-    Serial.println(F(" Smart-Sanitation eSOS — Serial CLI Command Reference [v2.1]            "));
+    Serial.println(F(" Smart-Sanitation eSOS — Serial CLI Command Reference [v2.2]            "));
     Serial.println(F("========================================================================"));
     Serial.println(F("  help                      : Display this reference menu"));
     Serial.println(F("  status                    : Show RTOS runtime metrics, memory, and stack"));
@@ -1127,10 +1290,16 @@ static void printActiveConfig(const MQChannelConfigSnapshot* c137, const MQChann
     Serial.printf("    Divider Status  : %s (R_top=%.0f Ohm, R_bot=%.0f Ohm -> k=%.4f)\n",
                   c137->is_divider_valid ? "CONFIRMED" : "UNCONFIRMED_DEFAULT",
                   c137->r_top_ohm, c137->r_bottom_ohm, c137->divider_k);
-    Serial.printf("    Breakout RL     : %s (%.0f Ohm)\n",
-                  c137->is_rl_valid ? "CONFIGURED" : "UNCONFIGURED", c137->rl_nominal_ohm);
-    Serial.printf("    Clean-Air R0    : %s (%.1f Ohm)\n",
-                  c137->is_r0_valid ? "CALIBRATED" : "NOT_CALIBRATED", c137->r0_clean_air_ohm);
+    if (c137->is_rl_valid) {
+        Serial.printf("    Breakout RL     : CONFIGURED (%.0f Ohm)\n", c137->rl_nominal_ohm);
+    } else {
+        Serial.println(F("    Breakout RL     : UNCONFIGURED (N/A)"));
+    }
+    if (c137->is_r0_valid) {
+        Serial.printf("    Clean-Air R0    : CALIBRATED (%.1f Ohm)\n", c137->r0_clean_air_ohm);
+    } else {
+        Serial.println(F("    Clean-Air R0    : NOT_CALIBRATED (N/A)"));
+    }
     Serial.println(F("    PPM Estimation  : DISABLED (Zero-Trust policy; requires lab chamber data)"));
 
     Serial.printf("  MQ136 (Hydrogen Sulfide):\n");
@@ -1138,10 +1307,16 @@ static void printActiveConfig(const MQChannelConfigSnapshot* c137, const MQChann
     Serial.printf("    Divider Status  : %s (R_top=%.0f Ohm, R_bot=%.0f Ohm -> k=%.4f)\n",
                   c136->is_divider_valid ? "CONFIRMED" : "UNCONFIRMED_DEFAULT",
                   c136->r_top_ohm, c136->r_bottom_ohm, c136->divider_k);
-    Serial.printf("    Breakout RL     : %s (%.0f Ohm)\n",
-                  c136->is_rl_valid ? "CONFIGURED" : "UNCONFIGURED", c136->rl_nominal_ohm);
-    Serial.printf("    Clean-Air R0    : %s (%.1f Ohm)\n",
-                  c136->is_r0_valid ? "CALIBRATED" : "NOT_CALIBRATED", c136->r0_clean_air_ohm);
+    if (c136->is_rl_valid) {
+        Serial.printf("    Breakout RL     : CONFIGURED (%.0f Ohm)\n", c136->rl_nominal_ohm);
+    } else {
+        Serial.println(F("    Breakout RL     : UNCONFIGURED (N/A)"));
+    }
+    if (c136->is_r0_valid) {
+        Serial.printf("    Clean-Air R0    : CALIBRATED (%.1f Ohm)\n", c136->r0_clean_air_ohm);
+    } else {
+        Serial.println(F("    Clean-Air R0    : NOT_CALIBRATED (N/A)"));
+    }
     Serial.println(F("    PPM Estimation  : DISABLED (Zero-Trust policy; requires lab chamber data)"));
     Serial.println(F("--------------------------------------------\n"));
 }
