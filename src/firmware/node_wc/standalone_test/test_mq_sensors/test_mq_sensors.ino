@@ -7,7 +7,7 @@
  * Manual Ver.  : Winsen Manual v1.6 (Valid from: 2021-07-01)
  * Framework    : Arduino-ESP32 (v2.0.17 / ESP-IDF v4.4) + Native Espressif FreeRTOS
  * Author       : AI Engineering Agent (Antigravity) on behalf of Kelompok 4 FTUI
- * Date         : September 2026 (Refactored v2.0)
+ * Date         : September 2026 (Refactored v2.1)
  *
  * CRITICAL ARCHITECTURAL & ELECTRICAL GOVERNANCE:
  * -----------------------------------------------------------------------------------------
@@ -18,15 +18,21 @@
  *
  * 2. WINSEN DATASHEET v1.6 BASELINE DEFINITION:
  *    - Per Winsen Manual v1.6 (Fig 3), R0 is explicitly defined as "resistance of sensor
- *      in clean air". Therefore, clean-air baseline calibration sets R0 = Rs_clean_air.
+ *      in clean air". Therefore, clean-air baseline calibration sets R0 = Rs_clean_air_mean.
  *      Arbitrary scale factors (like 3.6) are strictly prohibited.
  *
  * 3. ZERO-TRUST POLICY ON GAS PPM ESTIMATION:
  *    - Gas concentration conversion (ppm) is STRICTLY DISABLED in this diagnostic harness.
  *      Arbitrary curve-fit power-law coefficients are not accepted without empirical multi-point
  *      chamber regression data.
- *    - Measurable physical parameters reported: ADC raw (avg, min, max, stddev), V_pin (mV),
- *      reconstructed V_AO (mV), sensor resistance Rs (Ohm), and Rs/R0 ratio.
+ *    - Measurable physical parameters reported:
+ *      * ADC_mean: Arithmetic mean of 16 oversampled ADC readings in the current frame.
+ *      * ADC_ema : Filtered Exponential Moving Average across consecutive frames.
+ *      * ADC_min / ADC_max / ADC_stddev: Burst statistics for noise assessment.
+ *      * V_pin   : Calibrated voltage at ESP32 pin (mV).
+ *      * V_AO    : Reconstructed sensor output voltage (V_pin / k) in mV.
+ *      * Rs      : Sensor resistance in Ohms (accounting for parallel divider loading).
+ *      * Rs/R0   : Ratio relative to clean-air baseline.
  *
  * 4. ELECTRICAL SAFETY & RESISTOR DIVIDER:
  *    - Breakout Analog Output (AO) can reach 5.0V. ESP32 GPIO breakdown voltage is ~3.6V.
@@ -35,11 +41,11 @@
  *    - Parallel loading effect: RL_eff = (RL * (R_TOP + R_BOTTOM)) / (RL + R_TOP + R_BOTTOM).
  *    - Any change to divider or RL immediately INVALIDATES any existing R0 calibration.
  *
- * 5. SINGLE-OWNER CONCURRENCY & THREAD SAFETY:
+ * 5. SINGLE-OWNER CONCURRENCY & PERSISTENCE SAFETY:
  *    - TaskMQSampler is the SOLE OWNER of configuration, NVS flash operations, and ADC sampling.
  *    - TaskMQLogger is the SOLE WRITER to the Serial port.
- *    - Sampler routes asynchronous event logs to Logger via xQueueLogMessages.
- *    - Logger passes CLI commands to Sampler via xQueueMQCommands with verified enqueueing.
+ *    - NVS strictly persists explicit validity flags (r0_ok_137, etc.) and removes stale keys
+ *      upon invalidation to prevent stale baseline resurrection after reboot.
  * =========================================================================================
  */
 
@@ -130,10 +136,11 @@ struct MQChannelConfigSnapshot {
 
 // Snapshot Measurement for a single sensor channel
 struct MQChannelReading {
-    uint16_t adc_raw_avg;           // Arithmetic mean of 16 raw ADC samples (0-4095)
+    uint16_t adc_raw_mean;          // Arithmetic mean of 16 raw ADC burst samples (frame saat ini)
+    uint16_t adc_raw_ema;           // Filtered Exponential Moving Average across frames
     uint16_t adc_raw_min;           // Minimum sample in burst
     uint16_t adc_raw_max;           // Maximum sample in burst
-    float adc_raw_stddev;           // Standard deviation (stability check)
+    float adc_raw_stddev;           // Standard deviation in burst
     float v_adc_mv;                 // Voltage at ESP32 pin (millivolts, via factory eFuse cal)
     float v_ao_mv;                  // Reconstructed AO voltage (V_ADC / k) in millivolts
     float rs_ohm;                   // Calculated sensor resistance in Ohms
@@ -164,9 +171,7 @@ enum CommandType {
     CMD_SET_RL_MQ137,
     CMD_SET_RL_MQ136,
     CMD_SAVE_NVS,
-    CMD_RESET_CALIBRATION,
-    CMD_REQ_PRINT_CONFIG,
-    CMD_REQ_PRINT_STATUS
+    CMD_RESET_CALIBRATION
 };
 
 struct MQCommand {
@@ -237,6 +242,10 @@ static CalibrationState calState = {
 
 static uint32_t g_dropped_frames = 0;
 
+// Cached Snapshot accessible to Logger CLI for instant 'config' command
+static MQDataFrame s_last_valid_frame;
+static bool s_has_received_frame = false;
+
 // =========================================================================================
 // 4. FORWARD DECLARATIONS
 // =========================================================================================
@@ -264,7 +273,7 @@ void setup() {
     
     Serial.println();
     Serial.println(F("========================================================================"));
-    Serial.println(F(" Smart-Sanitation eSOS — ESP32 Dual Gas Sensor Diagnostics [v2.0]       "));
+    Serial.println(F(" Smart-Sanitation eSOS — ESP32 Dual Gas Sensor Diagnostics [v2.1]       "));
     Serial.println(F(" Subsystem: Winsen MQ-137 (NH3) & Winsen MQ-136 (H2S) Test Harness      "));
     Serial.println(F(" Framework: Arduino-ESP32 v2.0.17 / Native Espressif FreeRTOS           "));
     Serial.println(F("========================================================================"));
@@ -471,8 +480,9 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
         vTaskDelay(pdMS_TO_TICKS(INTER_SAMPLE_DELAY_MS));
     }
 
-    // 1. Raw Statistics
+    // 1. Raw Statistics & Explicit Mean vs EMA Separation
     float raw_mean = (float)raw_sum / (float)SAMPLES_PER_FRAME;
+    reading->adc_raw_mean = (uint16_t)roundf(raw_mean);
     reading->adc_raw_min = sample_min;
     reading->adc_raw_max = sample_max;
     reading->v_adc_mv = (float)mv_sum / (float)SAMPLES_PER_FRAME;
@@ -490,13 +500,13 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
     }
     reading->adc_raw_stddev = sqrtf(sq_diff_sum / (float)SAMPLES_PER_FRAME);
 
-    // 2. Exponential Moving Average (EMA) Smoothing
+    // 2. Exponential Moving Average (EMA) Smoothing Across Frames
     if (*ema_val < 0.0f) {
         *ema_val = raw_mean; // Initialize on first frame
     } else {
         *ema_val = (EMA_ALPHA * raw_mean) + ((1.0f - EMA_ALPHA) * (*ema_val));
     }
-    reading->adc_raw_avg = (uint16_t)roundf(*ema_val);
+    reading->adc_raw_ema = (uint16_t)roundf(*ema_val);
     reading->status_flags |= MQ_FLAG_RAW_OK;
 
     // 3. Voltage Reconstruction (V_AO = V_ADC / k)
@@ -514,26 +524,36 @@ static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* readi
         }
     }
 
-    // 4. Sensor Resistance Calculation (Rs)
+    // 4. Validate RL Configuration Flag Before Circuit Prerequisite Check
+    if (cfg->is_rl_valid && isfinite(cfg->rl_nominal_ohm) && cfg->rl_nominal_ohm > 0.0f) {
+        reading->status_flags |= MQ_FLAG_RL_OK;
+    }
+
+    // 5. Sensor Resistance Calculation (Rs)
     // Formula: Rs = ((Vc / V_AO) - 1) * RL_eff
     // Accounting for parallel divider loading:
     // RL_eff = (RL * (R_top + R_bottom)) / (RL + R_top + R_bottom)
     const uint8_t req_circuit = MQ_FLAG_DIVIDER_OK | MQ_FLAG_RL_OK;
     if (((reading->status_flags & req_circuit) == req_circuit) &&
         !(reading->status_flags & MQ_FLAG_SIGNAL_INVALID) &&
-        cfg->is_rl_valid && cfg->rl_nominal_ohm > 0.0f) {
+        reading->v_ao_mv > 0.0f) {
 
-        reading->status_flags |= MQ_FLAG_RL_OK;
         float v_ao_volts = reading->v_ao_mv / 1000.0f;
         float r_divider_total = cfg->r_top_ohm + cfg->r_bottom_ohm;
         float rl_eff = (cfg->rl_nominal_ohm * r_divider_total) / (cfg->rl_nominal_ohm + r_divider_total);
 
-        reading->rs_ohm = ((V_LOOP_SUPPLY_VOLTS / v_ao_volts) - 1.0f) * rl_eff;
+        float calculated_rs = ((V_LOOP_SUPPLY_VOLTS / v_ao_volts) - 1.0f) * rl_eff;
+        if (isfinite(calculated_rs) && calculated_rs > 0.0f) {
+            reading->rs_ohm = calculated_rs;
+        } else {
+            reading->rs_ohm = MQ_VALUE_UNCONFIGURED;
+            reading->status_flags |= MQ_FLAG_SIGNAL_INVALID;
+        }
     } else {
         reading->rs_ohm = MQ_VALUE_UNCONFIGURED;
     }
 
-    // 5. Ratio Rs / R0 (Clean Air Baseline Ratio)
+    // 6. Ratio Rs / R0 (Clean Air Baseline Ratio)
     // Zero-Trust: If Rs is invalid or R0 not calibrated, ratio remains UNCONFIGURED
     if (reading->rs_ohm > 0.0f && cfg->is_r0_valid && cfg->r0_clean_air_ohm > 0.0f &&
         !(reading->status_flags & MQ_FLAG_SIGNAL_INVALID)) {
@@ -668,52 +688,72 @@ static void loadConfigurationFromNVS() {
     if (magic == NVS_MAGIC_HEADER && version == NVS_VERSION) {
         samplerLog("[NVS] Valid calibration record found (v%u). Validating entries...", version);
 
-        float rtop137 = prefs.getFloat("rtop_137", 0.0f);
-        float rbot137 = prefs.getFloat("rbot_137", 0.0f);
-        float k137    = prefs.getFloat("k_137", 0.0f);
-        float rl137   = prefs.getFloat("rl_137", 0.0f);
-        float r0137   = prefs.getFloat("r0_137", 0.0f);
+        // Load MQ137
+        bool div_ok_137 = prefs.getBool("div_ok_137", false);
+        if (div_ok_137) {
+            float rtop137 = prefs.getFloat("rtop_137", 0.0f);
+            float rbot137 = prefs.getFloat("rbot_137", 0.0f);
+            float k137    = prefs.getFloat("k_137", 0.0f);
 
-        if (isfinite(rtop137) && isfinite(rbot137) && rtop137 >= 100.0f && rbot137 >= 100.0f &&
-            isfinite(k137) && k137 >= 0.05f && k137 <= 0.95f) {
-            config137.r_top_ohm = rtop137;
-            config137.r_bottom_ohm = rbot137;
-            config137.divider_k = k137;
-            config137.is_divider_valid = true;
+            if (isfinite(rtop137) && isfinite(rbot137) && rtop137 >= 100.0f && rbot137 >= 100.0f &&
+                isfinite(k137) && k137 >= 0.05f && k137 <= 0.95f) {
+                config137.r_top_ohm = rtop137;
+                config137.r_bottom_ohm = rbot137;
+                config137.divider_k = k137;
+                config137.is_divider_valid = true;
+            }
         }
 
-        if (isfinite(rl137) && rl137 >= 100.0f && rl137 <= 1000000.0f) {
-            config137.rl_nominal_ohm = rl137;
-            config137.is_rl_valid = true;
+        bool rl_ok_137 = prefs.getBool("rl_ok_137", false);
+        if (rl_ok_137) {
+            float rl137 = prefs.getFloat("rl_137", 0.0f);
+            if (isfinite(rl137) && rl137 >= 100.0f && rl137 <= 1000000.0f) {
+                config137.rl_nominal_ohm = rl137;
+                config137.is_rl_valid = true;
+            }
         }
 
-        if (isfinite(r0137) && r0137 >= 100.0f && r0137 <= 10000000.0f) {
-            config137.r0_clean_air_ohm = r0137;
-            config137.is_r0_valid = true;
+        bool r0_ok_137 = prefs.getBool("r0_ok_137", false);
+        if (r0_ok_137 && config137.is_divider_valid && config137.is_rl_valid) {
+            float r0137 = prefs.getFloat("r0_137", 0.0f);
+            if (isfinite(r0137) && r0137 >= 100.0f && r0137 <= 10000000.0f) {
+                config137.r0_clean_air_ohm = r0137;
+                config137.is_r0_valid = true;
+            }
         }
 
-        float rtop136 = prefs.getFloat("rtop_136", 0.0f);
-        float rbot136 = prefs.getFloat("rbot_136", 0.0f);
-        float k136    = prefs.getFloat("k_136", 0.0f);
-        float rl136   = prefs.getFloat("rl_136", 0.0f);
-        float r0136   = prefs.getFloat("r0_136", 0.0f);
+        // Load MQ136
+        bool div_ok_136 = prefs.getBool("div_ok_136", false);
+        if (div_ok_136) {
+            float rtop136 = prefs.getFloat("rtop_136", 0.0f);
+            float rbot136 = prefs.getFloat("rbot_136", 0.0f);
+            float k136    = prefs.getFloat("k_136", 0.0f);
 
-        if (isfinite(rtop136) && isfinite(rbot136) && rtop136 >= 100.0f && rbot136 >= 100.0f &&
-            isfinite(k136) && k136 >= 0.05f && k136 <= 0.95f) {
-            config136.r_top_ohm = rtop136;
-            config136.r_bottom_ohm = rbot136;
-            config136.divider_k = k136;
-            config136.is_divider_valid = true;
+            if (isfinite(rtop136) && isfinite(rbot136) && rtop136 >= 100.0f && rbot136 >= 100.0f &&
+                isfinite(k136) && k136 >= 0.05f && k136 <= 0.95f) {
+                config136.r_top_ohm = rtop136;
+                config136.r_bottom_ohm = rbot136;
+                config136.divider_k = k136;
+                config136.is_divider_valid = true;
+            }
         }
 
-        if (isfinite(rl136) && rl136 >= 100.0f && rl136 <= 1000000.0f) {
-            config136.rl_nominal_ohm = rl136;
-            config136.is_rl_valid = true;
+        bool rl_ok_136 = prefs.getBool("rl_ok_136", false);
+        if (rl_ok_136) {
+            float rl136 = prefs.getFloat("rl_136", 0.0f);
+            if (isfinite(rl136) && rl136 >= 100.0f && rl136 <= 1000000.0f) {
+                config136.rl_nominal_ohm = rl136;
+                config136.is_rl_valid = true;
+            }
         }
 
-        if (isfinite(r0136) && r0136 >= 100.0f && r0136 <= 10000000.0f) {
-            config136.r0_clean_air_ohm = r0136;
-            config136.is_r0_valid = true;
+        bool r0_ok_136 = prefs.getBool("r0_ok_136", false);
+        if (r0_ok_136 && config136.is_divider_valid && config136.is_rl_valid) {
+            float r0136 = prefs.getFloat("r0_136", 0.0f);
+            if (isfinite(r0136) && r0136 >= 100.0f && r0136 <= 10000000.0f) {
+                config136.r0_clean_air_ohm = r0136;
+                config136.is_r0_valid = true;
+            }
         }
 
         samplerLog("[NVS] Parameters validated and loaded successfully.");
@@ -730,35 +770,69 @@ static void saveConfigurationToNVS() {
         return;
     }
 
-    prefs.putUInt("magic", NVS_MAGIC_HEADER);
-    prefs.putUInt("version", NVS_VERSION);
+    bool write_ok = true;
+    write_ok &= (prefs.putUInt("magic", NVS_MAGIC_HEADER) > 0);
+    write_ok &= (prefs.putUInt("version", NVS_VERSION) > 0);
 
+    // MQ137: Write explicit validity booleans and clean stale keys
+    prefs.putBool("div_ok_137", config137.is_divider_valid);
     if (config137.is_divider_valid) {
         prefs.putFloat("rtop_137", config137.r_top_ohm);
         prefs.putFloat("rbot_137", config137.r_bottom_ohm);
         prefs.putFloat("k_137", config137.divider_k);
-    }
-    if (config137.is_rl_valid) {
-        prefs.putFloat("rl_137", config137.rl_nominal_ohm);
-    }
-    if (config137.is_r0_valid) {
-        prefs.putFloat("r0_137", config137.r0_clean_air_ohm);
+    } else {
+        prefs.remove("rtop_137");
+        prefs.remove("rbot_137");
+        prefs.remove("k_137");
     }
 
+    prefs.putBool("rl_ok_137", config137.is_rl_valid);
+    if (config137.is_rl_valid) {
+        prefs.putFloat("rl_137", config137.rl_nominal_ohm);
+    } else {
+        prefs.remove("rl_137");
+    }
+
+    prefs.putBool("r0_ok_137", config137.is_r0_valid);
+    if (config137.is_r0_valid) {
+        prefs.putFloat("r0_137", config137.r0_clean_air_ohm);
+    } else {
+        prefs.remove("r0_137"); // Prevent stale baseline resurrection!
+    }
+
+    // MQ136: Write explicit validity booleans and clean stale keys
+    prefs.putBool("div_ok_136", config136.is_divider_valid);
     if (config136.is_divider_valid) {
         prefs.putFloat("rtop_136", config136.r_top_ohm);
         prefs.putFloat("rbot_136", config136.r_bottom_ohm);
         prefs.putFloat("k_136", config136.divider_k);
+    } else {
+        prefs.remove("rtop_136");
+        prefs.remove("rbot_136");
+        prefs.remove("k_136");
     }
+
+    prefs.putBool("rl_ok_136", config136.is_rl_valid);
     if (config136.is_rl_valid) {
         prefs.putFloat("rl_136", config136.rl_nominal_ohm);
+    } else {
+        prefs.remove("rl_136");
     }
+
+    prefs.putBool("r0_ok_136", config136.is_r0_valid);
     if (config136.is_r0_valid) {
         prefs.putFloat("r0_136", config136.r0_clean_air_ohm);
+    } else {
+        prefs.remove("r0_136"); // Prevent stale baseline resurrection!
     }
 
     prefs.end();
-    samplerLog("[NVS SUCCESS] All validated calibration parameters committed to flash!");
+
+    if (write_ok) {
+        samplerLog("[NVS SUCCESS] All validated calibration parameters committed to flash!");
+    } else {
+        samplerLog("[NVS ERROR] Write operation encountered failures!");
+    }
 }
 
 static void resetCalibrationInNVS() {
@@ -800,8 +874,6 @@ static void TaskMQLogger(void* pvParameters) {
     char serial_rx_buf[64];
     uint8_t rx_idx = 0;
     MQDataFrame frame;
-    MQDataFrame last_valid_frame;
-    bool has_received_frame = false;
 
     for (;;) {
         // 1. Drain and print any asynchronous log messages from Sampler
@@ -812,8 +884,8 @@ static void TaskMQLogger(void* pvParameters) {
 
         // 2. Finite-timeout wait for telemetry frame from Sampler (100 ms)
         if (xQueueReceive(xQueueMQFrames, &frame, pdMS_TO_TICKS(100)) == pdTRUE) {
-            last_valid_frame = frame;
-            has_received_frame = true;
+            s_last_valid_frame = frame;
+            s_has_received_frame = true;
 
             uint32_t uptime_s = (uint32_t)(frame.timestamp_ms / 1000ULL);
             uint32_t hours = uptime_s / 3600;
@@ -824,10 +896,10 @@ static void TaskMQLogger(void* pvParameters) {
             Serial.printf("[FRAME #%05u] Monotonic Uptime: %02uh:%02um:%02us (%llu ms) | Dropped: %u\n",
                           frame.frame_id, hours, minutes, seconds, frame.timestamp_ms, frame.dropped_frames_count);
 
-            // Channel 1: MQ137 (Ammonia)
-            Serial.printf("  CH1 [MQ137-NH3]: ADC_raw = %4u (min:%4u, max:%4u, dev:%4.1f) | V_pin = %4.0f mV\n",
-                          frame.mq137.adc_raw_avg, frame.mq137.adc_raw_min, frame.mq137.adc_raw_max,
-                          frame.mq137.adc_raw_stddev, frame.mq137.v_adc_mv);
+            // Channel 1: MQ137 (Ammonia) — Explicit Mean vs EMA
+            Serial.printf("  CH1 [MQ137-NH3]: ADC_mean = %4u (min:%4u, max:%4u, dev:%4.1f) | ADC_ema = %4u | V_pin = %4.0f mV\n",
+                          frame.mq137.adc_raw_mean, frame.mq137.adc_raw_min, frame.mq137.adc_raw_max,
+                          frame.mq137.adc_raw_stddev, frame.mq137.adc_raw_ema, frame.mq137.v_adc_mv);
             
             if (frame.mq137.status_flags & MQ_FLAG_DIVIDER_OK) {
                 Serial.printf("                 Reconstructed V_AO = %4.0f mV (k=%.4f)",
@@ -851,10 +923,10 @@ static void TaskMQLogger(void* pvParameters) {
                 Serial.print(F(" | Rs/R0 = [R0_NOT_CALIBRATED]\n"));
             }
 
-            // Channel 2: MQ136 (Hydrogen Sulfide)
-            Serial.printf("  CH2 [MQ136-H2S]: ADC_raw = %4u (min:%4u, max:%4u, dev:%4.1f) | V_pin = %4.0f mV\n",
-                          frame.mq136.adc_raw_avg, frame.mq136.adc_raw_min, frame.mq136.adc_raw_max,
-                          frame.mq136.adc_raw_stddev, frame.mq136.v_adc_mv);
+            // Channel 2: MQ136 (Hydrogen Sulfide) — Explicit Mean vs EMA
+            Serial.printf("  CH2 [MQ136-H2S]: ADC_mean = %4u (min:%4u, max:%4u, dev:%4.1f) | ADC_ema = %4u | V_pin = %4.0f mV\n",
+                          frame.mq136.adc_raw_mean, frame.mq136.adc_raw_min, frame.mq136.adc_raw_max,
+                          frame.mq136.adc_raw_stddev, frame.mq136.adc_raw_ema, frame.mq136.v_adc_mv);
 
             if (frame.mq136.status_flags & MQ_FLAG_DIVIDER_OK) {
                 Serial.printf("                 Reconstructed V_AO = %4.0f mV (k=%.4f)",
@@ -943,12 +1015,11 @@ static void parseSerialInput(const char* line) {
         Serial.println(F("------------------------------\n"));
         return;
     } else if (strcasecmp(line, "config") == 0) {
-        // Read configuration from the latest snapshot frame to preserve thread isolation
-        MQDataFrame latest_frame;
-        if (xQueuePeek(xQueueMQFrames, &latest_frame, 0) == pdTRUE) {
-            printActiveConfig(&latest_frame.cfg137_snap, &latest_frame.cfg136_snap);
+        // Read configuration from the cached snapshot frame (Point 3 fix)
+        if (s_has_received_frame) {
+            printActiveConfig(&s_last_valid_frame.cfg137_snap, &s_last_valid_frame.cfg136_snap);
         } else {
-            Serial.println(F("[CONFIG] Telemetry frame not yet available. Please wait 1 second."));
+            Serial.println(F("[CONFIG] Telemetry frame not yet received from Sampler. Please wait 1 second."));
         }
         return;
     } else if (strcasecmp(line, "cal137") == 0) {
@@ -1033,7 +1104,7 @@ static void populateConfigSnapshot(MQChannelConfigSnapshot* snap, const MQChanne
 
 static void printCommandHelp() {
     Serial.println(F("\n========================================================================"));
-    Serial.println(F(" Smart-Sanitation eSOS — Serial CLI Command Reference [v2.0]            "));
+    Serial.println(F(" Smart-Sanitation eSOS — Serial CLI Command Reference [v2.1]            "));
     Serial.println(F("========================================================================"));
     Serial.println(F("  help                      : Display this reference menu"));
     Serial.println(F("  status                    : Show RTOS runtime metrics, memory, and stack"));
