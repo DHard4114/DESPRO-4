@@ -163,13 +163,19 @@ static bool validateTelemetryPayload(const TelemetryPayload *p) {
         return false;
     }
 
-    // 4. Validasi Nilai Numerik Float (Mencegah NaN atau Infinity yang merusak log)
+    // 4. Validasi Nilai Numerik Float (Mencegah NaN atau Infinity yang merusak log) & Rentang Fisis
     if (isnan(p->water_level_cm) || isinf(p->water_level_cm) ||
         isnan(p->ammonia_ppm)    || isinf(p->ammonia_ppm)    ||
         isnan(p->h2s_ppm)        || isinf(p->h2s_ppm)        ||
         isnan(p->battery_voltage)|| isinf(p->battery_voltage)) {
         return false;
     }
+
+    // Pengecekan batas rentang fisik (mengizinkan -1.0f sebagai sentinel unavailable)
+    if (p->water_level_cm != -1.0f && (p->water_level_cm < 0.0f || p->water_level_cm > 1000.0f)) return false;
+    if (p->ammonia_ppm != -1.0f && (p->ammonia_ppm < 0.0f || p->ammonia_ppm > 1000.0f)) return false;
+    if (p->h2s_ppm != -1.0f && (p->h2s_ppm < 0.0f || p->h2s_ppm > 1000.0f)) return false;
+    if (p->battery_voltage != -1.0f && (p->battery_voltage < 0.0f || p->battery_voltage > 15.0f)) return false;
 
     return true;
 }
@@ -352,7 +358,7 @@ void vTaskGatewayDispatch(void *pvParameters) {
             }
 
             Serial.printf("  Kualitas RF   : RSSI = %.1f dBm | SNR = %.2f dB\n", item.rssi, item.snr);
-            Serial.printf("  Uptime Node   : %u detik sejak boot\n", item.payload.uptime_seconds);
+            Serial.printf("  Uptime Node   : %u detik sejak boot Node (Monotonik Node; bukan penanda jam RTC)\n", item.payload.uptime_seconds);
             Serial.printf("  Telemetri     : Air=%.1f cm | NH3=%.1f ppm | H2S=%.1f ppm | Batt=%.2f V (Simulasi)\n",
                           item.payload.water_level_cm, item.payload.ammonia_ppm, 
                           item.payload.h2s_ppm, item.payload.battery_voltage);
@@ -364,7 +370,7 @@ void vTaskGatewayDispatch(void *pvParameters) {
                 Serial.println("  Status SOS    : Flag SOS tidak aktif pada paket ini.");
             }
 
-            Serial.printf("  Diagnostik HW : CRC Error=%u | Len Mismatch=%u | Drop Queue=%u | Rearm Fail=%u | Stack Free=%u words\n",
+            Serial.printf("  Diagnostik HW : CRC Error=%u | Len Mismatch=%u | Drop Queue=%u | Rearm Fail=%u | Stack Free=%u bytes\n",
                           statCrcErrorCount, statLengthMismatchCount, statDroppedQueueFullCount, statRearmFailureCount, (unsigned int)stackHighWater);
             Serial.println("=================================================================\n");
         }
@@ -455,8 +461,8 @@ void setup() {
     Serial.println("[OK]");
 
     // LANGKAH 5: Pembuatan Task FreeRTOS & Validasi Status
-    // Catatan Satuan Stack: Pada ESP-IDF, satuan ukuran stack adalah 'words' (4 bytes per word pada Xtensa 32-bit).
-    // 4096 words = 16.384 bytes per task.
+    // Catatan Satuan Stack: Pada ESP-IDF FreeRTOS, parameter usStackDepth pada xTaskCreatePinnedToCore()
+    // diukur dalam satuan BYTES (bukan words seperti vanilla FreeRTOS). Alokasi: 4096 BYTES per task.
     Serial.println("5. Memasang Task FreeRTOS ke Dual Core ESP32:");
 
     TaskHandle_t xDispatchTaskHandle = NULL;

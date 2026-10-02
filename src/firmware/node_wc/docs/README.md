@@ -16,19 +16,17 @@ graph TD
         GAS1[Sensor Gas MQ-137<br/>Kadar Amonia NH3] -->|ADC Analog| TaskSensors
         GAS2[Sensor Gas MQ-136<br/>Kadar H2S] -->|ADC Analog| TaskSensors
         BATT[Voltage Divider ADC<br/>Tegangan Baterai] -->|ADC Analog| TaskSensors
-        SOS[Tombol Fisik SOS Darurat] -->|EXTI Hardware ISR| QueueSensors
         
-        TaskSensors -->|xQueueSend| QueueSensors[(xQueueSensorData<br/>Kapasitas: 5 Paket)]
-        QueueSensors -->|xQueueReceive| TaskLoRaTx
+        TaskSensors["TaskSensors (Core 0, Prio 1)"] -->|xQueueSend| QueueSensors[(xQueueSensorData<br/>Kapasitas: 4 Paket)]
+        QueueSensors -->|xQueueReceive| TaskLoRaTx["TaskLoRaTx (Core 1, Prio 3)"]
         
-        TaskLoRaTx -->|SPI Bus| SX1278[Radio LoRa SX1278 Ra-02<br/>433.175 MHz]
-        SX1278 -->|Antena 433MHz| RF((Gelombang Radio))
-        
-        TaskLoRaTx -.->|Downlink Command| QueueCmd[(xQueueCommand)]
-        QueueCmd -->|xQueueReceive| TaskActuator[TaskActuator<br/>Motor Servo MG996R]
-        TaskActuator -->|PWM Hardware| Servo[Kunci Pintu / Katup Ventilasi]
+        TaskLoRaTx -->|SPI Bus 1 MHz| SX1278[Radio LoRa SX1278 Ra-02<br/>433.175 MHz]
+        SX1278 -->|Antena Whip 433MHz| RF((Gelombang Radio))
     end
 ```
+
+> [!NOTE]
+> Pada tahap integrasi aktif, aktuator servo kunci pintu/ventilasi dinonaktifkan sementara sampai tahap uji mandiri aktuator terselesaikan secara fisik. Transceiver beroperasi dalam moda **Uplink-Only Telemetry**.
 
 ---
 
@@ -51,22 +49,18 @@ Firmware memanfaatkan kedua inti komputasi prosesor Xtensa 32-bit LX6 pada ESP32
 
 ```mermaid
 flowchart TB
-    subgraph Core0["Core 0 (PRO_CPU) - Akuisisi Sensor & Aktuator"]
+    subgraph Core0["Core 0 (PRO_CPU) - Akuisisi Sensor"]
         direction TB
-        T1["TaskSensors (Prioritas 1)<br/>• Baca Ultrasonik JSN-SR04T<br/>• Sampling Gas MQ-137/136<br/>• Moving Average Filter<br/>• Monitor Tegangan Baterai"]
-        T3["TaskActuator (Prioritas 2)<br/>• Kontrol PWM Servo MG996R<br/>• Mengunci/Membuka Pintu<br/>• Buka Katup Darurat Gas"]
+        T1["TaskSensors (Prioritas 1)<br/>• Baca Ultrasonik JSN-SR04T<br/>• Oversampling Gas MQ-137/136<br/>• Rekonstruksi Tegangan V_AO<br/>• Hitung Rs & Rasio Rs/R0<br/>• Monitor Tegangan Baterai"]
     end
 
-    subgraph Core1["Core 1 (APP_CPU) - Komunikasi Radio & Downlink"]
+    subgraph Core1["Core 1 (APP_CPU) - Transmisi Radio LoRa"]
         direction TB
-        T2["TaskLoRaTx (Prioritas 3)<br/>• Transmisi Paket Biner (Uplink TX)<br/>• Buka Jendela Dengar 2000ms (RX Window)<br/>• Ekstrak Komando Downlink<br/>• Power Lock Management"]
+        T2["TaskLoRaTx (Prioritas 3)<br/>• Transmisi Biner Uplink 34 Bytes<br/>• Single Radio Owner via SPI<br/>• Standby Mode Pasca-TX"]
     end
 
-    ISR_SOS["ISR Tombol SOS (Hardware EXTI)"] -->|xQueueSendToFrontFromISR| Q1[(xQueueSensorData)]
-    T1 -->|xQueueSend| Q1
+    T1 -->|xQueueSend| Q1[(xQueueSensorData)]
     Q1 -->|xQueueReceive| T2
-    T2 -.->|Perintah Downlink| Q2[(xQueueCommand)]
-    Q2 -->|xQueueReceive| T3
 ```
 
 ### Tabel Spesifikasi Task FreeRTOS
@@ -76,69 +70,57 @@ flowchart TB
 
 | Nama Task | Core Affinity | Prioritas | Ukuran Stack | Status Implementasi | Deskripsi Fungsional |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `TaskSensors` | Core 0 | 1 (Low) | 4.096 Bytes | **Aktif** | Melakukan *sampling* analog sensor gas MQ-137 & MQ-136, pengukuran level air ultrasonik JSN-SR04T, tegangan baterai, dan memaketkan telemetri tiap 5.000 ms. |
-| `TaskActuator` | Core 0 | 2 (Medium) | 2.048 Bytes | *Standby (Tahap Uji Aktuator)* | Menggerakkan motor servo MG996R via PWM (GPIO 26). Dinonaktifkan sementara sampai pengujian mandiri aktuator terselesaikan. |
-| `TaskLoRaTx` | Core 1 | 3 (High) | 4.096 Bytes | **Aktif** | Menangani transaksi SPI frekuensi tinggi ke SX1278, memancarkan paket telemetri 34 bytes, dan membuka jendela dengar (*RX Window*). |
+| `TaskSensors` | Core 0 | 1 (Low) | 4.096 Bytes | **Aktif** | Melakukan *sampling* analog sensor gas MQ-137 & MQ-136, pengukuran level air ultrasonik JSN-SR04T, tegangan baterai, dan memaketkan telemetri tiap 10.000 ms. |
+| `TaskLoRaTx` | Core 1 | 3 (High) | 4.096 Bytes | **Aktif (Uplink-Only)** | Menangani transaksi SPI frekuensi tinggi ke SX1278 (pemilik tunggal radio), memancarkan paket telemetri 34 bytes, lalu mengembalikan radio ke mode *standby*. |
 
 ---
 
-## 4. Alur Kerja Komunikasi & 3 Strategi Mitigasi Penerimaan Downlink Saat Tidur
+## 4. Alur Kerja Akuisisi Sensor & Transmisi Telemetri (Moda Uplink-Only)
 
-Saat Node WC berada dalam mode hemat daya (*Light-Sleep* / *Radio Standby*), sistem menerapkan mitigasi rekayasa agar tidak kehilangan perintah penguncian/aktuasi dari Gateway:
+Pada arsitektur tahap ini, Node WC beroperasi secara berkala mengirimkan telemetri uplink tanpa membuka jendela dengar (*transmit-only*):
 
-### 🌟 4.1 Ringkasan 3 Strategi Mitigasi & Lokasi Kode Sumber
+### 4.1 Siklus Pengukuran Sensor
+1. **Sensor Ultrasonik JSN-SR04T**:
+   - Jika `ping_cm()` mengembalikan 0 (gema tidak diterima sebelum batas waktu 400 cm), firmware melaporkan status `NO_ECHO / OUT_OF_RANGE` dan menetapkan level air ke `-1.0f`. Manipulasi nilai menjadi 25 cm dilarang keras.
+   - Jika jarak terbaca < 25 cm, firmware menandai kondisi sebagai `BLIND_ZONE` akibat fenomena *piezoelectric ringing-down* transduser tunggal dan menetapkan level air ke `-1.0f`.
+   - Jika jarak valid terbaca $\ge$ 25 cm, parameter pemasangan dan geometri tangki fisik yang belum dikalibrasi dilaporkan dengan mempertahankan level air sentinel `-1.0f` berstatus `TANK_GEOMETRY_UNCONFIGURED`.
+2. **Sensor Gas MQ-137 (Amonia) & MQ-136 (H2S)**:
+   - Dilakukan 8 kali *oversampling* dengan jeda 5 ms untuk menekan derau frekuensi tinggi ADC1.
+   - Sinyal ESP32 $V_{pin}$ direkonstruksi menjadi $V_{AO} = V_{pin} / k$ jika pembagi tegangan telah dikonfirmasi valid ($0.10 \le k \le 0.66$).
+   - Jika sinyal $V_{AO} < 50\text{ mV}$ (kabel lepas/open-circuit) atau mendekati rel saturasi $\ge 4.95\text{V}$, status ditandai `CIRCUIT_SIGNAL_INVALID`.
+   - Jika $R_L$ fisik belum dikonfigurasi, status ditandai `CIRCUIT_RL_UNCONFIGURED`.
+   - Nilai $R_s$ dihitung memperhitungkan efek pembebanan paralel: $R_{L,\text{eff}} = (R_L \cdot (R_{\text{top}} + R_{\text{bottom}})) / (R_L + R_{\text{top}} + R_{\text{bottom}})$.
+   - Kolom `ammonia_ppm` dan `h2s_ppm` dipertahankan pada nilai sentinel `-1.0f` dengan status `PPM_MODEL_UNCONFIGURED`. Konversi konsentrasi ppm dapat menerapkan fungsi sensitivitas resmi Winsen ($PPM = a \cdot (R_s/R_0)^b$) setelah koefisien regresi empiris ditetapkan melalui pengujian chamber gas terkontrol.
+   - **Catatan Operasional**: `uptime_seconds` mikrokontroler adalah durasi operasional sejak *boot/reset*, bukan indikator waktu pemanasan (*preheat/burn-in*) sensor yang disyaratkan manual Winsen (24–48 jam pemanasan kontinu).
+3. **Monitor Tegangan Baterai**:
+   - Menghindari kesalahan interpretasi pin CMOS input-only (GPIO34) yang mengambang (*floating*). Pembacaan tegangan semu (> 100 mV) tidak dianggap sebagai sirkuit valid. Sentinel `-1.0f` dipertahankan selama rangkaian pembagi baterai fisik belum terpasang.
+   - Jika sirkuit terpasang, ditegakkan validasi batas wajar sel Li-ion 1S ($2.80\text{V} \le V_{\text{batt}} \le 4.35\text{V}$).
 
-| Strategi Mitigasi | Prinsip Kerja | Status & Lokasi Kode Sumber | Konsumsi Daya | Latensi Eksekusi |
-| :--- | :--- | :--- | :---: | :---: |
-| **Mode 1: LoRaWAN Class A (Pending Downlink Queue)** | Gateway menahan komando di RAM buffer. Tepat setelah Node mengirim uplink, Node membuka jendela dengar 2000 ms (`RX Window`). Gateway langsung menembakkan komando di jendela ini. | **AKTIF (Default)**<br/>• Node: [`node_wc/src/main.cpp#L110-L130`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/node_wc/src/main.cpp)<br/>• Gateway: [`gateway/src/main.cpp#L195-L215`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/gateway/src/main.cpp) | Sangat Hemat (~1 mA saat tidur) | Sesuai interval sensor (5–10 detik) |
-| **Mode 2: Event-Driven RTC Wakeup (SOS Interupsi Fisik)** | Interupsi hardware pin tombol SOS (`GPIO 27`) membangunkan ESP32 seketika (< 1 ms) dari *Light-Sleep* via modul RTC IO, mengirim uplink darurat, dan langsung membuka RX Window. | **AKTIF (Kedaruratan)**<br/>• Node: [`node_wc/src/main.cpp#L32-L49`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/node_wc/src/main.cpp) & [`#L174`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/node_wc/src/main.cpp) | Sangat Hemat (Nol daya tambahan) | Instan (< 10 ms) |
-| **Mode 3: Wake-on-Radio via CAD (Channel Activity Detection)** | Chip SX1278 bangun berkala tiap 500 ms untuk memindai gelombang pembawa (*Preamble Carrier*). Jika ada sinyal, pin DIO0 memicu bangun ESP32 dari tidur. | **Tersedia (Opsional)**<br/>• Memerlukan preamble panjang dari Gateway. Mode 1 + Mode 2 dipilih sebagai standar operasional utama karena jauh lebih stabil pada suplai solar 10-20Wp. | Sedang (Radio siklis bangun) | Cepat (< 1 detik) |
+### 4.2 Siklus Transmisi LoRa Uplink
+Paket telemetri dikirim melalui antrean FreeRTOS `xQueueSensorData` menuju `TaskLoRaTx` pada Core 1:
+- Transmisi biner 34 byte dilakukan via chip Semtech SX1278 (frekuensi 433.175 MHz, SF9, BW 125 kHz, CR 4/7).
+- Waktu pancar nyata diukur dan dibandingkan dengan estimasi *Time-on-Air* (ToA $\approx 201\text{ ms}$).
+- Pasca transmisi, radio dikembalikan ke moda *standby* berdaya rendah. Moda penerimaan downlink dan kontrol motor servo direncanakan pada tahap lanjutan setelah pengujian mandiri aktuator terselesaikan.
 
----
-
-### 🛡️ 4.2 Verifikasi Zero-Trust Multi-Node pada Downlink Aktuator
-Setiap paket downlink penguncian pintu bilik menggunakan struktur 10-byte:
-$$\text{ActuatorCommand} = \text{node\_code}[8] + \text{command\_id}[1] + \text{parameter}[1]$$
-Pada `TaskLoRaTx`, Node WC menjalankan **Zero-Trust Filter**:
-```cpp
-if (strncmp(rxCmd.node_code, NODE_CODE, sizeof(rxCmd.node_code)) == 0) {
-    // Valid untuk WC_01 -> Teruskan ke TaskActuator
-    xQueueSend(xQueueCommand, &rxCmd, portMAX_DELAY);
-} else {
-    // Drop paket milik bilik WC lain tanpa mengeksekusi servo
-}
-```
+Kode sumber lengkap tersedia pada [`src/main.cpp`](../src/main.cpp).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant S as TaskSensors (Core 0)
+    participant Sens as TaskSensors (Core 0)
     participant Q as xQueueSensorData
-    participant L as TaskLoRaTx (Core 1)
-    participant R as SX1278 (Ra-02)
-    participant GW as Gateway Posko
+    participant Radio as TaskLoRaTx (Core 1)
+    participant SX as SX1278 Ra-02
+    participant Posko as Gateway Posko
 
-    loop Siklus Periodik (Setiap 5000 - 10000 ms)
-        S->>S: Baca JSN-SR04T, MQ-137, MQ-136, Volt Baterai
-        S->>Q: xQueueSend(&payload)
-        Q-->>L: xQueueReceive (TaskLoRaTx Bangun)
-        L->>R: Transmisi SPI (radio.transmit 34-Byte)
-        R->>GW: Pancarkan Paket Biner ke Gateway (ToA ~201 ms)
-        
-        rect rgb(235, 245, 255)
-            Note over L,GW: [MODE 1: LoRaWAN Class A RX Window (2000 ms)]
-            L->>R: radio.startReceive()
-            alt Gateway Memiliki Pending Downlink untuk WC_01
-                GW->>R: Transmisi Komando (10 Byte: "WC_01", CMD=1, PARAM=90)
-                R-->>L: Sinyal Diterima
-                L->>L: [Zero-Trust Check]: Validasi rxCmd.node_code == "WC_01"
-                L->>Q: xQueueSend(xQueueCommand, &rxCmd) -> TaskActuator memutar Servo
-            else Tidak Ada Komando (Timeout 2000 ms)
-                L->>R: radio.standby()
-            end
-        end
-        
-        Note over L,S: ESP32 Masuk Mode Light-Sleep (~0.8 - 1 mA)
+    loop Siklus Periodik (Setiap 10 Detik)
+        Sens->>Sens: Sampling JSN-SR04T, MQ-137, MQ-136, Baterai
+        Sens->>Q: xQueueSend(&payload, timeout=1000ms)
+        Q-->>Radio: xQueueReceive(&txData, portMAX_DELAY)
+        Radio->>SX: Transmisi SPI (radio.transmit 34-Byte)
+        SX->>Posko: Pancarkan Gelombang LPWAN 433.175 MHz
+        SX-->>Radio: Status Selesai (RADIOLIB_ERR_NONE)
+        Radio->>SX: radio.standby() (Siaga Daya Rendah)
     end
 ```
 
@@ -255,6 +237,6 @@ Bagi pengembang yang menggunakan Arduino IDE, berkas `.ino` di bawah ini dapat l
 - `src/firmware/node_wc/standalone_test/test_lora_node_tx/test_lora_node_tx.ino`
 - `src/firmware/node_wc/standalone_test/test_lora_node_rx/test_lora_node_rx.ino`
 
-*(Berkas juga disinkronkan secara otomatis pada direktori `C:\Users\dapah\Documents\Arduino\<nama_folder>\`)*
+*(Berkas juga dapat disinkronkan langsung ke direktori Arduino sketchbook lokal).*
 
 

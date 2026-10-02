@@ -117,9 +117,10 @@ pio device monitor -d src/firmware/node_wc -b 115200
 ```
 
 ### Menggunakan Arduino IDE:
-1. Buka file `.ino` dari direktori mirror:
-   - `C:\Users\dapah\Documents\Arduino\test_lora_node_tx\test_lora_node_tx.ino`
-   - `C:\Users\dapah\Documents\Arduino\test_lora_node_rx\test_lora_node_rx.ino`
+1. Buka file `.ino` dari repositori atau direktori sketchbook:
+   - Repositori: `standalone_test/test_lora_node_tx/test_lora_node_tx.ino`
+   - Repositori: `standalone_test/test_lora_node_rx/test_lora_node_rx.ino`
+   *(Atau buka dari folder Arduino sketchbook lokal jika telah disinkronkan).*
 2. Pilih Board: **DOIT ESP32 DEVKIT V1**.
 3. Pastikan library **RadioLib** (v6.6.0) telah terinstal melalui Library Manager.
 4. Upload dan amati output pada Serial Monitor pada baud rate **115200 bps**.

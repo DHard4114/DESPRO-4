@@ -1321,7 +1321,7 @@ static void printActiveConfig(const MQChannelConfigSnapshot* c137, const MQChann
     } else {
         Serial.println(F("    Clean-Air R0    : NOT_CALIBRATED (N/A)"));
     }
-    Serial.println(F("    PPM Estimation  : DISABLED (Zero-Trust policy; requires lab chamber data)"));
+    Serial.println(F("    PPM Estimation  : DISABLED [PPM_MODEL_UNCONFIGURED] (Sensitivity curves PPM = a*(Rs/R0)^b require empirical lab chamber data)"));
 
     Serial.printf("  MQ136 (Hydrogen Sulfide):\n");
     Serial.printf("    Pin GPIO        : %u (ADC1_CH5)\n", c136->pin);
@@ -1338,6 +1338,6 @@ static void printActiveConfig(const MQChannelConfigSnapshot* c137, const MQChann
     } else {
         Serial.println(F("    Clean-Air R0    : NOT_CALIBRATED (N/A)"));
     }
-    Serial.println(F("    PPM Estimation  : DISABLED (Zero-Trust policy; requires lab chamber data)"));
+    Serial.println(F("    PPM Estimation  : DISABLED [PPM_MODEL_UNCONFIGURED] (Sensitivity curves PPM = a*(Rs/R0)^b require empirical lab chamber data)"));
     Serial.println(F("--------------------------------------------\n"));
 }

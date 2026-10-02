@@ -204,11 +204,20 @@ static uint32_t g_telemetry_seq = 0;
 static TaskHandle_t xHandleTaskSensors = NULL;
 static TaskHandle_t xHandleTaskLoRaTx = NULL;
 
+// Status Rangkaian Sensor Gas
+enum SensorCircuitStatus {
+    CIRCUIT_OK,                 // Rangkaian lengkap, pembagi tegangan valid, RL valid, sinyal normal
+    CIRCUIT_UNCONFIRMED,        // Pembagi tegangan belum dikonfirmasi fisik atau rasio k tidak valid
+    CIRCUIT_SIGNAL_INVALID,     // Sinyal ADC di luar batas fisik (open-circuit < 50 mV atau rail saturasi >= 4950 mV)
+    CIRCUIT_RL_UNCONFIGURED     // Resistor beban RL belum dikonfigurasi fisik
+};
+
 // =========================================================================================
 // 3. FUNGSI PEMBACAAN DAN REKONSTRUKSI SENSOR GAS MQ
 // =========================================================================================
 static float sampleAndCalculateRs(uint8_t pin, bool div_valid, float r_top, float r_bottom, float k,
-                                  bool rl_valid, float rl_nominal, float* out_v_pin_mv, float* out_v_ao_mv) {
+                                  bool rl_valid, float rl_nominal, float* out_v_pin_mv, float* out_v_ao_mv,
+                                  SensorCircuitStatus* out_status = NULL) {
     const int SAMPLES = 8;
     uint32_t mv_sum = 0;
 
@@ -222,6 +231,7 @@ static float sampleAndCalculateRs(uint8_t pin, bool div_valid, float r_top, floa
 
     if (!div_valid || k <= 0.05f) {
         if (out_v_ao_mv != NULL) *out_v_ao_mv = -1.0f;
+        if (out_status != NULL) *out_status = CIRCUIT_UNCONFIRMED;
         return -1.0f; // Pembagi tegangan belum dikonfirmasi fisik
     }
 
@@ -229,11 +239,15 @@ static float sampleAndCalculateRs(uint8_t pin, bool div_valid, float r_top, floa
     if (out_v_ao_mv != NULL) *out_v_ao_mv = v_ao_mv;
 
     // Pengecekan batas sinyal fisik: 50 mV <= V_AO <= (Vc - 50 mV)
+    // Sinyal di bawah 50 mV menandakan open-circuit / kabel lepas;
+    // Sinyal mendekati Vc menandakan saturasi rail / korsleting.
     if (v_ao_mv < 50.0f || v_ao_mv >= (V_LOOP_SUPPLY_VOLTS * 1000.0f - 50.0f)) {
+        if (out_status != NULL) *out_status = CIRCUIT_SIGNAL_INVALID;
         return -1.0f; // Sinyal out of range / saturasi / putus
     }
 
     if (!rl_valid || rl_nominal < 100.0f) {
+        if (out_status != NULL) *out_status = CIRCUIT_RL_UNCONFIGURED;
         return -1.0f; // Resistor beban RL belum dikonfigurasi fisik
     }
 
@@ -242,7 +256,13 @@ static float sampleAndCalculateRs(uint8_t pin, bool div_valid, float r_top, floa
     float rl_eff = (rl_nominal * r_divider_total) / (rl_nominal + r_divider_total);
     float rs = ((V_LOOP_SUPPLY_VOLTS / v_ao_volts) - 1.0f) * rl_eff;
 
-    return (isfinite(rs) && rs > 0.0f) ? rs : -1.0f;
+    if (isfinite(rs) && rs > 0.0f) {
+        if (out_status != NULL) *out_status = CIRCUIT_OK;
+        return rs;
+    } else {
+        if (out_status != NULL) *out_status = CIRCUIT_SIGNAL_INVALID;
+        return -1.0f;
+    }
 }
 
 // =========================================================================================
@@ -301,21 +321,27 @@ void vTaskSensors(void *pvParameters) {
         // -------------------------------------------------------------
         float v_pin_137_mv = 0.0f;
         float v_ao_137_mv = 0.0f;
+        SensorCircuitStatus status_137 = CIRCUIT_UNCONFIRMED;
         float rs_137 = sampleAndCalculateRs(PIN_MQ137_AO, g_div_valid_137, g_r_top_137, g_r_bottom_137, g_k_137,
-                                           g_rl_valid_137, g_rl_137, &v_pin_137_mv, &v_ao_137_mv);
+                                            g_rl_valid_137, g_rl_137, &v_pin_137_mv, &v_ao_137_mv, &status_137);
 
-        // DILARANG mengisi ammonia_ppm menggunakan rasio Rs/R0!
-        // Sentinel -1.0f menandakan PPM belum tersedia (memerlukan kalibrasi chamber gas)
+        // DILARANG mengisi ammonia_ppm menggunakan rasio Rs/R0 tanpa model kurva yang dikonfigurasi!
+        // Sentinel -1.0f menandakan model PPM belum dikonfigurasi.
+        // Catatan: Perhitungan PPM dapat menggunakan persamaan kurva sensitivitas resmi (Winsen Fig 3: PPM = a * (Rs/R0)^b)
+        // setelah koefisien regresi empiris ditetapkan melalui kalibrasi uji chamber gas tertutup.
         payload.ammonia_ppm = -1.0f;
 
-        if (rs_137 > 0.0f && g_r0_valid_137 && g_r0_137 > 0.0f) {
+        if (status_137 == CIRCUIT_OK && g_r0_valid_137 && g_r0_137 > 0.0f) {
             float ratio_137 = rs_137 / g_r0_137;
-            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [CHAMBER_CAL_REQUIRED]\n",
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [PPM_MODEL_UNCONFIGURED]\n",
                           v_pin_137_mv, v_ao_137_mv, rs_137, ratio_137, g_r0_137);
-        } else if (rs_137 > 0.0f) {
-            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A\n",
+        } else if (status_137 == CIRCUIT_OK) {
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A [PPM_MODEL_UNCONFIGURED]\n",
                           v_pin_137_mv, v_ao_137_mv, rs_137);
-        } else if (v_ao_137_mv > 0.0f) {
+        } else if (status_137 == CIRCUIT_RL_UNCONFIGURED) {
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Status: RL BELUM DIKONFIGURASI | PPM: N/A\n",
+                          v_pin_137_mv, v_ao_137_mv);
+        } else if (status_137 == CIRCUIT_SIGNAL_INVALID) {
             Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Status: SINYAL DI LUAR BATAS (Putus/Jenuh) | PPM: N/A\n",
                           v_pin_137_mv, v_ao_137_mv);
         } else {
@@ -328,21 +354,27 @@ void vTaskSensors(void *pvParameters) {
         // -------------------------------------------------------------
         float v_pin_136_mv = 0.0f;
         float v_ao_136_mv = 0.0f;
+        SensorCircuitStatus status_136 = CIRCUIT_UNCONFIRMED;
         float rs_136 = sampleAndCalculateRs(PIN_MQ136_AO, g_div_valid_136, g_r_top_136, g_r_bottom_136, g_k_136,
-                                           g_rl_valid_136, g_rl_136, &v_pin_136_mv, &v_ao_136_mv);
+                                            g_rl_valid_136, g_rl_136, &v_pin_136_mv, &v_ao_136_mv, &status_136);
 
-        // DILARANG mengisi h2s_ppm menggunakan rasio Rs/R0!
-        // Sentinel -1.0f menandakan PPM belum tersedia (memerlukan kalibrasi chamber gas)
+        // DILARANG mengisi h2s_ppm menggunakan rasio Rs/R0 tanpa model kurva yang dikonfigurasi!
+        // Sentinel -1.0f menandakan model PPM belum dikonfigurasi.
+        // Catatan: Perhitungan PPM dapat menggunakan persamaan kurva sensitivitas resmi (Winsen Fig 3: PPM = a * (Rs/R0)^b)
+        // setelah koefisien regresi empiris ditetapkan melalui kalibrasi uji chamber gas tertutup.
         payload.h2s_ppm = -1.0f;
 
-        if (rs_136 > 0.0f && g_r0_valid_136 && g_r0_136 > 0.0f) {
+        if (status_136 == CIRCUIT_OK && g_r0_valid_136 && g_r0_136 > 0.0f) {
             float ratio_136 = rs_136 / g_r0_136;
-            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [CHAMBER_CAL_REQUIRED]\n",
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [PPM_MODEL_UNCONFIGURED]\n",
                           v_pin_136_mv, v_ao_136_mv, rs_136, ratio_136, g_r0_136);
-        } else if (rs_136 > 0.0f) {
-            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A\n",
+        } else if (status_136 == CIRCUIT_OK) {
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A [PPM_MODEL_UNCONFIGURED]\n",
                           v_pin_136_mv, v_ao_136_mv, rs_136);
-        } else if (v_ao_136_mv > 0.0f) {
+        } else if (status_136 == CIRCUIT_RL_UNCONFIGURED) {
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Status: RL BELUM DIKONFIGURASI | PPM: N/A\n",
+                          v_pin_136_mv, v_ao_136_mv);
+        } else if (status_136 == CIRCUIT_SIGNAL_INVALID) {
             Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Status: SINYAL DI LUAR BATAS (Putus/Jenuh) | PPM: N/A\n",
                           v_pin_136_mv, v_ao_136_mv);
         } else {
@@ -353,14 +385,27 @@ void vTaskSensors(void *pvParameters) {
         // -------------------------------------------------------------
         // D. TEGANGAN CATU BATERAI (ADC1_CH6 / GPIO34)
         // -------------------------------------------------------------
-        uint32_t batt_pin_mv = (uint32_t)analogReadMilliVolts(PIN_BATT_VOLT);
-        if (batt_pin_mv < 100) {
-            payload.battery_voltage = -1.0f; // Divider baterai belum terpasang / floating
-            Serial.println(F("[BATERAI] Pin ADC < 100 mV (Rangkaian pembagi baterai belum terpasang / floating)"));
+        // PERINGATAN ELEKTRIKAL: Pin input CMOS ESP32 (GPIO34) yang tidak terhubung (floating)
+        // dapat menghasilkan tegangan semu (200-1500 mV) akibat impedansi tinggi dan noise induktif.
+        // Pembacaan tegangan > 100 mV BUKAN bukti bahwa sirkuit pembagi tegangan baterai telah terpasang fisik!
+        // Konstanta ini merefleksikan konfirmasi instalasi rangkaian pembagi fisik (misal 100k : 100k).
+        const bool BATT_DIVIDER_PHYSICALLY_INSTALLED = false;
+
+        if (!BATT_DIVIDER_PHYSICALLY_INSTALLED) {
+            payload.battery_voltage = -1.0f; // Sentinel: Rangkaian belum terkonfirmasi / floating
+            Serial.println(F("[BATERAI] Rangkaian pembagi baterai fisik belum terpasang (GPIO34 floating). Nilai: N/A (-1.0V)"));
         } else {
+            uint32_t batt_pin_mv = (uint32_t)analogReadMilliVolts(PIN_BATT_VOLT);
             // Pembagi tegangan baterai 1:1 (R1 = R2 = 100k) -> V_batt = V_pin * 2
-            payload.battery_voltage = ((float)batt_pin_mv * 2.0f) / 1000.0f;
-            Serial.printf("[BATERAI] Tegangan Terbaca: %.2f V (Pin ADC: %u mV)\n", payload.battery_voltage, batt_pin_mv);
+            float v_batt = ((float)batt_pin_mv * 2.0f) / 1000.0f;
+            // Validasi batas fisik Li-ion 1S: 2.80V (cut-off) hingga 4.35V (tegangan maksimum pengisian)
+            if (v_batt >= 2.80f && v_batt <= 4.35f) {
+                payload.battery_voltage = v_batt;
+                Serial.printf("[BATERAI] Tegangan Terbaca: %.2f V (Pin ADC: %u mV)\n", payload.battery_voltage, batt_pin_mv);
+            } else {
+                payload.battery_voltage = -1.0f;
+                Serial.printf("[BATERAI] Tegangan di luar batas wajar Li-ion 1S: %.2f V (Pin ADC: %u mV) -> INVALID (-1.0V)\n", v_batt, batt_pin_mv);
+            }
         }
 
         // -------------------------------------------------------------
@@ -431,6 +476,9 @@ void setup() {
     Serial.println(F(" Smart-Sanitation eSOS — Node WC Firmware Integrasi [v2.0]              "));
     Serial.println(F(" Subsystem: MQ-137, MQ-136, JSN-SR04T, & Transmisi LoRa SX1278          "));
     Serial.println(F(" Framework: Arduino-ESP32 v2.0.17 / Native Espressif FreeRTOS           "));
+    Serial.println(F(" Catatan Operasional:                                                   "));
+    Serial.println(F(" - Uptime ESP32 != Durasi Pre-heat MQ (Datasheet mensyaratkan 24-48 jam)"));
+    Serial.println(F(" - Mode Operasi: Uplink-Only Telemetry (Transmisi periodik 10 detik)    "));
     Serial.println(F("========================================================================"));
 
     // 1. Inisialisasi Antrean FreeRTOS

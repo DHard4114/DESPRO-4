@@ -118,8 +118,8 @@ Seluruh pengembang firmware pada proyek ini terikat oleh standar implementasi be
 ## 5. Tautan Dokumen Detail Setiap Subsistem
 
 ### Arsitektur Utama:
-* 📖 **[Dokumentasi Lengkap Node WC Sanitasi](../node_wc/docs/README.md)**: Analisis task sensor, kontrol servo, algoritma debouncing SOS, dan siklus LoRaWAN Class A.
-* 📖 **[Dokumentasi Lengkap Gateway Posko](../gateway/docs/README.md)**: Mekanisme Store-and-Forward LittleFS, sinkronisasi waktu RTC DS3231, supervisor Wi-Fi, dan downlink komando.
+* 📖 **[Dokumentasi Lengkap Node WC Sanitasi](../node_wc/docs/README.md)**: Analisis task sensor gas & ultrasonik, transmisi telemetri uplink 34-byte, dan arsitektur FreeRTOS dual-core.
+* 📖 **[Dokumentasi Lengkap Gateway Posko](../gateway/docs/README.md)**: Mekanisme Store-and-Forward Two-Phase Commit LittleFS, sinkronisasi waktu RTC DS3231, supervisor Wi-Fi, validasi paket, dan kebijakan downlink.
 
 ### Panduan Resmi Uji Mandiri Hardware (*Standalone Test Guides*):
 * 🧪 **[Panduan Uji Standalone Sensor Gas MQ-137 & MQ-136](../node_wc/docs/STANDALONE_MQ_TEST_GUIDE.md)**: Proteksi pembagi tegangan, kalibrasi baseline $R_0$, flash NVS schema v2 CRC32, dan evaluasi sinyal ADC.
