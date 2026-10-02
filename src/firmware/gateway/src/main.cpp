@@ -808,11 +808,8 @@ void setup() {
     Serial.println(F("  SMART-SANITATION eSOS - GATEWAY ROUTER FIRMWARE (ESP32 DevKit) "));
     Serial.println(F("================================================================="));
 
-#if HAS_CONFIG_LOCAL
-    Serial.println(F("[CONFIG] Memuat konfigurasi jaringan dari config_local.h (kredensial terlindungi)."));
-#else
-    Serial.println(F("[CONFIG NOTICE] config_local.h tidak ditemukan. Menggunakan konfigurasi default internal."));
-#endif
+    Serial.println(F("[CONFIG] Konfigurasi jaringan & LoRa dimuat dari config.h"));
+
 
     // 1. Inisialisasi Mutex & Queues FreeRTOS
     fsMutex = xSemaphoreCreateMutex();

@@ -73,13 +73,10 @@ Jaringan nirkabel posko menggunakan titik akses nirkabel **TP-Link CPE220**. Gat
 > - Node WC berkomunikasi secara eksklusif melalui gelombang radio LoRa dan **tidak membutuhkan alamat IP**.
 > - Akses lokal CPE220 tidak memerlukan autentikasi SSO UI. Komunikasi MQTT lokal antara Gateway dan Laptop berjalan penuh secara intranet mandiri tanpa ketergantungan internet upstream.
 
-### B. Manajemen Kredensial Aman (`config_local.h`)
+### B. Manajemen Konfigurasi Tunggal (`include/config.h`)
 
-Untuk mencegah kebocoran password Wi-Fi dan token broker ke repositori Git:
-1. Template konfigurasi publik disediakan pada [`include/config_local.template.h`](file:///src/firmware/gateway/include/config_local.template.h) yang berisi nilai placeholder.
-2. Pengembang menyalin berkas tersebut menjadi `include/config_local.h`.
-3. Berkas `config_local.h` telah didaftarkan dalam [`.gitignore`](file:///../../.gitignore) sehingga tidak akan ter-commit.
-4. Firmware secara otomatis mendeteksi keberadaan berkas lokal via `#if __has_include("config_local.h")`. Jika tidak ditemukan, firmware menggunakan fallback aman dan memberikan peringatan serial tanpa pernah mencetak password ke log/konsol.
+Seluruh parameter jaringan (SSID, password Wi-Fi, IP statis, dan host MQTT), pin hardware (SPI LoRa & I2C RTC), frekuensi LoRa, dan kontrak data terpusat dalam satu berkas tunggal yang bersih: [`include/config.h`](file:///src/firmware/gateway/include/config.h). Tidak ada berkas konfigurasi pecahan lainnya di dalam direktori `include/`.
+
 
 ---
 

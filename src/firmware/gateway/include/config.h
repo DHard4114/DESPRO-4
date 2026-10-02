@@ -6,26 +6,21 @@
 // ==========================================
 // 1. KREDENSIAL JARINGAN & BROKER MQTT [ADR-01]
 // ==========================================
-// Prioritaskan file konfigurasi lokal non-terlacak Git (config_local.h)
-#if __has_include("config_local.h")
-    #include "config_local.h"
-    #define HAS_CONFIG_LOCAL 1
-#else
-    #define HAS_CONFIG_LOCAL 0
-    // Konfigurasi Target Default Lapangan (CPE220 + Laptop Broker)
-    #define WIFI_SSID           "CompEngQuiz-Server-Live"
-    #define WIFI_PASS           "compengquiz"
+// Konfigurasi Target Lapangan (CPE220 + Laptop Broker)
+#define WIFI_SSID           "CompEngQuiz-Server-Live"
+#define WIFI_PASS           "compengquiz"
 
-    #define STATIC_IP_LOCAL     192, 168, 101, 11
-    #define STATIC_IP_GATEWAY   192, 168, 101, 1
-    #define STATIC_IP_SUBNET    255, 255, 255, 0
-    #define STATIC_IP_DNS       152, 118, 24, 4
+// Konfigurasi Alamat IP Statis ESP32 Gateway (Subnet /24)
+#define STATIC_IP_LOCAL     192, 168, 101, 11
+#define STATIC_IP_GATEWAY   192, 168, 101, 1
+#define STATIC_IP_SUBNET    255, 255, 255, 0
+#define STATIC_IP_DNS       152, 118, 24, 4
 
-    #define MQTT_SERVER         "192.168.101.10"
-    #define MQTT_PORT           1883
-    #define MQTT_USER           "esos_gateway"
-    #define MQTT_PASS           "gateway_secret"
-#endif
+// Konfigurasi Laptop / Broker Mosquitto MQTT
+#define MQTT_SERVER         "192.168.101.10"
+#define MQTT_PORT           1883
+#define MQTT_USER           "esos_gateway"
+#define MQTT_PASS           "gateway_secret"
 
 // Topik MQTT Namespace eSOS
 #define MQTT_TOPIC_TELEMETRY "esos/gateway_01/nodes/telemetry"
