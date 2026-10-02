@@ -71,11 +71,14 @@ flowchart TB
 
 ### Tabel Spesifikasi Task FreeRTOS
 
-| Nama Task | Core Affinity | Prioritas | Ukuran Stack | Deskripsi Fungsional |
-| :--- | :---: | :---: | :---: | :--- |
-| `TaskSensors` | Core 0 | 1 (Low) | 3.072 Words | Melakukan *sampling* analog sensor gas, pengukuran *ping* ultrasonik, dan memaketkan data telemetri tiap 5000 ms. |
-| `TaskActuator` | Core 0 | 2 (Medium) | 2.048 Words | Menggerakkan motor servo MG996R via PWM (GPIO 26) saat menerima perintah darurat atau komando posko. |
-| `TaskLoRaTx` | Core 1 | 3 (High) | 4.096 Words | Menangani transaksi SPI frekuensi tinggi ke SX1278, memancarkan paket, dan membuka jendela dengar (*RX Window*). |
+> [!NOTE]
+> Pada ESP-IDF FreeRTOS (Arduino-ESP32), parameter `usStackDepth` pada `xTaskCreatePinnedToCore` didefinisikan dalam satuan **BYTES**, bukan words.
+
+| Nama Task | Core Affinity | Prioritas | Ukuran Stack | Status Implementasi | Deskripsi Fungsional |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `TaskSensors` | Core 0 | 1 (Low) | 4.096 Bytes | **Aktif** | Melakukan *sampling* analog sensor gas MQ-137 & MQ-136, pengukuran level air ultrasonik JSN-SR04T, tegangan baterai, dan memaketkan telemetri tiap 5.000 ms. |
+| `TaskActuator` | Core 0 | 2 (Medium) | 2.048 Bytes | *Standby (Tahap Uji Aktuator)* | Menggerakkan motor servo MG996R via PWM (GPIO 26). Dinonaktifkan sementara sampai pengujian mandiri aktuator terselesaikan. |
+| `TaskLoRaTx` | Core 1 | 3 (High) | 4.096 Bytes | **Aktif** | Menangani transaksi SPI frekuensi tinggi ke SX1278, memancarkan paket telemetri 34 bytes, dan membuka jendela dengar (*RX Window*). |
 
 ---
 
@@ -194,42 +197,64 @@ $$\text{Total Ukuran} = 1 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 1 = 34\text{ Bytes}$$
 | **LoRa Ra-02** | MISO | **D19 (GPIO 19)** | SPI Master In | Jalur data dari SX1278 ke ESP32. |
 | **LoRa Ra-02** | SCK | **D21 (GPIO 21)** | SPI Clock | Frekuensi bus 1 MHz - 2 MHz. |
 | **Ultrasonik** | TRIG | **D13 (GPIO 13)** | Pemicu Suara Ping | Pulsa 10µs via pustaka NewPing. |
-| **Ultrasonik** | ECHO | **D12 (GPIO 12)** | Pantulan Pantau | Mengukur durasi pantulan suara. |
-| **MQ-137** | AO | **D32 (GPIO 32)** | Analog Amonia | ADC1_CH4 (12-bit resolusi). |
-| **MQ-136** | AO | **D33 (GPIO 33)** | Analog H2S | ADC1_CH5 (12-bit resolusi). |
+| **Ultrasonik** | ECHO | **D12 (GPIO 12)** | Pantulan Pantau | **Pin Strapping MTDI!** Wajib lewat pembagi tegangan 1k/2k ohm (5V -> 3.3V) dan di-pull LOW saat boot agar flash SPI 3.3V tidak bootloop. |
+| **MQ-137** | AO | **D32 (GPIO 32)** | Analog Amonia | ADC1_CH4 (12-bit resolusi). Wajib pembagi tegangan rasio $k \le 0,66$. |
+| **MQ-136** | AO | **D33 (GPIO 33)** | Analog H2S | ADC1_CH5 (12-bit resolusi). Wajib pembagi tegangan rasio $k \le 0,66$. |
 | **Divider Aki**| V_OUT | **D34 (GPIO 34)** | Monitor Baterai | ADC1_CH6 (Input-only, aman dari noise). |
 | **Tombol SOS** | NO | **D27 (GPIO 27)** | Input EXTI Alarm | Internal Pull-Up, pemicu FALLING. |
-| **Servo MG996R**| SIG | **D26 (GPIO 26)** | PWM Kontrol Kunci | Timer hardware via ESP32Servo. |
+| **Servo MG996R**| SIG | **D26 (GPIO 26)** | PWM Kontrol Kunci | Timer hardware via ESP32Servo (dinonaktifkan sementara). |
 
 ---
 
-## 8. Panduan Pengujian & Validasi Mandiri
+## 8. Panduan Pengujian Mandiri (*Standalone Test Harness*) & Build PlatformIO
 
-1. **Uji Transmisi Mandiri (Standalone Test):**
-   * Buka skrip `standalone_test/test_lora_node_tx.ino` di Arduino IDE atau VS Code.
-   * Unggah ke board ESP32 Node.
-   * Buka Serial Monitor pada baud rate `115200`.
-   * Verifikasi bahwa keluaran menampilkan:
-     ```text
-     1. Melakukan Hardware Reset SX1278 (RST:15)... [OK]
-     2. Inisialisasi Hardware SPI Bus (SCK:21, MISO:19, MOSI:18, SS:Manual)... [OK]
-     3. Menghubungi Register Chip Semtech SX1278... [OK]
-     ...
-     >>> [TX SUKSES LOKAL] Sinyal TX_DONE diterima dari pin DIO0 (GPIO 2)!
-     >>> Durasi Pemanggilan Fungsi (SPI + ToA): 315 ms
-     ```
-2. **Kompilasi Penuh via PlatformIO:**
-   ```powershell
-   cd src/firmware/node_wc
-   pio run -e node_wc -t upload
-   pio device monitor
-   ```
+Semua pengujian mandiri (*standalone test*) pada `node_wc` telah distandarisasi ke dalam subfolder terisolasi dengan sepasang berkas `.ino` (Arduino IDE) dan `.cpp` (PlatformIO Bridge).
 
-3. **Uji Mandiri Sensor Gas MQ-137 ($NH_3$) & MQ-136 ($H_2S$):**
-   * Buka skrip `standalone_test/test_mq_sensors/test_mq_sensors.ino` di Arduino IDE atau jalankan via PlatformIO:
-     ```powershell
-     pio run -d src/firmware/node_wc -e test_mq_sensors -t upload
-     ```
-   * Panduan lengkap pengkondisian sinyal ADC, pembagi tegangan, proteksi kelistrikan, dan kalibrasi tertuang pada:
-     [`STANDALONE_MQ_TEST_GUIDE.md`](STANDALONE_MQ_TEST_GUIDE.md).
+### 8.1 Matriks Uji Mandiri & Dokumen Panduan Resmi
+
+| Uji Mandiri | Subdirektori Sumber | Environment PlatformIO | Dokumen Panduan Teknis | Fokus & Validasi Rekayasa |
+| :--- | :--- | :--- | :--- | :--- |
+| **Sensor Gas MQ** | `standalone_test/test_mq_sensors/` | `test_mq_sensors` | [`STANDALONE_MQ_TEST_GUIDE.md`](STANDALONE_MQ_TEST_GUIDE.md) | Proteksi overvoltage ADC, pembagi tegangan ($k \le 0,66$), sampling periodik, kalibrasi baseline $R_0$, flash NVS (schema v2 CRC32), Zero-Trust (ppm dinonaktifkan). |
+| **Sensor Ultrasonik** | `standalone_test/test_jsn_sr04t/` | `test_jsn_sr04t` | [`STANDALONE_JSN_TEST_GUIDE.md`](STANDALONE_JSN_TEST_GUIDE.md) | Time-of-flight gema akustik JSN-SR04T, eliminasi pemalsuan data (`NO_ECHO` $\ne$ 25cm), penanganan zona buta transduser tunggal (< 25 cm), proteksi pin strapping MTDI GPIO12. |
+| **LoRa Transmitter** | `standalone_test/test_lora_node_tx/` | `test_lora_node_tx` | [`STANDALONE_LORA_TEST_GUIDE.md`](STANDALONE_LORA_TEST_GUIDE.md) | Transmisi telemetri uplink 34 bytes (`TelemetryPayload`), kepatuhan Permenkomdigi No. 2/2025 (433.175 MHz SF9 BW 125kHz CR 4/7), pengukuran Time-on-Air (ToA) riil. |
+| **LoRa Receiver** | `standalone_test/test_lora_node_rx/` | `test_lora_node_rx` | [`STANDALONE_LORA_TEST_GUIDE.md`](STANDALONE_LORA_TEST_GUIDE.md) | Penerimaan asinkron DIO0 interrupt Core 1, antrean paket, *sole-writer* logger Core 0, dekoder biner downlink 10 bytes (`ActuatorCommand`) dengan filter node `WC_01` & uplink 34 bytes. |
+
+---
+
+### 8.2 Perintah Kompilasi PlatformIO Core CLI
+
+```powershell
+# 1. Kompilasi & Upload Firmware Utama Terintegrasi (Node WC)
+pio run -d src/firmware/node_wc -e node_wc -t upload
+pio device monitor -d src/firmware/node_wc -b 115200
+
+# 2. Kompilasi & Upload Uji Mandiri Sensor Gas MQ-137 / MQ-136
+pio run -d src/firmware/node_wc -e test_mq_sensors -t upload
+pio device monitor -d src/firmware/node_wc -b 115200
+
+# 3. Kompilasi & Upload Uji Mandiri Sensor Ultrasonik JSN-SR04T
+pio run -d src/firmware/node_wc -e test_jsn_sr04t -t upload
+pio device monitor -d src/firmware/node_wc -b 115200
+
+# 4. Kompilasi & Upload Uji Mandiri LoRa Transmitter Uplink
+pio run -d src/firmware/node_wc -e test_lora_node_tx -t upload
+pio device monitor -d src/firmware/node_wc -b 115200
+
+# 5. Kompilasi & Upload Uji Mandiri LoRa Receiver Downlink
+pio run -d src/firmware/node_wc -e test_lora_node_rx -t upload
+pio device monitor -d src/firmware/node_wc -b 115200
+```
+
+---
+
+### 8.3 Sinkronisasi Arduino IDE
+
+Bagi pengembang yang menggunakan Arduino IDE, berkas `.ino` di bawah ini dapat langsung dibuka dan di-flash (board: **DOIT ESP32 DEVKIT V1**, library: **RadioLib v6.6.0**, **NewPing v1.9.7**):
+- `src/firmware/node_wc/standalone_test/test_mq_sensors/test_mq_sensors.ino`
+- `src/firmware/node_wc/standalone_test/test_jsn_sr04t/test_jsn_sr04t.ino`
+- `src/firmware/node_wc/standalone_test/test_lora_node_tx/test_lora_node_tx.ino`
+- `src/firmware/node_wc/standalone_test/test_lora_node_rx/test_lora_node_rx.ino`
+
+*(Berkas juga disinkronkan secara otomatis pada direktori `C:\Users\dapah\Documents\Arduino\<nama_folder>\`)*
+
 

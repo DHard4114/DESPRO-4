@@ -46,10 +46,10 @@ DESPRO2_SMART_SANITATION_MODULAR/
     │   ├── docs/                      # Dokumentasi Master Pipeline LoRa & Wiring Matrix
     │   │   └── README.md
     │   ├── node_wc/                   # Firmware Node Bilik Sensor (Ultrasonik, MQ, SOS, Servo)
-    │   │   ├── docs/README.md         # Dokumentasi FreeRTOS Task, Prioritas, & Class A RX
-    │   │   ├── src/main.cpp           # Kode Sumber Produksi FreeRTOS
-    │   │   ├── standalone_test/       # Sketch Uji Mandiri Hardware Node TX
-    │   │   └── platformio.ini         # Konfigurasi Build PlatformIO Node
+    │   │   ├── docs/                  # Panduan Arsitektur & 3 Panduan Uji Standalone (MQ, JSN, LoRa)
+    │   │   ├── src/main.cpp           # Kode Sumber Produksi FreeRTOS Terintegrasi
+    │   │   ├── standalone_test/       # Suite Uji Mandiri Hardware (MQ, JSN, LoRa TX & RX)
+    │   │   └── platformio.ini         # Konfigurasi Build PlatformIO Node (5 Environment)
     │   └── gateway/                   # Firmware Gateway Router (LoRa RX, Store-Forward, WiFi)
     │       ├── docs/README.md         # Dokumentasi FreeRTOS Task, Ring Buffer, & DIO0 ISR
     │       ├── src/main.cpp           # Kode Sumber Produksi FreeRTOS
@@ -135,11 +135,14 @@ pio run -d src/firmware/node_wc -t upload
 pio run -d src/firmware/gateway -t upload
 ```
 
-### 3. Pengujian Mandiri Cepat (Standalone Test)
-Tersedia skrip mandiri Arduino IDE di setiap subfolder:
-*   **Node TX:** [`src/firmware/node_wc/standalone_test/test_lora_node_tx.ino`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/node_wc/standalone_test/test_lora_node_tx.ino)
-*   **Gateway RX:** [`src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino)
-*   **Simulasi Beban MQTT:** [`src/scripts/dummy_gateway.go`](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/scripts/dummy_gateway.go)
+### 3. Pengujian Mandiri Cepat (Standalone Test Harness)
+Tersedia skrip mandiri Arduino IDE & PlatformIO di subdirektori terdedikasi:
+*   **Node WC - Sensor Gas MQ-137 & MQ-136:** [`src/firmware/node_wc/standalone_test/test_mq_sensors/`](src/firmware/node_wc/standalone_test/test_mq_sensors/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_MQ_TEST_GUIDE.md)
+*   **Node WC - Sensor Ultrasonik JSN-SR04T:** [`src/firmware/node_wc/standalone_test/test_jsn_sr04t/`](src/firmware/node_wc/standalone_test/test_jsn_sr04t/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_JSN_TEST_GUIDE.md)
+*   **Node WC - LoRa Transmitter Uplink:** [`src/firmware/node_wc/standalone_test/test_lora_node_tx/`](src/firmware/node_wc/standalone_test/test_lora_node_tx/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_LORA_TEST_GUIDE.md)
+*   **Node WC - LoRa Receiver Downlink:** [`src/firmware/node_wc/standalone_test/test_lora_node_rx/`](src/firmware/node_wc/standalone_test/test_lora_node_rx/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_LORA_TEST_GUIDE.md)
+*   **Gateway Posko - LoRa Receiver:** [`src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino`](src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino)
+*   **Simulasi Beban MQTT:** [`src/scripts/dummy_gateway.go`](src/scripts/dummy_gateway.go)
 
 ---
 

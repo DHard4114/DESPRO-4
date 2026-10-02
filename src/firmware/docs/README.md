@@ -17,12 +17,18 @@ src/firmware/
 │   ├── include/
 │   │   └── config.h                <-- Pinout hardware, parameter LoRa 433MHz, struct biner 34B
 │   ├── src/
-│   │   └── main.cpp                <-- Firmware lengkap: Sensor, LoRa TX, Servo MG996R, PM Locks
-│   ├── standalone_test/
-│   │   └── test_lora_node_tx.ino   <-- Skrip uji mandiri pengirim LoRa (Arduino IDE ready)
-│   ├── platformio.ini              <-- Konfigurasi build toolchain PlatformIO (env: node_wc)
+│   │   └── main.cpp                <-- Firmware terintegrasi: Sensor Gas, Ultrasonik, LoRa TX
+│   ├── standalone_test/            <-- Suite Uji Mandiri Hardware per Subfolder:
+│   │   ├── test_jsn_sr04t/         # Uji Standalone Sensor Ultrasonik JSN-SR04T
+│   │   ├── test_mq_sensors/        # Uji Standalone Sensor Gas MQ-137 & MQ-136
+│   │   ├── test_lora_node_tx/      # Uji Standalone LoRa Transmitter Uplink
+│   │   └── test_lora_node_rx/      # Uji Standalone LoRa Receiver Downlink
+│   ├── platformio.ini              <-- Konfigurasi build PlatformIO (5 env: node_wc + 4 standalone)
 │   └── docs/
-│       └── README.md               <-- Dokumentasi teknis lengkap Node WC + Diagram Mermaid
+│       ├── README.md               <-- Dokumentasi teknis lengkap Node WC + Diagram Mermaid
+│       ├── STANDALONE_MQ_TEST_GUIDE.md   <-- Panduan Uji Standalone Sensor Gas MQ
+│       ├── STANDALONE_JSN_TEST_GUIDE.md  <-- Panduan Uji Standalone Sensor Ultrasonik JSN
+│       └── STANDALONE_LORA_TEST_GUIDE.md <-- Panduan Uji Standalone LoRa SX1278 TX & RX
 └── gateway/                        <-- [SUBSISTEM 2: GATEWAY ROUTER POSKO]
     ├── include/
     │   └── config.h                <-- Pinout SPI LoRa, bus I2C RTC DS3231, kredensial MQTT
@@ -81,9 +87,9 @@ Kedua varian firmware berbagi konfigurasi bus SPI radio yang identik, sehingga m
 | **LoRa RESET** | **GPIO 15** | **GPIO 15** | Output GPIO | Reset perangkat keras SX1278. |
 | **LoRa DIO0** | **GPIO 2** | **GPIO 2** | Input EXTI | Sinyal interupsi (TX_DONE pada Node, RX_DONE pada Gateway). |
 | **Ultrasonik TRIG** | **GPIO 13** | — | Output GPIO | Pulsa trigger sensor level air tangki. |
-| **Ultrasonik ECHO** | **GPIO 12** | — | Input GPIO | Input durasi pantulan gelombang suara ultrasonik. |
-| **Gas Amonia MQ-137** | **GPIO 32** | — | Input ADC1 | Pembacaan analog konsentrasi amonia bilik. |
-| **Gas H2S MQ-136** | **GPIO 33** | — | Input ADC1 | Pembacaan analog konsentrasi gas hidrogen sulfida. |
+| **Ultrasonik ECHO** | **GPIO 12** | — | Input GPIO | Input durasi pantulan pulsa akustik (Wajib pembagi tegangan 1k/2k ohm untuk proteksi strapping pin MTDI). |
+| **Gas Amonia MQ-137** | **GPIO 32** | — | Input ADC1 | Pembacaan analog konsentrasi amonia bilik (Wajib pembagi tegangan rasio $k \le 0,66$). |
+| **Gas H2S MQ-136** | **GPIO 33** | — | Input ADC1 | Pembacaan analog konsentrasi gas H2S (Wajib pembagi tegangan rasio $k \le 0,66$). |
 | **Baterai Divider** | **GPIO 34** | — | Input ADC1 | Input tegangan aki/baterai Li-ion (Input-Only). |
 | **Tombol SOS** | **GPIO 27** | — | Input EXTI | Sakelar darurat fisik dengan interrupt debouncing. |
 | **Motor Servo MG996R**| **GPIO 26** | — | Output PWM | Sinyal kendali penguncian pintu bilik sanitasi. |
@@ -105,11 +111,17 @@ Seluruh pengembang firmware pada proyek ini terikat oleh standar implementasi be
    * **Core 0 (PRO_CPU):** Khusus pemrosesan sensor, aktuator servo, stack Wi-Fi, dan protokol MQTT.
    * **Core 1 (APP_CPU):** Khusus transaksi bus SPI radio LoRa frekuensi tinggi untuk menjamin latensi deterministik.
 5. **Pemantauan Kapasitas Stack:**
-   Gunakan fungsi `uxTaskGetStackHighWaterMark(NULL)` saat fase debug untuk memastikan tidak terjadi *Stack Overflow*.
+   Gunakan fungsi `uxTaskGetStackHighWaterMark(NULL)` saat fase debug untuk memastikan tidak terjadi *Stack Overflow*. Pada ESP-IDF, nilai ini dikembalikan dalam satuan **BYTES** (bukan words), sehingga tidak perlu dikalikan 4.
 
 ---
 
 ## 5. Tautan Dokumen Detail Setiap Subsistem
 
+### Arsitektur Utama:
 * 📖 **[Dokumentasi Lengkap Node WC Sanitasi](../node_wc/docs/README.md)**: Analisis task sensor, kontrol servo, algoritma debouncing SOS, dan siklus LoRaWAN Class A.
 * 📖 **[Dokumentasi Lengkap Gateway Posko](../gateway/docs/README.md)**: Mekanisme Store-and-Forward LittleFS, sinkronisasi waktu RTC DS3231, supervisor Wi-Fi, dan downlink komando.
+
+### Panduan Resmi Uji Mandiri Hardware (*Standalone Test Guides*):
+* 🧪 **[Panduan Uji Standalone Sensor Gas MQ-137 & MQ-136](../node_wc/docs/STANDALONE_MQ_TEST_GUIDE.md)**: Proteksi pembagi tegangan, kalibrasi baseline $R_0$, flash NVS schema v2 CRC32, dan evaluasi sinyal ADC.
+* 🧪 **[Panduan Uji Standalone Sensor Ultrasonik JSN-SR04T](../node_wc/docs/STANDALONE_JSN_TEST_GUIDE.md)**: Time-of-flight acoustic echo, penanganan zona buta (< 25 cm), eliminasi pemalsuan data, dan proteksi strapping pin MTDI.
+* 🧪 **[Panduan Uji Standalone LoRa SX1278 TX & RX](../node_wc/docs/STANDALONE_LORA_TEST_GUIDE.md)**: Kepatuhan Permenkomdigi No. 2/2025 (433.175 MHz SF9), interupsi DIO0 asinkron, antrean FreeRTOS, dan validasi payload biner.
