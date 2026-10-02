@@ -347,7 +347,73 @@ def run_tests():
     assert not ok and err == "TOPIC_MISMATCH"
     print(" Topic mismatch rejection: PASS")
 
+    print("\n=== TEST 5: TIME SYNC PARSING & BOUNDS ===")
+    def parse_time_sync(payload_str):
+        if not payload_str or len(payload_str) > 32:
+            return False, "INVALID_LENGTH", 0
+        if not payload_str.isdigit():
+            return False, "NOT_ALL_DIGITS", 0
+        val = int(payload_str)
+        if val < 1700000000 or val >= 2500000000:
+            return False, "OUT_OF_BOUNDS", val
+        return True, "OK", val
+
+    ok, msg, val = parse_time_sync("1727876543")
+    assert ok and val == 1727876543
+    print(" Valid server epoch: PASS")
+
+    ok, msg, _ = parse_time_sync("1727abc543")
+    assert not ok and msg == "NOT_ALL_DIGITS"
+    print(" Non-digit rejection: PASS")
+
+    ok, msg, _ = parse_time_sync("12345")
+    assert not ok and msg == "OUT_OF_BOUNDS"
+    print(" Out of bounds epoch rejection: PASS")
+
+    ok, msg, _ = parse_time_sync("9" * 35)
+    assert not ok and msg == "INVALID_LENGTH"
+    print(" Overlength payload rejection: PASS")
+
+    print("\n=== TEST 6: GATEWAY RECORD (38B) & JSON CONTRACT ===")
+    # 34-byte TelemetryPayload + 4-byte gateway_timestamp (I) = 38 bytes
+    GATEWAY_RECORD_FORMAT = "<B8sI I f f f f B I"
+    assert struct.calcsize(GATEWAY_RECORD_FORMAT) == 38, f"Expected 38, got {struct.calcsize(GATEWAY_RECORD_FORMAT)}"
+
+    # Pack record
+    raw_payload = pack_payload(seq=12, uptime=450, water=30.0, nh3=1.2, h2s=0.5, batt=3.9, sos=0)
+    gw_epoch = 1727879999
+    raw_record = raw_payload + struct.pack("<I", gw_epoch)
+    assert len(raw_record) == 38
+
+    # Unpack record
+    unpacked_rec = struct.unpack(GATEWAY_RECORD_FORMAT, raw_record)
+    uptime_sec = unpacked_rec[3]
+    epoch_rec = unpacked_rec[9]
+    assert uptime_sec == 450, f"Uptime must be 450, got {uptime_sec}"
+    assert epoch_rec == gw_epoch, f"Gateway epoch must be {gw_epoch}, got {epoch_rec}"
+    print(" Separate uptime_seconds and gateway_timestamp: PASS")
+
+    # JSON representation
+    json_out = {
+        "schema_version": unpacked_rec[0],
+        "node_code": "WC_01",
+        "sequence_no": unpacked_rec[2],
+        "timestamp": epoch_rec,          # Unix epoch for backend
+        "uptime_seconds": uptime_sec,    # True node uptime
+        "water_level_cm": unpacked_rec[4],
+        "ammonia_ppm": unpacked_rec[5],
+        "h2s_ppm": unpacked_rec[6],
+        "battery_voltage": unpacked_rec[7],
+        "sos_triggered": unpacked_rec[8]
+    }
+    json_str = json.dumps(json_out)
+    parsed_back = json.loads(json_str)
+    assert parsed_back["timestamp"] == gw_epoch
+    assert parsed_back["uptime_seconds"] == 450
+    print(" JSON contract preservation (timestamp + uptime_seconds): PASS")
+
     print("\n>>> ALL UNIT TESTS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_tests()
+

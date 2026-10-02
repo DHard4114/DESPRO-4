@@ -15,7 +15,8 @@
 // Framework    : Arduino-ESP32 / ESP-IDF FreeRTOS (Dual-Core Xtensa LX6)
 // Hardware     : DOIT ESP32 DevKit V1, SX1278 (Ai-Thinker Ra-02), DS3231 RTC
 // Architecture : Single Radio Owner (TaskLoRaRx), Two-Phase Store-and-Forward (LittleFS "r+"),
-//                Strict Uplink-Only Alignment, Thread-Safe MQTT Mutex, Non-truncating Buffer.
+//                Strict Uplink-Only Alignment, Thread-Safe MQTT Mutex, Non-truncating Buffer,
+//                Static IP (192.168.101.11), Dedicated Server Time-Sync Handler.
 // =========================================================================================
 
 // ==========================================
@@ -55,8 +56,8 @@ SemaphoreHandle_t mqttMutex = NULL;
 #define MAX_BUFFER_RECORDS  500
 #define FILE_META           "/meta.dat"
 #define FILE_DATA           "/buffer.dat"
-#define BUFFER_MAGIC        0x47574232  // 'GWB2' (Schema v2)
-#define BUFFER_VERSION      2
+#define BUFFER_MAGIC        0x47574233  // 'GWB3' (Schema v3: GatewayTelemetryRecord 38B)
+#define BUFFER_VERSION      3
 
 struct __attribute__((packed)) BufferMeta {
     uint32_t magic;
@@ -121,7 +122,7 @@ static void initDataFileIfMissing() {
         File f = LittleFS.open(FILE_DATA, "w");
         if (f) {
             f.close();
-            Serial.println(F("[LITTLEFS] Berkas buffer.dat baru dibuat."));
+            Serial.println(F("[LITTLEFS] Berkas buffer.dat baru berhasil dibuat."));
         } else {
             Serial.println(F("[LITTLEFS ERROR] Gagal membuat buffer.dat baru!"));
         }
@@ -147,21 +148,30 @@ static void loadMeta() {
                     if (dataFile) {
                         size_t fileSize = dataFile.size();
                         dataFile.close();
-                        if (temp.count == 0 || fileSize >= sizeof(TelemetryPayload)) {
+                        if (temp.count == 0 || fileSize >= (size_t)temp.count * sizeof(GatewayTelemetryRecord)) {
                             meta = temp;
                             valid = true;
                         } else {
-                            Serial.println(F("[LITTLEFS ERROR] Ukuran berkas buffer.dat tidak sesuai count metadata!"));
+                            Serial.printf("[LITTLEFS ERROR] Ukuran berkas buffer.dat (%u B) tidak mencukupi untuk %u record!\n",
+                                          (unsigned int)fileSize, (unsigned int)temp.count);
                         }
                     }
+                } else {
+                    Serial.println(F("[LITTLEFS ERROR] Metadata buffer.dat korup atau CRC32 mismatch!"));
                 }
+            } else {
+                Serial.println(F("[LITTLEFS ERROR] Pembacaan metadata terpotong (short read)!"));
             }
             f.close();
+        } else {
+            Serial.println(F("[LITTLEFS ERROR] Gagal membuka FILE_META untuk pembacaan!"));
         }
+    } else {
+        Serial.println(F("[LITTLEFS NOTICE] FILE_META belum ada (sistem baru atau belum diinisialisasi)."));
     }
 
     if (!valid) {
-        Serial.println(F("[LITTLEFS] Inisialisasi awal metadata buffer (Schema v2)..."));
+        Serial.println(F("[LITTLEFS] Menginisialisasi metadata baru (Schema v3)..."));
         meta.magic = BUFFER_MAGIC;
         meta.version = BUFFER_VERSION;
         meta.head = 0;
@@ -174,68 +184,68 @@ static void loadMeta() {
 }
 
 // Push data ke flash buffer tanpa pemotongan ("r+" mode)
-static bool pushToBuffer(const TelemetryPayload &data) {
+static bool pushToBuffer(const GatewayTelemetryRecord &record) {
     if (fsMutex == NULL || !g_fs_available) return false;
     xSemaphoreTake(fsMutex, portMAX_DELAY);
 
     bool success = false;
-    // Buka mode "r+" untuk update posisi acak tanpa truncating
-    File f = LittleFS.open(FILE_DATA, "r+");
-    if (!f) {
-        // Jika belum ada, buat baru dengan "w" lalu buka kembali "r+"
+    if (!LittleFS.exists(FILE_DATA)) {
         initDataFileIfMissing();
-        f = LittleFS.open(FILE_DATA, "r+");
     }
 
-    if (f) {
-        uint32_t slot = meta.tail;
-        uint32_t offset = slot * sizeof(TelemetryPayload);
-        if (f.seek(offset, SeekSet)) {
-            size_t written = f.write((const uint8_t*)&data, sizeof(TelemetryPayload));
-            f.flush();
-            if (written == sizeof(TelemetryPayload)) {
-                if (meta.count == 0) {
-                    meta.head_seq = data.sequence_no;
-                }
-                meta.tail = (meta.tail + 1) % MAX_BUFFER_RECORDS;
-                if (meta.count < MAX_BUFFER_RECORDS) {
-                    meta.count++;
-                } else {
-                    // Buffer penuh: timpa slot tertua di head (Kebijakan: OVERWRITE_OLDEST)
-                    meta.head = (meta.head + 1) % MAX_BUFFER_RECORDS;
-                    meta.dropped_count++;
-                    Serial.printf("[STORE-AND-FORWARD ALERT] Buffer penuh (%u rekaman). Slot tertua ditimpa! Total dropped: %u\n",
-                                  MAX_BUFFER_RECORDS, meta.dropped_count);
-                    // Baca nomor urut record baru yang kini berada di posisi head
-                    TelemetryPayload newHead;
-                    if (f.seek(meta.head * sizeof(TelemetryPayload), SeekSet)) {
-                        if (f.read((uint8_t*)&newHead, sizeof(TelemetryPayload)) == sizeof(TelemetryPayload)) {
-                            meta.head_seq = newHead.sequence_no;
-                        }
+    // Buka mode "r+" untuk update posisi acak tanpa truncating berkas lama
+    File f = LittleFS.open(FILE_DATA, "r+");
+    if (!f) {
+        Serial.println(F("[LITTLEFS ERROR] Gagal membuka buffer.dat dalam mode r+ (I/O error, berkas dipertahankan)!"));
+        xSemaphoreGive(fsMutex);
+        return false;
+    }
+
+    uint32_t slot = meta.tail;
+    uint32_t offset = slot * sizeof(GatewayTelemetryRecord);
+    if (f.seek(offset, SeekSet)) {
+        size_t written = f.write((const uint8_t*)&record, sizeof(GatewayTelemetryRecord));
+        f.flush();
+        if (written == sizeof(GatewayTelemetryRecord)) {
+            if (meta.count == 0) {
+                meta.head_seq = record.payload.sequence_no;
+            }
+            meta.tail = (meta.tail + 1) % MAX_BUFFER_RECORDS;
+            if (meta.count < MAX_BUFFER_RECORDS) {
+                meta.count++;
+            } else {
+                // Buffer penuh: timpa slot tertua di head (Kebijakan: OVERWRITE_OLDEST)
+                meta.head = (meta.head + 1) % MAX_BUFFER_RECORDS;
+                meta.dropped_count++;
+                Serial.printf("[STORE-AND-FORWARD ALERT] Buffer penuh (%u rekaman). Slot tertua ditimpa! Total dropped: %u\n",
+                              MAX_BUFFER_RECORDS, meta.dropped_count);
+                // Baca nomor urut record baru yang kini berada di posisi head
+                GatewayTelemetryRecord newHead;
+                if (f.seek(meta.head * sizeof(GatewayTelemetryRecord), SeekSet)) {
+                    if (f.read((uint8_t*)&newHead, sizeof(GatewayTelemetryRecord)) == sizeof(GatewayTelemetryRecord)) {
+                        meta.head_seq = newHead.payload.sequence_no;
                     }
                 }
-                saveMeta();
-                success = true;
-                Serial.printf("[STORE-AND-FORWARD] Data disimpan ke LittleFS (Slot %u, Antrean: %u, Seq: #%u)\n",
-                              slot, meta.count, data.sequence_no);
-            } else {
-                Serial.println(F("[LITTLEFS ERROR] Penulisan payload tidak lengkap ke flash!"));
             }
+            saveMeta();
+            success = true;
+            Serial.printf("[STORE-AND-FORWARD] Data disimpan ke LittleFS (Slot %u, Antrean: %u, Seq: #%u)\n",
+                          slot, meta.count, record.payload.sequence_no);
         } else {
-            Serial.println(F("[LITTLEFS ERROR] Seek gagal pada pushToBuffer!"));
+            Serial.println(F("[LITTLEFS ERROR] Penulisan payload tidak lengkap ke flash!"));
         }
-        f.close();
     } else {
-        Serial.println(F("[LITTLEFS ERROR] Gagal membuka buffer.dat dalam mode r+!"));
+        Serial.println(F("[LITTLEFS ERROR] Seek gagal pada pushToBuffer!"));
     }
+    f.close();
 
     xSemaphoreGive(fsMutex);
     return success;
 }
 
 // Tahap 1 Two-Phase Commit: Peek data pada posisi head tanpa menghapusnya
-static bool peekBuffer(TelemetryPayload *outData, CommitToken *outToken) {
-    if (fsMutex == NULL || !g_fs_available || meta.count == 0 || outData == NULL || outToken == NULL) {
+static bool peekBuffer(GatewayTelemetryRecord *outRecord, CommitToken *outToken) {
+    if (fsMutex == NULL || !g_fs_available || meta.count == 0 || outRecord == NULL || outToken == NULL) {
         return false;
     }
     xSemaphoreTake(fsMutex, portMAX_DELAY);
@@ -246,11 +256,11 @@ static bool peekBuffer(TelemetryPayload *outData, CommitToken *outToken) {
     File f = LittleFS.open(FILE_DATA, "r");
     if (f) {
         uint32_t slot = meta.head;
-        uint32_t offset = slot * sizeof(TelemetryPayload);
+        uint32_t offset = slot * sizeof(GatewayTelemetryRecord);
         if (f.seek(offset, SeekSet)) {
-            if (f.read((uint8_t*)outData, sizeof(TelemetryPayload)) == sizeof(TelemetryPayload)) {
+            if (f.read((uint8_t*)outRecord, sizeof(GatewayTelemetryRecord)) == sizeof(GatewayTelemetryRecord)) {
                 outToken->slot = (uint16_t)slot;
-                outToken->sequence_no = outData->sequence_no;
+                outToken->sequence_no = outRecord->payload.sequence_no;
                 outToken->valid = true;
                 success = true;
             } else {
@@ -275,7 +285,7 @@ static bool commitBufferDeletion(const CommitToken &token) {
 
     bool success = false;
     // Verifikasi bahwa posisi head belum berubah atau ditimpa oleh wrap-around
-    if (meta.head == token.slot) {
+    if (meta.head == token.slot && meta.head_seq == token.sequence_no) {
         meta.head = (meta.head + 1) % MAX_BUFFER_RECORDS;
         meta.count--;
         
@@ -283,10 +293,10 @@ static bool commitBufferDeletion(const CommitToken &token) {
         if (meta.count > 0) {
             File f = LittleFS.open(FILE_DATA, "r");
             if (f) {
-                TelemetryPayload nextHead;
-                if (f.seek(meta.head * sizeof(TelemetryPayload), SeekSet)) {
-                    if (f.read((uint8_t*)&nextHead, sizeof(TelemetryPayload)) == sizeof(TelemetryPayload)) {
-                        meta.head_seq = nextHead.sequence_no;
+                GatewayTelemetryRecord nextHead;
+                if (f.seek(meta.head * sizeof(GatewayTelemetryRecord), SeekSet)) {
+                    if (f.read((uint8_t*)&nextHead, sizeof(GatewayTelemetryRecord)) == sizeof(GatewayTelemetryRecord)) {
+                        meta.head_seq = nextHead.payload.sequence_no;
                     }
                 }
                 f.close();
@@ -298,8 +308,8 @@ static bool commitBufferDeletion(const CommitToken &token) {
         Serial.printf("[STORE-AND-FORWARD] Commit selesai. Data terkirim di-pop dari Flash. Sisa: %u (Seq: #%u)\n",
                       meta.count, token.sequence_no);
     } else {
-        Serial.printf("[STORE-AND-FORWARD NOTICE] Commit dilewati: Slot head telah bergeser (%u != %u). Data telah ditimpa wrap-around.\n",
-                      meta.head, token.slot);
+        Serial.printf("[STORE-AND-FORWARD NOTICE] Commit dilewati: Slot head telah bergeser (%u != %u) atau seq mismatch (%u != %u). Data telah ditimpa wrap-around.\n",
+                      meta.head, token.slot, meta.head_seq, token.sequence_no);
     }
 
     xSemaphoreGive(fsMutex);
@@ -438,22 +448,25 @@ void vTaskLoRaRx(void *pvParameters) {
             continue;
         }
 
-        // 5. Pencatatan Waktu: Pisahkan Uptime Node dengan Timestamp Gateway
-        uint32_t node_uptime_sec = rxData.timestamp; // Nilai asli dari field biner node sebelum dioverwrite
+        // 5. Pencatatan Waktu: Simpan Waktu Penerimaan RTC Secara Terpisah
+        GatewayTelemetryRecord record;
+        record.payload = rxData; // Mempertahankan uptime_seconds asli dari Node WC tanpa overwrite
+        
         if (g_rtc_available) {
-            rxData.timestamp = rtc.now().unixtime();
+            record.gateway_timestamp = rtc.now().unixtime();
         } else {
-            rxData.timestamp = 0; // Sentinel 0: Waktu RTC offline / belum tersinkronisasi
+            record.gateway_timestamp = 0; // Sentinel 0: Waktu RTC offline / belum tersinkronisasi
         }
 
-        Serial.printf("[LORA RX] Paket Sah: Node=%.8s | Seq=#%u | Node Uptime=%u s | Gateway Epoch=%u | Air=%.1f cm | RSSI=%.1f dBm | SNR=%.1f dB\n",
-                      safe_node, rxData.sequence_no, node_uptime_sec, rxData.timestamp,
-                      rxData.water_level_cm, radio.getRSSI(), radio.getSNR());
+        Serial.printf("[LORA RX] Paket Sah: Node=%.8s | Seq=#%u | Node Uptime=%u s | Gateway Epoch=%u | Air=%.1f cm | Batt=%.2f V | RSSI=%.1f dBm | SNR=%.1f dB\n",
+                      safe_node, record.payload.sequence_no, record.payload.uptime_seconds, record.gateway_timestamp,
+                      record.payload.water_level_cm, record.payload.battery_voltage,
+                      radio.getRSSI(), radio.getSNR());
 
         // 6. Masukkan ke antrean telemetri RAM. Jika RAM penuh, simpan ke LittleFS
-        if (xQueueSend(xQueueTelemetry, &rxData, 0) != pdPASS) {
+        if (xQueueSend(xQueueTelemetry, &record, 0) != pdPASS) {
             Serial.println(F("[LORA RX] Antrean RAM penuh, menyimpan ke LittleFS."));
-            pushToBuffer(rxData);
+            pushToBuffer(record);
         }
 
         // Catatan Operasional: Dalam fase Uplink-Only, Gateway TIDAK memancarkan downlink.
@@ -470,7 +483,7 @@ void vTaskMqttTx(void *pvParameters) {
     uint8_t ram_serviced_count = 0;
 
     for (;;) {
-        TelemetryPayload data;
+        GatewayTelemetryRecord record;
         bool hasData = false;
         bool isFromFlash = false;
         CommitToken flashToken = {0, 0, false};
@@ -487,7 +500,7 @@ void vTaskMqttTx(void *pvParameters) {
         // paket RAM memonopoli jaringan secara terus menerus (Starvation Prevention).
         // Setiap 2 paket RAM, beri giliran 1 paket flash.
         if (isMqttOnline && meta.count > 0 && ram_serviced_count >= 2) {
-            if (peekBuffer(&data, &flashToken)) {
+            if (peekBuffer(&record, &flashToken)) {
                 hasData = true;
                 isFromFlash = true;
                 ram_serviced_count = 0;
@@ -496,14 +509,14 @@ void vTaskMqttTx(void *pvParameters) {
 
         // Jika belum mendapatkan data dari flash, coba ambil dari antrean RAM
         if (!hasData) {
-            if (xQueueReceive(xQueueTelemetry, &data, pdMS_TO_TICKS(50)) == pdTRUE) {
+            if (xQueueReceive(xQueueTelemetry, &record, pdMS_TO_TICKS(50)) == pdTRUE) {
                 hasData = true;
                 isFromFlash = false;
                 ram_serviced_count++;
             }
             // Jika RAM kosong dan flash memiliki backlog saat MQTT online
             else if (isMqttOnline && meta.count > 0) {
-                if (peekBuffer(&data, &flashToken)) {
+                if (peekBuffer(&record, &flashToken)) {
                     hasData = true;
                     isFromFlash = true;
                     ram_serviced_count = 0;
@@ -518,20 +531,23 @@ void vTaskMqttTx(void *pvParameters) {
                 xSemaphoreTake(mqttMutex, portMAX_DELAY);
                 if (mqtt.connected()) {
                     StaticJsonDocument<384> doc;
-                    doc["schema_version"]  = data.schema_version;
+                    doc["schema_version"]  = record.payload.schema_version;
 
                     char safe_node[9] = {0};
-                    memcpy(safe_node, data.node_code, 8);
+                    memcpy(safe_node, record.payload.node_code, 8);
                     safe_node[8] = '\0';
                     doc["node_code"]       = safe_node;
 
-                    doc["sequence_no"]     = data.sequence_no;
-                    doc["timestamp"]       = data.timestamp;
-                    doc["water_level_cm"]  = data.water_level_cm;
-                    doc["ammonia_ppm"]     = data.ammonia_ppm;
-                    doc["h2s_ppm"]         = data.h2s_ppm;
-                    doc["battery_voltage"] = data.battery_voltage;
-                    doc["sos_triggered"]   = data.sos_triggered;
+                    doc["sequence_no"]     = record.payload.sequence_no;
+                    // Sesuai kontrak backend Go: field "timestamp" adalah Unix Epoch saat diterima
+                    doc["timestamp"]       = record.gateway_timestamp;
+                    // Uptime durasi operasional asli dari Node WC tetap dicantumkan
+                    doc["uptime_seconds"]  = record.payload.uptime_seconds;
+                    doc["water_level_cm"]  = record.payload.water_level_cm;
+                    doc["ammonia_ppm"]     = record.payload.ammonia_ppm;
+                    doc["h2s_ppm"]         = record.payload.h2s_ppm;
+                    doc["battery_voltage"] = record.payload.battery_voltage;
+                    doc["sos_triggered"]   = record.payload.sos_triggered;
 
                     char jsonBuffer[384];
                     size_t jsonLen = serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
@@ -562,7 +578,7 @@ void vTaskMqttTx(void *pvParameters) {
                 // Data dari RAM yang gagal dipublish disimpan ke LittleFS
                 if (!published) {
                     Serial.println(F("[STORE-AND-FORWARD] Publish data RAM gagal/offline; dialihkan ke LittleFS."));
-                    pushToBuffer(data);
+                    pushToBuffer(record);
                 }
             }
         }
@@ -575,19 +591,60 @@ void vTaskMqttTx(void *pvParameters) {
 // 7. TASK: SUPERVISOR WIFI & MQTT (Core 0, Prio 1)
 // ==========================================
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    // 1. Validasi Topik MQTT
-    if (topic == NULL || strncmp(topic, "esos/", 5) != 0 || strstr(topic, "/command") == NULL) {
+    if (topic == NULL) return;
+
+    // 1. Penanganan Topik Sinkronisasi Waktu Server Backend
+    if (strcmp(topic, MQTT_TOPIC_TIMESYNC) == 0) {
+        if (length == 0 || length > 32) {
+            Serial.println(F("[TIME_SYNC ERROR] Panjang payload time_sync tidak sah."));
+            return;
+        }
+
+        char time_str[33] = {0};
+        memcpy(time_str, payload, length);
+        time_str[length] = '\0';
+
+        bool allDigits = true;
+        for (size_t i = 0; i < length; i++) {
+            if (!isdigit((unsigned char)time_str[i])) {
+                allDigits = false;
+                break;
+            }
+        }
+        if (!allDigits) {
+            Serial.printf("[TIME_SYNC ERROR] Format payload bukan angka bulat sah: '%s'\n", time_str);
+            return;
+        }
+
+        unsigned long server_epoch = strtoul(time_str, NULL, 10);
+        // Validasi epoch waktu masuk akal (antara 1 Nov 2023 [1700000000] hingga tahun 2050 [2500000000])
+        if (server_epoch >= 1700000000UL && server_epoch < 2500000000UL) {
+            if (g_rtc_available || rtc.begin()) {
+                rtc.adjust(DateTime((uint32_t)server_epoch));
+                g_rtc_available = true;
+                Serial.printf("[RTC SYNC] RTC DS3231 berhasil disinkronkan ke Epoch Server: %lu\n", server_epoch);
+            } else {
+                Serial.println(F("[RTC SYNC ERROR] RTC DS3231 offline / tidak merespons di I2C!"));
+            }
+        } else {
+            Serial.printf("[TIME_SYNC ERROR] Nilai epoch di luar rentang sah (1.7B - 2.5B): %lu\n", server_epoch);
+        }
+        return;
+    }
+
+    // 2. Validasi Topik Komando Downlink
+    if (strncmp(topic, "esos/", 5) != 0 || strstr(topic, "/command") == NULL) {
         Serial.println(F("[MQTT RX] Pesan diabaikan: Topik tidak dikenal atau di luar namespace esos!"));
         return;
     }
 
-    // 2. Validasi Panjang Payload
+    // 3. Validasi Panjang Payload Komando
     if (length == 0 || length > 256) {
         Serial.println(F("[MQTT RX ERROR] Panjang payload tidak valid (0 atau > 256 byte)."));
         return;
     }
 
-    // 3. Deserialisasi JSON
+    // 4. Deserialisasi JSON Komando
     StaticJsonDocument<256> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
     if (error) {
@@ -595,13 +652,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    // 4. Wajibkan Seluruh Field (DILARANG MENGGUNAKAN NILAI DEFAULT)
+    // 5. Wajibkan Seluruh Field (DILARANG MENGGUNAKAN NILAI DEFAULT)
     if (!doc.containsKey("node_code") || !doc.containsKey("command_id") || !doc.containsKey("parameter")) {
         Serial.println(F("[MQTT RX ERROR] Field wajib hilang! Wajib menyertakan: node_code, command_id, parameter."));
         return;
     }
 
-    // 5. Validasi Tipe Data
+    // 6. Validasi Tipe Data JSON
     if (!doc["node_code"].is<const char*>() || 
         !doc["command_id"].is<unsigned int>() || 
         !doc["parameter"].is<unsigned int>()) {
@@ -642,7 +699,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    // 6. Pemisahan Validasi Format dari Status Fitur Downlink
+    // 7. Pemisahan Validasi Format dari Status Fitur Downlink
 #if !ENABLE_GATEWAY_DOWNLINK
     // Status operasional default: Uplink-Only. Downlink dinonaktifkan secara sadar.
     Serial.printf("[MQTT RX STATUS: DOWNLINK_UNAVAILABLE] Komando valid untuk '%.8s' (CMD=%u, PARAM=%u) DITOLAK.\n",
@@ -658,13 +715,38 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void vTaskWiFiSupervisor(void *pvParameters) {
     (void)pvParameters;
     uint32_t backoff = 3000;
+    static bool s_wifi_connected_logged = false;
+
+    // Persiapkan Alamat IP Statis Target (192.168.101.11 / 24)
+    IPAddress local_IP(STATIC_IP_LOCAL);
+    IPAddress gateway_IP(STATIC_IP_GATEWAY);
+    IPAddress subnet_mask(STATIC_IP_SUBNET);
+    IPAddress dns_server(STATIC_IP_DNS);
+
     for (;;) {
         // Monitor Wi-Fi
         if (WiFi.status() != WL_CONNECTED) {
+            s_wifi_connected_logged = false;
             WiFi.disconnect();
+
+            // Terapkan IP Statis sebelum WiFi.begin()
+            if (!WiFi.config(local_IP, gateway_IP, subnet_mask, dns_server)) {
+                Serial.println(F("[WIFI ERROR] Penerapan IP Statis (WiFi.config) GAGAL! Periksa parameter subnet."));
+            } else {
+                Serial.println(F("[WIFI] Konfigurasi IP Statis (192.168.101.11) diterapkan."));
+            }
+
             WiFi.begin(WIFI_SSID, WIFI_PASS);
-            Serial.println(F("[WIFI] Menyambungkan ke WiFi Posko..."));
+            Serial.printf("[WIFI] Menyambungkan ke SSID '%s'...\n", WIFI_SSID);
             vTaskDelay(pdMS_TO_TICKS(5000));
+        } else if (!s_wifi_connected_logged) {
+            Serial.printf("[WIFI OK] Terhubung ke SSID '%s'! IP: %s | GW: %s | Netmask: %s | DNS: %s\n",
+                          WIFI_SSID,
+                          WiFi.localIP().toString().c_str(),
+                          WiFi.gatewayIP().toString().c_str(),
+                          WiFi.subnetMask().toString().c_str(),
+                          WiFi.dnsIP().toString().c_str());
+            s_wifi_connected_logged = true;
         }
 
         // Monitor MQTT jika Wi-Fi sudah tersambung
@@ -681,16 +763,20 @@ void vTaskWiFiSupervisor(void *pvParameters) {
                 mqtt.setServer(MQTT_SERVER, MQTT_PORT);
                 mqtt.setCallback(mqttCallback);
 
-                String clientId = "GatewayPosko-" + String(WiFi.macAddress());
-                Serial.printf("[MQTT] Menghubungi Broker %s:%d...\n", MQTT_SERVER, MQTT_PORT);
+                String macClean = WiFi.macAddress();
+                macClean.replace(":", "");
+                String clientId = "esos_gateway_" + macClean;
+                Serial.printf("[MQTT] Menghubungi Broker %s:%d dengan ClientID: %s...\n",
+                              MQTT_SERVER, MQTT_PORT, clientId.c_str());
 
                 if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
-                    Serial.println(F("[MQTT] Terhubung ke Broker!"));
+                    Serial.println(F("[MQTT OK] Terhubung ke Broker Mosquitto!"));
                     mqtt.publish(MQTT_TOPIC_STATUS, "ONLINE", true);
                     mqtt.subscribe(MQTT_TOPIC_COMMAND, 1);
+                    mqtt.subscribe(MQTT_TOPIC_TIMESYNC, 1);
                     backoff = 3000;
                 } else {
-                    Serial.printf("[MQTT] Gagal (rc=%d). Backoff %u ms\n", mqtt.state(), backoff);
+                    Serial.printf("[MQTT] Gagal terhubung (rc=%d). Backoff %u ms\n", mqtt.state(), backoff);
                     if (backoff < 30000) backoff *= 2;
                 }
                 xSemaphoreGive(mqttMutex);
@@ -722,10 +808,16 @@ void setup() {
     Serial.println(F("  SMART-SANITATION eSOS - GATEWAY ROUTER FIRMWARE (ESP32 DevKit) "));
     Serial.println(F("================================================================="));
 
+#if HAS_CONFIG_LOCAL
+    Serial.println(F("[CONFIG] Memuat konfigurasi jaringan dari config_local.h (kredensial terlindungi)."));
+#else
+    Serial.println(F("[CONFIG NOTICE] config_local.h tidak ditemukan. Menggunakan konfigurasi default internal."));
+#endif
+
     // 1. Inisialisasi Mutex & Queues FreeRTOS
     fsMutex = xSemaphoreCreateMutex();
     mqttMutex = xSemaphoreCreateMutex();
-    xQueueTelemetry = xQueueCreate(20, sizeof(TelemetryPayload));
+    xQueueTelemetry = xQueueCreate(20, sizeof(GatewayTelemetryRecord));
 
     if (fsMutex == NULL || mqttMutex == NULL || xQueueTelemetry == NULL) {
         Serial.println(F("[FATAL] Gagal membuat kernel primitives FreeRTOS! Halting."));
@@ -749,8 +841,10 @@ void setup() {
     mqtt.setBufferSize(512);
 
     // 4. Inisialisasi LittleFS (Store-and-Forward Flash Disk)
-    if (!LittleFS.begin(true)) {
-        Serial.println(F("[LITTLEFS ERROR] Mount LittleFS gagal! Store-and-Forward nonaktif."));
+    // Gunakan formatOnFail = false agar kegagalan mount tidak menghapus paksa backlog flash
+    if (!LittleFS.begin(false)) {
+        Serial.println(F("[LITTLEFS ERROR] Mount LittleFS gagal! Data flash dipertahankan tanpa autoformat."));
+        Serial.println(F("[LITTLEFS NOTICE] Berjalan dalam mode degraded (RAM buffer only)."));
         g_fs_available = false;
     } else {
         g_fs_available = true;

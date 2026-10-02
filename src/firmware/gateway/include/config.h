@@ -6,13 +6,28 @@
 // ==========================================
 // 1. KREDENSIAL JARINGAN & BROKER MQTT [ADR-01]
 // ==========================================
-#define WIFI_SSID           "POSKO_WIFI"
-#define WIFI_PASS           "12345678"
-#define MQTT_SERVER         "192.168.0.100"
-#define MQTT_PORT           1883
-#define MQTT_USER           "esos_gateway"
-#define MQTT_PASS           "gateway_secret"
+// Prioritaskan file konfigurasi lokal non-terlacak Git (config_local.h)
+#if __has_include("config_local.h")
+    #include "config_local.h"
+    #define HAS_CONFIG_LOCAL 1
+#else
+    #define HAS_CONFIG_LOCAL 0
+    // Konfigurasi Target Default Lapangan (CPE220 + Laptop Broker)
+    #define WIFI_SSID           "CompEngQuiz-Server-Live"
+    #define WIFI_PASS           "compengquiz"
 
+    #define STATIC_IP_LOCAL     192, 168, 101, 11
+    #define STATIC_IP_GATEWAY   192, 168, 101, 1
+    #define STATIC_IP_SUBNET    255, 255, 255, 0
+    #define STATIC_IP_DNS       152, 118, 24, 4
+
+    #define MQTT_SERVER         "192.168.101.10"
+    #define MQTT_PORT           1883
+    #define MQTT_USER           "esos_gateway"
+    #define MQTT_PASS           "gateway_secret"
+#endif
+
+// Topik MQTT Namespace eSOS
 #define MQTT_TOPIC_TELEMETRY "esos/gateway_01/nodes/telemetry"
 #define MQTT_TOPIC_COMMAND   "esos/+/+/command"
 #define MQTT_TOPIC_STATUS    "esos/gateway_01/status"
@@ -47,25 +62,50 @@
 // ==========================================
 // 4. KONTRAK STRUKTUR PAYLOAD BINER MUTLAK
 // ==========================================
+// Format biner 34-byte persis sesuai transmisi Node WC [ADR-01]
 struct __attribute__((packed)) TelemetryPayload {
     uint8_t  schema_version; // Offset  0 | 1 Byte  : Versi skema biner (Selalu 1)
     char     node_code[8];   // Offset  1 | 8 Bytes : Identifier C-String ("WC_01\0\0\0")
-    uint32_t sequence_no;    // Offset  9 | 4 Bytes : Nomor urut paket
-    uint32_t timestamp;      // Offset 13 | 4 Bytes : Unix Epoch Time (Diisi Gateway dari RTC)
-    float    water_level_cm; // Offset 17 | 4 Bytes : Ketinggian air tangki
-    float    ammonia_ppm;    // Offset 21 | 4 Bytes : Konsentrasi gas amonia
-    float    h2s_ppm;        // Offset 25 | 4 Bytes : Konsentrasi gas H2S
-    float    battery_voltage;// Offset 29 | 4 Bytes : Tegangan baterai Li-ion
+    uint32_t sequence_no;    // Offset  9 | 4 Bytes : Nomor urut paket (Little-Endian)
+    uint32_t uptime_seconds; // Offset 13 | 4 Bytes : Durasi aktif Node WC sejak boot (detik)
+    float    water_level_cm; // Offset 17 | 4 Bytes : Ketinggian air tangki (IEEE-754)
+    float    ammonia_ppm;    // Offset 21 | 4 Bytes : Konsentrasi gas amonia (IEEE-754)
+    float    h2s_ppm;        // Offset 25 | 4 Bytes : Konsentrasi gas H2S (IEEE-754)
+    float    battery_voltage;// Offset 29 | 4 Bytes : Tegangan baterai Li-ion (IEEE-754)
     uint8_t  sos_triggered;  // Offset 33 | 1 Byte  : Status darurat (0 = Normal, 1 = Darurat)
 };
 
+// Verifikasi compile-time ketat untuk ukuran dan seluruh offset field payload 34B
 static_assert(sizeof(TelemetryPayload) == 34, "FATAL: Ukuran TelemetryPayload harus tepat 34 bytes!");
+static_assert(offsetof(TelemetryPayload, schema_version)  == 0,  "FATAL: Offset schema_version salah!");
+static_assert(offsetof(TelemetryPayload, node_code)       == 1,  "FATAL: Offset node_code salah!");
+static_assert(offsetof(TelemetryPayload, sequence_no)     == 9,  "FATAL: Offset sequence_no salah!");
+static_assert(offsetof(TelemetryPayload, uptime_seconds)  == 13, "FATAL: Offset uptime_seconds salah!");
+static_assert(offsetof(TelemetryPayload, water_level_cm)  == 17, "FATAL: Offset water_level_cm salah!");
+static_assert(offsetof(TelemetryPayload, ammonia_ppm)     == 21, "FATAL: Offset ammonia_ppm salah!");
+static_assert(offsetof(TelemetryPayload, h2s_ppm)         == 25, "FATAL: Offset h2s_ppm salah!");
+static_assert(offsetof(TelemetryPayload, battery_voltage) == 29, "FATAL: Offset battery_voltage salah!");
+static_assert(offsetof(TelemetryPayload, sos_triggered)   == 33, "FATAL: Offset sos_triggered salah!");
 
-// Struktur Komando Aktuator (Downlink)
-struct __attribute__((packed)) ActuatorCommand {
-    char     node_code[8];   // Node tujuan
-    uint8_t  command_id;     // 1 = LOCK_DOOR, 2 = UNLOCK_DOOR, 3 = FLUSH_EXHAUST
-    uint8_t  parameter;      // Sudut servo atau durasi detik
+// Struktur Record Internal Gateway (Menyimpan payload asli + waktu penerimaan RTC Gateway terpisah)
+struct __attribute__((packed)) GatewayTelemetryRecord {
+    TelemetryPayload payload;           // Offset  0 | 34 Bytes : Payload asli tidak terdistorsi dari node
+    uint32_t         gateway_timestamp; // Offset 34 |  4 Bytes : Unix Epoch dari RTC DS3231 saat paket diterima
 };
+
+static_assert(sizeof(GatewayTelemetryRecord) == 38, "FATAL: Ukuran GatewayTelemetryRecord harus tepat 38 bytes!");
+static_assert(offsetof(GatewayTelemetryRecord, payload)           == 0,  "FATAL: Offset payload salah!");
+static_assert(offsetof(GatewayTelemetryRecord, gateway_timestamp) == 34, "FATAL: Offset gateway_timestamp salah!");
+
+// Struktur Komando Aktuator (Downlink 10 Bytes)
+struct __attribute__((packed)) ActuatorCommand {
+    char     node_code[8];   // Offset 0 | 8 Bytes : Node tujuan
+    uint8_t  command_id;     // Offset 8 | 1 Byte  : 1 = LOCK_DOOR, 2 = UNLOCK_DOOR, 3 = FLUSH_EXHAUST
+    uint8_t  parameter;      // Offset 9 | 1 Byte  : Sudut servo atau durasi detik
+};
+static_assert(sizeof(ActuatorCommand) == 10, "FATAL: Ukuran ActuatorCommand harus tepat 10 bytes!");
+static_assert(offsetof(ActuatorCommand, node_code)  == 0, "FATAL: Offset node_code salah!");
+static_assert(offsetof(ActuatorCommand, command_id) == 8, "FATAL: Offset command_id salah!");
+static_assert(offsetof(ActuatorCommand, parameter)  == 9, "FATAL: Offset parameter salah!");
 
 #endif // CONFIG_GATEWAY_H

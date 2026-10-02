@@ -73,6 +73,16 @@ struct __attribute__((packed)) TelemetryPayload {
     uint8_t sos_triggered;  // Offset 33 | 1 byte  : Flag status darurat (0 = Normal, 1 = SOS)
 };
 static_assert(sizeof(TelemetryPayload) == 34, "FATAL: Ukuran TelemetryPayload harus tepat 34 bytes!");
+static_assert(offsetof(TelemetryPayload, schema_version)  == 0,  "FATAL: Offset schema_version salah!");
+static_assert(offsetof(TelemetryPayload, node_code)       == 1,  "FATAL: Offset node_code salah!");
+static_assert(offsetof(TelemetryPayload, sequence_no)     == 9,  "FATAL: Offset sequence_no salah!");
+static_assert(offsetof(TelemetryPayload, uptime_seconds)  == 13, "FATAL: Offset uptime_seconds salah!");
+static_assert(offsetof(TelemetryPayload, water_level_cm)  == 17, "FATAL: Offset water_level_cm salah!");
+static_assert(offsetof(TelemetryPayload, ammonia_ppm)     == 21, "FATAL: Offset ammonia_ppm salah!");
+static_assert(offsetof(TelemetryPayload, h2s_ppm)         == 25, "FATAL: Offset h2s_ppm salah!");
+static_assert(offsetof(TelemetryPayload, battery_voltage) == 29, "FATAL: Offset battery_voltage salah!");
+static_assert(offsetof(TelemetryPayload, sos_triggered)   == 33, "FATAL: Offset sos_triggered salah!");
+
 
 // Wrapper data untuk antrean gateway (Payload + Metrik RF Aktual)
 struct GatewayPacketWrapper {
