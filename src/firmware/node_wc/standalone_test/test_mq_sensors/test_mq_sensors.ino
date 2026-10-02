@@ -294,6 +294,7 @@ static void resetCalibrationInNVS();
 
 static bool validateDivider(float r_top, float r_bottom, float* out_k, char* err_buf, size_t err_len);
 static bool validateRL(float rl, char* err_buf, size_t err_len);
+static bool validateR0(float r0, char* err_buf, size_t err_len);
 static uint32_t calculateCRC32(const uint8_t* data, size_t length);
 
 static void processChannelSampling(MQChannelConfig* cfg, MQChannelReading* reading, float* ema_val);
@@ -368,6 +369,21 @@ static bool validateRL(float rl, char* err_buf, size_t err_len) {
     if (!isfinite(rl) || rl < 100.0f || rl > 1000000.0f) {
         if (err_buf && err_len > 0) {
             snprintf(err_buf, err_len, "RL must be finite and within 100 Ohm to 1 MOhm");
+        }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Unified Baseline Resistance (R0) Validation
+ *
+ * Enforces: 100 Ohm <= R0 <= 10 MOhm.
+ */
+static bool validateR0(float r0, char* err_buf, size_t err_len) {
+    if (!isfinite(r0) || r0 < 100.0f || r0 > 10000000.0f) {
+        if (err_buf && err_len > 0) {
+            snprintf(err_buf, err_len, "R0 must be finite and within 100 Ohm to 10 MOhm");
         }
         return false;
     }
@@ -511,15 +527,22 @@ static void TaskMQSampler(void* pvParameters) {
 
                     // Stability threshold: Coefficient of variation must be < 5.0%
                     if (cv_percent < 5.0f) {
-                        // Per Winsen Manual v1.6: R0 is explicitly defined as Rs in clean air
-                        targetCfg->r0_clean_air_ohm = rs_mean;
-                        targetCfg->is_r0_valid = true;
+                        char r0_err[80] = {0};
+                        if (validateR0(rs_mean, r0_err, sizeof(r0_err))) {
+                            // Per Winsen Manual v1.6: R0 is explicitly defined as Rs in clean air
+                            targetCfg->r0_clean_air_ohm = rs_mean;
+                            targetCfg->is_r0_valid = true;
 
-                        samplerLog(">>> [CAL SUCCESS] %s Clean-Air Baseline Established!", targetCfg->gas_name);
-                        samplerLog("    Rs(clean air mean) = %.1f Ohm, StdDev = %.1f Ohm (CV: %.2f%%)",
-                                   rs_mean, rs_stddev, cv_percent);
-                        samplerLog("    Established Baseline R0 = %.1f Ohm", targetCfg->r0_clean_air_ohm);
-                        samplerLog("    Type 'save' to commit baseline to NVS flash.");
+
+                            samplerLog(">>> [CAL SUCCESS] %s Clean-Air Baseline Established!", targetCfg->gas_name);
+                            samplerLog("    Rs(clean air mean) = %.1f Ohm, StdDev = %.1f Ohm (CV: %.2f%%)",
+                                       rs_mean, rs_stddev, cv_percent);
+                            samplerLog("    Established Baseline R0 = %.1f Ohm", targetCfg->r0_clean_air_ohm);
+                            samplerLog("    Type 'save' to commit baseline to NVS flash.");
+                        } else {
+                            samplerLog(">>> [CAL REJECTED] %s Mean Rs out of range [100 Ohm - 10 MOhm]: %.1f Ohm",
+                                       targetCfg->gas_name, rs_mean);
+                        }
                     } else {
                         samplerLog(">>> [CAL REJECTED] %s Readings too unstable! CV = %.2f%% (> 5.0%% limit).",
                                    targetCfg->gas_name, cv_percent);
@@ -843,8 +866,7 @@ static void loadConfigurationFromNVS() {
                 }
 
                 if (rec.ch137.is_r0_valid && config137.is_divider_valid && config137.is_rl_valid &&
-                    isfinite(rec.ch137.r0_clean_air_ohm) && rec.ch137.r0_clean_air_ohm >= 100.0f &&
-                    rec.ch137.r0_clean_air_ohm <= 10000000.0f) {
+                    validateR0(rec.ch137.r0_clean_air_ohm, NULL, 0)) {
                     config137.r0_clean_air_ohm = rec.ch137.r0_clean_air_ohm;
                     config137.is_r0_valid = true;
                 } else {
@@ -872,8 +894,7 @@ static void loadConfigurationFromNVS() {
                 }
 
                 if (rec.ch136.is_r0_valid && config136.is_divider_valid && config136.is_rl_valid &&
-                    isfinite(rec.ch136.r0_clean_air_ohm) && rec.ch136.r0_clean_air_ohm >= 100.0f &&
-                    rec.ch136.r0_clean_air_ohm <= 10000000.0f) {
+                    validateR0(rec.ch136.r0_clean_air_ohm, NULL, 0)) {
                     config136.r0_clean_air_ohm = rec.ch136.r0_clean_air_ohm;
                     config136.is_r0_valid = true;
                 } else {
@@ -1097,7 +1118,7 @@ static void TaskMQLogger(void* pvParameters) {
 
             // Diagnostic Warnings & FreeRTOS Resource Metrics (Stack watermark in BYTES)
             if (frame.mq137.status_flags & MQ_FLAG_PREHEAT_WARN) {
-                Serial.print(F("  [NOTE] Preheat duration < 48 hours. Layer chemistry stabilizing.\n"));
+                Serial.print(F("  [NOTE] Uptime ESP32 < 48 jam. Datasheet Winsen v1.6 mensyaratkan pemanasan 48 jam sebelum baseline stabil. Pastikan heater 5V telah menyala sesuai durasi preheat.\n"));
             }
             if ((frame.mq137.status_flags | frame.mq136.status_flags) & MQ_FLAG_ADC_SATURATED) {
                 Serial.print(F("  [ALERT] ADC SATURATION DETECTED (raw >= 4095)! Sinyal tidak sah.\n"));

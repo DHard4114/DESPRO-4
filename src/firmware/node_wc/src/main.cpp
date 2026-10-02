@@ -62,16 +62,50 @@ struct __attribute__((packed)) MQNVSRecord {
     uint32_t crc32;
 };
 
-// Parameter aktif sensor gas di RAM
-static float g_k_137 = 0.6000f;          // Default template 10k/15k
-static float g_rl_137 = 4700.0f;         // Default nominal 4.7k
-static float g_r0_137 = -1.0f;           // -1 = Belum terkalibrasi
+// Parameter aktif sensor gas di RAM (Aman, default awal tidak terkonfirmasi)
+static float g_r_top_137 = 0.0f;
+static float g_r_bottom_137 = 0.0f;
+static float g_k_137 = 0.0f;
+static float g_rl_137 = 0.0f;
+static float g_r0_137 = -1.0f;
+static bool  g_div_valid_137 = false;
+static bool  g_rl_valid_137 = false;
 static bool  g_r0_valid_137 = false;
 
-static float g_k_136 = 0.6000f;
-static float g_rl_136 = 4700.0f;
+static float g_r_top_136 = 0.0f;
+static float g_r_bottom_136 = 0.0f;
+static float g_k_136 = 0.0f;
+static float g_rl_136 = 0.0f;
 static float g_r0_136 = -1.0f;
+static bool  g_div_valid_136 = false;
+static bool  g_rl_valid_136 = false;
 static bool  g_r0_valid_136 = false;
+
+// Tegangan loop nominal sensor gas (Winsen MQ Manual v1.6: Vc = 5.0V +/- 0.1V DC)
+#define V_LOOP_SUPPLY_VOLTS     5.00f
+
+// Helper Validasi Terpadu (Konsisten dengan Standalone Test)
+static bool validateDivider(float r_top, float r_bottom, float* out_k) {
+    if (!isfinite(r_top) || !isfinite(r_bottom) || 
+        r_top < 100.0f || r_top > 10000000.0f || 
+        r_bottom < 100.0f || r_bottom > 10000000.0f) {
+        return false;
+    }
+    float sum = r_top + r_bottom;
+    if (sum <= 0.0f) return false;
+    float k = r_bottom / sum;
+    if (k < 0.1000f || k > 0.6600f) return false; // k_max = 0.66 melindungi pin ADC ESP32 (5.0V * 0.66 = 3.3V)
+    if (out_k != NULL) *out_k = k;
+    return true;
+}
+
+static bool validateRL(float rl) {
+    return (isfinite(rl) && rl >= 100.0f && rl <= 1000000.0f);
+}
+
+static bool validateR0(float r0) {
+    return (isfinite(r0) && r0 >= 100.0f && r0 <= 10000000.0f);
+}
 
 // CRC32 IEEE 802.3
 static uint32_t calculateCRC32(const uint8_t* data, size_t length) {
@@ -89,11 +123,11 @@ static uint32_t calculateCRC32(const uint8_t* data, size_t length) {
     return crc ^ 0xFFFFFFFF;
 }
 
-// Memuat kalibrasi MQ dari NVS Flash
+// Memuat kalibrasi MQ dari NVS Flash dengan validasi terpadu
 static void loadMQCalibration() {
     Preferences prefs;
     if (!prefs.begin(NVS_MQ_NAMESPACE, true)) {
-        Serial.println(F("[NVS] Namespace 'mq_cal' tidak ditemukan. Menggunakan template default."));
+        Serial.println(F("[NVS] Namespace 'mq_cal' tidak ditemukan. Menjalankan mode sirkuit belum terkonfirmasi."));
         return;
     }
 
@@ -103,37 +137,49 @@ static void loadMQCalibration() {
         if (read_bytes == sizeof(rec)) {
             uint32_t expected_crc = calculateCRC32((const uint8_t*)&rec, offsetof(MQNVSRecord, crc32));
             if (rec.magic == NVS_MQ_MAGIC && rec.schema_version == NVS_MQ_VERSION && rec.crc32 == expected_crc) {
-                if (rec.ch137.is_divider_valid && rec.ch137.divider_k >= 0.10f && rec.ch137.divider_k <= 0.66f) {
-                    g_k_137 = rec.ch137.divider_k;
+                // Salin & validasi MQ-137
+                float k137 = 0.0f;
+                if (rec.ch137.is_divider_valid && validateDivider(rec.ch137.r_top_ohm, rec.ch137.r_bottom_ohm, &k137)) {
+                    g_r_top_137 = rec.ch137.r_top_ohm;
+                    g_r_bottom_137 = rec.ch137.r_bottom_ohm;
+                    g_k_137 = k137;
+                    g_div_valid_137 = true;
                 }
-                if (rec.ch137.is_rl_valid && rec.ch137.rl_nominal_ohm >= 100.0f) {
+                if (rec.ch137.is_rl_valid && validateRL(rec.ch137.rl_nominal_ohm)) {
                     g_rl_137 = rec.ch137.rl_nominal_ohm;
+                    g_rl_valid_137 = true;
                 }
-                if (rec.ch137.is_r0_valid && rec.ch137.r0_clean_air_ohm > 0.0f) {
+                if (rec.ch137.is_r0_valid && g_div_valid_137 && g_rl_valid_137 && validateR0(rec.ch137.r0_clean_air_ohm)) {
                     g_r0_137 = rec.ch137.r0_clean_air_ohm;
                     g_r0_valid_137 = true;
                 }
 
-                if (rec.ch136.is_divider_valid && rec.ch136.divider_k >= 0.10f && rec.ch136.divider_k <= 0.66f) {
-                    g_k_136 = rec.ch136.divider_k;
+                // Salin & validasi MQ-136
+                float k136 = 0.0f;
+                if (rec.ch136.is_divider_valid && validateDivider(rec.ch136.r_top_ohm, rec.ch136.r_bottom_ohm, &k136)) {
+                    g_r_top_136 = rec.ch136.r_top_ohm;
+                    g_r_bottom_136 = rec.ch136.r_bottom_ohm;
+                    g_k_136 = k136;
+                    g_div_valid_136 = true;
                 }
-                if (rec.ch136.is_rl_valid && rec.ch136.rl_nominal_ohm >= 100.0f) {
+                if (rec.ch136.is_rl_valid && validateRL(rec.ch136.rl_nominal_ohm)) {
                     g_rl_136 = rec.ch136.rl_nominal_ohm;
+                    g_rl_valid_136 = true;
                 }
-                if (rec.ch136.is_r0_valid && rec.ch136.r0_clean_air_ohm > 0.0f) {
+                if (rec.ch136.is_r0_valid && g_div_valid_136 && g_rl_valid_136 && validateR0(rec.ch136.r0_clean_air_ohm)) {
                     g_r0_136 = rec.ch136.r0_clean_air_ohm;
                     g_r0_valid_136 = true;
                 }
 
-                Serial.printf("[NVS] Kalibrasi MQ berhasil dimuat: R0_137=%.1f Ohm (%s), R0_136=%.1f Ohm (%s)\n",
-                              g_r0_137, g_r0_valid_137 ? "SAH" : "BELUM",
-                              g_r0_136, g_r0_valid_136 ? "SAH" : "BELUM");
+                Serial.printf("[NVS] Kalibrasi MQ dimuat: MQ137(div=%s, RL=%s, R0=%.1f [%s]) | MQ136(div=%s, RL=%s, R0=%.1f [%s])\n",
+                              g_div_valid_137 ? "OK" : "NO", g_rl_valid_137 ? "OK" : "NO", g_r0_137, g_r0_valid_137 ? "SAH" : "BELUM",
+                              g_div_valid_136 ? "OK" : "NO", g_rl_valid_136 ? "OK" : "NO", g_r0_136, g_r0_valid_136 ? "SAH" : "BELUM");
             } else {
-                Serial.println(F("[NVS] Data kalibrasi MQ korup (CRC mismatch). Menggunakan template default."));
+                Serial.println(F("[NVS] Data kalibrasi MQ korup (CRC mismatch). Menjalankan mode sirkuit belum terkonfirmasi."));
             }
         }
     } else {
-        Serial.println(F("[NVS] Belum ada rekaman kalibrasi MQ di flash. Menjalankan mode diagnostik awal."));
+        Serial.println(F("[NVS] Belum ada rekaman kalibrasi MQ di flash. Menjalankan mode diagnostik awal (sirkuit belum terkonfirmasi)."));
     }
     prefs.end();
 }
@@ -161,7 +207,8 @@ static TaskHandle_t xHandleTaskLoRaTx = NULL;
 // =========================================================================================
 // 3. FUNGSI PEMBACAAN DAN REKONSTRUKSI SENSOR GAS MQ
 // =========================================================================================
-static float sampleAndCalculateRs(uint8_t pin, float divider_k, float rl_nominal, float* out_v_ao_mv) {
+static float sampleAndCalculateRs(uint8_t pin, bool div_valid, float r_top, float r_bottom, float k,
+                                  bool rl_valid, float rl_nominal, float* out_v_pin_mv, float* out_v_ao_mv) {
     const int SAMPLES = 8;
     uint32_t mv_sum = 0;
 
@@ -171,18 +218,29 @@ static float sampleAndCalculateRs(uint8_t pin, float divider_k, float rl_nominal
     }
 
     float v_pin_mv = (float)mv_sum / (float)SAMPLES;
-    float v_ao_mv = (divider_k > 0.05f) ? (v_pin_mv / divider_k) : 0.0f;
+    if (out_v_pin_mv != NULL) *out_v_pin_mv = v_pin_mv;
+
+    if (!div_valid || k <= 0.05f) {
+        if (out_v_ao_mv != NULL) *out_v_ao_mv = -1.0f;
+        return -1.0f; // Pembagi tegangan belum dikonfirmasi fisik
+    }
+
+    float v_ao_mv = v_pin_mv / k;
     if (out_v_ao_mv != NULL) *out_v_ao_mv = v_ao_mv;
 
-    // Pengecekan batas sinyal fisik: 50 mV <= V_AO <= 4950 mV
-    if (v_ao_mv < 50.0f || v_ao_mv >= 4950.0f) {
+    // Pengecekan batas sinyal fisik: 50 mV <= V_AO <= (Vc - 50 mV)
+    if (v_ao_mv < 50.0f || v_ao_mv >= (V_LOOP_SUPPLY_VOLTS * 1000.0f - 50.0f)) {
         return -1.0f; // Sinyal out of range / saturasi / putus
     }
 
+    if (!rl_valid || rl_nominal < 100.0f) {
+        return -1.0f; // Resistor beban RL belum dikonfigurasi fisik
+    }
+
     float v_ao_volts = v_ao_mv / 1000.0f;
-    float r_div_total = 25000.0f; // Asumsi template pembagi 10k + 15k = 25k Ohm
-    float rl_eff = (rl_nominal * r_div_total) / (rl_nominal + r_div_total);
-    float rs = ((5.00f / v_ao_volts) - 1.0f) * rl_eff;
+    float r_divider_total = r_top + r_bottom; // Pembebanan aktual Rtop + Rbottom
+    float rl_eff = (rl_nominal * r_divider_total) / (rl_nominal + r_divider_total);
+    float rs = ((V_LOOP_SUPPLY_VOLTS / v_ao_volts) - 1.0f) * rl_eff;
 
     return (isfinite(rs) && rs > 0.0f) ? rs : -1.0f;
 }
@@ -221,65 +279,89 @@ void vTaskSensors(void *pvParameters) {
             // NewPing menghasilkan 0 jika timeout tercapai (tidak ada echo)
             // DILARANG MEMALSUKAN dist = 25 cm! Nilai -1.0f menandakan NO_ECHO / Out of Range
             payload.water_level_cm = -1.0f;
-            Serial.printf("[SENSOR US] JSN-SR04T: [NO_ECHO] Tidak ada pantulan dalam batas 400 cm (Ketinggian: INVALID)\n");
+            Serial.println(F("[SENSOR US] JSN-SR04T: [NO_ECHO / OUT_OF_RANGE] (Ketinggian Air: INVALID)"));
         } 
         else if (dist < 25) {
-            // Objek berada di dalam zona buta transduser tunggal (< 25 cm)
-            payload.water_level_cm = (float)dist;
-            Serial.printf("[SENSOR US] JSN-SR04T: [BLIND_ZONE] Terbaca: %u cm (Peringatan: Di bawah batas zona buta 25 cm)\n", dist);
+            // Objek berada di dalam zona buta transduser tunggal (< 25 cm akibat ringing osilasi)
+            // Pembacaan di bawah minimum range TIDAK BOLEH diteruskan sebagai level air valid!
+            payload.water_level_cm = -1.0f;
+            Serial.printf("[SENSOR US] JSN-SR04T: [BLIND_ZONE] Jarak: %u cm (< 25 cm zona buta) | Level Air: INVALID\n", dist);
         } 
         else {
-            // Echo sah dalam rentang kerja
-            payload.water_level_cm = (float)dist;
-            Serial.printf("[SENSOR US] JSN-SR04T: [ECHO_OK] Terbaca: %u cm (Echo dalam rentang sah)\n", dist);
+            // Sensor mengukur jarak fisik dari transduser ke permukaan cairan.
+            // Konversi ke tinggi air membutuhkan parameter pemasangan dan geometri tangki yang terdokumentasi.
+            // Karena geometri tangki fisik belum dikonfigurasi pada tahap ini, tandai level air belum tersedia (-1.0f)
+            // dan tampilkan jarak diagnostik sensor-ke-permukaan secara jujur.
+            payload.water_level_cm = -1.0f; // Sentinel: Tank geometry unconfigured
+            Serial.printf("[SENSOR US] JSN-SR04T: [ECHO_OK] Jarak Terbaca: %u cm | Level Air: N/A [TANK_GEOMETRY_UNCONFIGURED]\n", dist);
         }
 
         // -------------------------------------------------------------
         // B. PENGUKURAN SENSOR GAS MQ-137 (AMONIA / NH3)
         // -------------------------------------------------------------
+        float v_pin_137_mv = 0.0f;
         float v_ao_137_mv = 0.0f;
-        float rs_137 = sampleAndCalculateRs(PIN_MQ137_AO, g_k_137, g_rl_137, &v_ao_137_mv);
+        float rs_137 = sampleAndCalculateRs(PIN_MQ137_AO, g_div_valid_137, g_r_top_137, g_r_bottom_137, g_k_137,
+                                           g_rl_valid_137, g_rl_137, &v_pin_137_mv, &v_ao_137_mv);
+
+        // DILARANG mengisi ammonia_ppm menggunakan rasio Rs/R0!
+        // Sentinel -1.0f menandakan PPM belum tersedia (memerlukan kalibrasi chamber gas)
+        payload.ammonia_ppm = -1.0f;
 
         if (rs_137 > 0.0f && g_r0_valid_137 && g_r0_137 > 0.0f) {
-            // Transmisikan rasio fisik Rs/R0 (Zero-Trust: ppm belum terkalibrasi chamber)
-            payload.ammonia_ppm = rs_137 / g_r0_137;
-            Serial.printf("[SENSOR GAS] MQ-137: V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f)\n",
-                          v_ao_137_mv, rs_137, payload.ammonia_ppm, g_r0_137);
+            float ratio_137 = rs_137 / g_r0_137;
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [CHAMBER_CAL_REQUIRED]\n",
+                          v_pin_137_mv, v_ao_137_mv, rs_137, ratio_137, g_r0_137);
         } else if (rs_137 > 0.0f) {
-            payload.ammonia_ppm = -1.0f; // -1.0f menandakan sensor hidup namun belum kalibrasi R0
-            Serial.printf("[SENSOR GAS] MQ-137: V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM DIKALIBRASI\n",
-                          v_ao_137_mv, rs_137);
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A\n",
+                          v_pin_137_mv, v_ao_137_mv, rs_137);
+        } else if (v_ao_137_mv > 0.0f) {
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | V_AO=%.0f mV | Status: SINYAL DI LUAR BATAS (Putus/Jenuh) | PPM: N/A\n",
+                          v_pin_137_mv, v_ao_137_mv);
         } else {
-            payload.ammonia_ppm = -1.0f;
-            Serial.printf("[SENSOR GAS] MQ-137: V_AO=%.0f mV | Status: SINYAL TIDAK SAH (Putus / Jenuh)\n", v_ao_137_mv);
+            Serial.printf("[SENSOR GAS] MQ-137: V_pin=%.0f mV | Status: RANGKAIAN BELUM DIKONFIRMASI | PPM: N/A\n",
+                          v_pin_137_mv);
         }
 
         // -------------------------------------------------------------
         // C. PENGUKURAN SENSOR GAS MQ-136 (HIDROGEN SULFIDA / H2S)
         // -------------------------------------------------------------
+        float v_pin_136_mv = 0.0f;
         float v_ao_136_mv = 0.0f;
-        float rs_136 = sampleAndCalculateRs(PIN_MQ136_AO, g_k_136, g_rl_136, &v_ao_136_mv);
+        float rs_136 = sampleAndCalculateRs(PIN_MQ136_AO, g_div_valid_136, g_r_top_136, g_r_bottom_136, g_k_136,
+                                           g_rl_valid_136, g_rl_136, &v_pin_136_mv, &v_ao_136_mv);
+
+        // DILARANG mengisi h2s_ppm menggunakan rasio Rs/R0!
+        // Sentinel -1.0f menandakan PPM belum tersedia (memerlukan kalibrasi chamber gas)
+        payload.h2s_ppm = -1.0f;
 
         if (rs_136 > 0.0f && g_r0_valid_136 && g_r0_136 > 0.0f) {
-            payload.h2s_ppm = rs_136 / g_r0_136;
-            Serial.printf("[SENSOR GAS] MQ-136: V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f)\n",
-                          v_ao_136_mv, rs_136, payload.h2s_ppm, g_r0_136);
+            float ratio_136 = rs_136 / g_r0_136;
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Rs/R0=%.2f (R0=%.0f) | PPM: N/A [CHAMBER_CAL_REQUIRED]\n",
+                          v_pin_136_mv, v_ao_136_mv, rs_136, ratio_136, g_r0_136);
         } else if (rs_136 > 0.0f) {
-            payload.h2s_ppm = -1.0f;
-            Serial.printf("[SENSOR GAS] MQ-136: V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM DIKALIBRASI\n",
-                          v_ao_136_mv, rs_136);
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Rs=%.0f Ohm | Status: R0 BELUM TERKALIBRASI | PPM: N/A\n",
+                          v_pin_136_mv, v_ao_136_mv, rs_136);
+        } else if (v_ao_136_mv > 0.0f) {
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | V_AO=%.0f mV | Status: SINYAL DI LUAR BATAS (Putus/Jenuh) | PPM: N/A\n",
+                          v_pin_136_mv, v_ao_136_mv);
         } else {
-            payload.h2s_ppm = -1.0f;
-            Serial.printf("[SENSOR GAS] MQ-136: V_AO=%.0f mV | Status: SINYAL TIDAK SAH (Putus / Jenuh)\n", v_ao_136_mv);
+            Serial.printf("[SENSOR GAS] MQ-136: V_pin=%.0f mV | Status: RANGKAIAN BELUM DIKONFIRMASI | PPM: N/A\n",
+                          v_pin_136_mv);
         }
 
         // -------------------------------------------------------------
         // D. TEGANGAN CATU BATERAI (ADC1_CH6 / GPIO34)
         // -------------------------------------------------------------
         uint32_t batt_pin_mv = (uint32_t)analogReadMilliVolts(PIN_BATT_VOLT);
-        // Pembagi tegangan baterai 1:1 (R1 = R2 = 100k) -> V_batt = V_pin * 2
-        payload.battery_voltage = ((float)batt_pin_mv * 2.0f) / 1000.0f;
-        Serial.printf("[BATERAI] Tegangan Terbaca: %.2f V (Pin ADC: %u mV)\n", payload.battery_voltage, batt_pin_mv);
+        if (batt_pin_mv < 100) {
+            payload.battery_voltage = -1.0f; // Divider baterai belum terpasang / floating
+            Serial.println(F("[BATERAI] Pin ADC < 100 mV (Rangkaian pembagi baterai belum terpasang / floating)"));
+        } else {
+            // Pembagi tegangan baterai 1:1 (R1 = R2 = 100k) -> V_batt = V_pin * 2
+            payload.battery_voltage = ((float)batt_pin_mv * 2.0f) / 1000.0f;
+            Serial.printf("[BATERAI] Tegangan Terbaca: %.2f V (Pin ADC: %u mV)\n", payload.battery_voltage, batt_pin_mv);
+        }
 
         // -------------------------------------------------------------
         // E. KIRIM KE ANTREAN TRANSMISI LORA
@@ -314,7 +396,7 @@ void vTaskLoRaTx(void *pvParameters) {
             Serial.println(F("\n========================================================================"));
             Serial.printf("[LORA TX] Mengirim Paket #%u ke Gateway Posko (Ukuran: %u Bytes)\n",
                           txData.sequence_no, (unsigned int)sizeof(TelemetryPayload));
-            Serial.printf("  Node: %s | Uptime: %u s | Level Air: %.1f cm | NH3: %.2f | H2S: %.2f | Batt: %.2f V\n",
+            Serial.printf("  Node: %.8s | Uptime: %u s | Level Air: %.1f cm | NH3: %.2f | H2S: %.2f | Batt: %.2f V\n",
                           txData.node_code, txData.uptime_seconds, txData.water_level_cm,
                           txData.ammonia_ppm, txData.h2s_ppm, txData.battery_voltage);
             Serial.printf("  Estimasi Time-on-Air (ToA): %.2f ms | Frek: %.3f MHz | SF%d | BW: %.1f kHz\n",

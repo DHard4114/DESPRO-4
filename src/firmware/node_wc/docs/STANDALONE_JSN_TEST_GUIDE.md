@@ -61,7 +61,7 @@ Gunakan pembagi tegangan resistor sederhana pada jalur `ECHO` modul ke GPIO12 ES
 
 Faktor skala:
 $$V_{\text{pin}} = 5,0\text{ V} \times \frac{2\text{ k}\Omega}{1\text{ k}\Omega + 2\text{ k}\Omega} = 3,33\text{ V}$$
-Selain membatasi tegangan agar tidak membakar pin ESP32, resistor $2\text{ k}\Omega$ ke ground memastikan pin GPIO12 berada dalam kondisi **LOW saat boot**, menghilangkan risiko kegagalan regulator flash SPI.
+Pembagi tegangan 1k/2k ohm menurunkan 5V ke ~3.33V untuk melindungi pin ESP32 dari tegangan lebih. Namun perlu dicatat secara keteknikan: jika modul JSN aktif mengeluarkan logika HIGH saat reset ESP32, 3.33V tetap terhitung logika HIGH oleh GPIO12. Oleh karena itu, pastikan modul JSN berada dalam kondisi idle LOW saat ESP32 boot/reset.
 
 ---
 

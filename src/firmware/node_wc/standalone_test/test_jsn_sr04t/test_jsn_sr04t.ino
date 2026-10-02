@@ -34,8 +34,9 @@
  *    - Modul JSN-SR04T beroperasi pada tegangan 5V, sehingga output pin ECHO berpotensi
  *      mengeluarkan level logika 5V. Jika pin ECHO menarik GPIO12 ke HIGH saat ESP32 reset,
  *      ESP32 akan salah memilih tegangan flash 1.8V dan mengalami kegagalan boot (bootloop).
- *    - REKOMENDASI KELISTRIKAN: Pasang pembagi tegangan resistor (1k / 2k) pada pin ECHO untuk
- *      menurunkan 5V ke ~3.3V, yang sekaligus berfungsi sebagai pull-down aman ke GND saat boot.
+ *    - PENTING TENTANG STRAPPING: Pembagi tegangan (misal 1k / 2k) membatasi 5V ke ~3.3V untuk
+ *      keamanan input GPIO, namun jika pin ECHO aktif HIGH saat reset, 3.3V tetap terbaca
+ *      sebagai logika HIGH. Pastikan jalur ECHO berlogika LOW (idle LOW) saat booting ESP32.
  *
  * 4. KEPATUHAN FREERTOS ESP-IDF:
  *    - Stack task dinyatakan dalam satuan BYTES pada ESP-IDF. Disediakan 3072 BYTES.
@@ -88,18 +89,18 @@ void vTaskJsnSensor(void *pvParameters) {
         // 1. Evaluasi Status Pengukuran Tanpa Manipulasi Data
         if (dist == 0) {
             // NewPing menghasilkan 0 jika timeout tercapai sebelum echo diterima (tidak ada pantulan)
-            Serial.printf("[JSN #%05u] Nilai: [NO_ECHO]     | Jarak:   0 cm | Status: [TIDAK ADA ECHO / DI LUAR JANGKAUAN (> %u cm)]\n",
+            Serial.printf("[JSN #%05u] Status: [NO_ECHO]    | Jarak Diagnostik:   0 cm | Keterangan: Tidak ada echo / di luar jangkauan (> %u cm)\n",
                           sample_seq, MAX_DISTANCE_CM);
         } 
         else if (dist < BLIND_ZONE_CM) {
             // Objek berada di dalam rentang zona buta transduser
-            Serial.printf("[JSN #%05u] Nilai: [BLIND_ZONE]  | Jarak: %3u cm | Status: [PERINGATAN: MASUK ZONA BUTA (< %u cm) - TIDAK ANDAL]\n",
+            Serial.printf("[JSN #%05u] Status: [BLIND_ZONE] | Jarak Diagnostik: %3u cm | Keterangan: Masuk zona buta (< %u cm) - tidak andal\n",
                           sample_seq, dist, BLIND_ZONE_CM);
         } 
         else {
             // Echo diterima secara sah di dalam rentang kerja transduser
-            Serial.printf("[JSN #%05u] Nilai: [ECHO_OK]     | Jarak: %3u cm | Status: [ECHO DITERIMA, DALAM RENTANG UKUR (25 - %u cm)]\n",
-                          sample_seq, dist, MAX_DISTANCE_CM);
+            Serial.printf("[JSN #%05u] Status: [ECHO_OK]    | Jarak Sensor: %3u cm | Catatan: Jarak sensor-ke-target (bukan tinggi air tanpa geometri tangki)\n",
+                          sample_seq, dist);
         }
 
         // 2. Pemantauan Resource Memori Stack (ESP-IDF v4.4 mengembalikan satuan BYTES)
@@ -130,8 +131,8 @@ void setup() {
     Serial.printf("  - Pin Echo          : GPIO %d (Peringatan: MTDI Strapping Pin!)\n", PIN_ECHO_US);
     Serial.printf("  - Batas Zona Buta   : %d cm (Ringing period transduser tunggal)\n", BLIND_ZONE_CM);
     Serial.printf("  - Jangkauan Maksimum: %d cm\n", MAX_DISTANCE_CM);
-    Serial.println(F("  - Catatan Strapping : Pastikan pin ECHO tidak bertegangan HIGH saat boot"));
-    Serial.println(F("                        agar tegangan flash ESP32 tidak salah pilih ke 1.8V."));
+    Serial.println(F("  - Catatan Strapping : Pastikan pin ECHO berlogika LOW (idle LOW) saat boot/reset"));
+    Serial.println(F("                        agar VDD_SDIO ESP32 tidak salah konfigurasi ke flash 1.8V."));
     Serial.println(F("========================================================================"));
     Serial.println(F("[BOOT] Mendaftarkan dan meluncurkan TaskJsn ke Core 0..."));
 

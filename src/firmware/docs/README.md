@@ -35,8 +35,8 @@ src/firmware/
     ├── src/
     │   └── main.cpp                <-- Firmware lengkap: LoRa RX, LittleFS Ring Buffer, MQTT Client
     ├── standalone_test/
-    │   └── test_lora_gateway_rx.ino<-- Skrip uji mandiri penerima LoRa (Arduino IDE ready)
-    ├── platformio.ini              <-- Konfigurasi build toolchain PlatformIO (env: gateway_router)
+    │   └── test_lora_gateway_rx/   # Uji Standalone Penerima LoRa SX1278 Gateway
+    ├── platformio.ini              <-- Konfigurasi build toolchain PlatformIO (2 env: gateway_router + test_lora_gateway_rx)
     └── docs/
         └── README.md               <-- Dokumentasi teknis lengkap Gateway + Diagram Mermaid
 ```
