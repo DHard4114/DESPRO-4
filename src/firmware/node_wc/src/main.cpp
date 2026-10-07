@@ -1,3 +1,4 @@
+#define IS_NODE_WC
 /**
  * =========================================================================================
  * Smart-Sanitation eSOS — FIRMWARE INTEGRASI NODE WC (ESP32 DevKit V1)
@@ -292,8 +293,13 @@ void vTaskSensors(void *pvParameters) {
             // Konversi ke tinggi air membutuhkan parameter pemasangan dan geometri tangki yang terdokumentasi.
             // Karena geometri tangki fisik belum dikonfigurasi pada tahap ini, tandai level air belum tersedia (-1.0f)
             // dan tampilkan jarak diagnostik sensor-ke-permukaan secara jujur.
-            payload.water_level_cm = -1.0f; // Sentinel: Tank geometry unconfigured
-            Serial.printf("[SENSOR US] JSN-SR04T: [ECHO_OK] Jarak Terbaca: %u cm | Level Air: N/A [TANK_GEOMETRY_UNCONFIGURED]\n", dist);
+                        const float TINGGI_TANGKI_CM = 60.0f; 
+            float level_air = TINGGI_TANGKI_CM - (float)dist;
+            if (level_air < 0) {
+                level_air = 0.0f;
+            }
+            payload.water_level_cm = level_air;
+            Serial.printf("[SENSOR US] JSN-SR04T: [ECHO_OK] Jarak Terbaca: %u cm | Level Air: %.1f cm\n", dist, level_air);
         }
 
         // -------------------------------------------------------------
