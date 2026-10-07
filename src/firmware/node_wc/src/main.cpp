@@ -1,4 +1,3 @@
-#define IS_NODE_WC
 /**
  * =========================================================================================
  * Smart-Sanitation eSOS — FIRMWARE INTEGRASI NODE WC (ESP32 DevKit V1)
@@ -23,7 +22,7 @@
  * 4. Aktuator servo dan downlink kontrol dinonaktifkan sementara sampai tahap uji mandiri aktuator.
  * =========================================================================================
  */
-
+#define IS_NODE_WC 
 #include <Arduino.h>
 #include <SPI.h>
 #include <Preferences.h>
@@ -31,6 +30,7 @@
 #include <NewPing.h>
 #include <math.h>
 #include "config.h"
+
 
 #ifdef IS_NODE_WC
 
@@ -289,16 +289,18 @@ void vTaskSensors(void *pvParameters) {
             Serial.printf("[SENSOR US] JSN-SR04T: [BLIND_ZONE] Jarak: %u cm (< 25 cm zona buta) | Level Air: INVALID\n", dist);
         } 
         else {
-            // Sensor mengukur jarak fisik dari transduser ke permukaan cairan.
-            // Konversi ke tinggi air membutuhkan parameter pemasangan dan geometri tangki yang terdokumentasi.
-            // Karena geometri tangki fisik belum dikonfigurasi pada tahap ini, tandai level air belum tersedia (-1.0f)
-            // dan tampilkan jarak diagnostik sensor-ke-permukaan secara jujur.
-                        const float TINGGI_TANGKI_CM = 60.0f; 
+            // Tinggi total tangki dari dasar hingga ke batas pemasangan sensor
+            const float TINGGI_TANGKI_CM = 60.0f; 
+            
+            // Kalkulasi tinggi/volume air yang tersisa di dalam tangki
             float level_air = TINGGI_TANGKI_CM - (float)dist;
+
+            // Keamanan: Jika tangki sangat kosong (jarak pantulan > tinggi tangki)
             if (level_air < 0) {
                 level_air = 0.0f;
             }
-            payload.water_level_cm = level_air;
+
+            payload.water_level_cm = level_air; 
             Serial.printf("[SENSOR US] JSN-SR04T: [ECHO_OK] Jarak Terbaca: %u cm | Level Air: %.1f cm\n", dist, level_air);
         }
 
