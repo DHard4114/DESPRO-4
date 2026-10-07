@@ -1,109 +1,101 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"esos-server/api"
-	"esos-server/database"
-	"esos-server/etl"
+	"smart-sanitation-esos/server/api"
+	"smart-sanitation-esos/server/config"
+	"smart-sanitation-esos/server/database"
+	"smart-sanitation-esos/server/etl"
+	"smart-sanitation-esos/server/models"
+	mqttclient "smart-sanitation-esos/server/mqtt"
 )
 
+// @title Smart-Sanitation eSOS API
+// @version 1.0
+// @description API Enterprise-grade untuk manajemen posko sanitasi darurat (Open Intranet).
+// @host 192.168.0.100:8000
+// @BasePath /api/v1
 func main() {
-	log.Println("==========================================================")
-	log.Println(" SMART-SANITATION eSOS — HIGH-PERFORMANCE GO BACKEND")
-	log.Println(" Streaming Ingestion, Batch ETL & Real-Time Web Server")
-	log.Println(" Lead: Daffa Hardhan (Project Manager & Backend Lead)")
-	log.Println(" Course: Desain Proyek 2 (DTE FTUI Gasal 2026/2027)")
-	log.Println("==========================================================")
+	log.Println("=======================================")
+	log.Println("Memulai Smart-Sanitation eSOS Server...")
+	log.Println("=======================================")
 
-	// Database Path Multi-Path Resolver
-	dbPath := os.Getenv("DATABASE_PATH")
-	if dbPath == "" {
-		possibleDbPaths := []string{
-			filepath.Join("src", "data", "esos_telemetry.db"),
-			filepath.Join("..", "data", "esos_telemetry.db"),
-			filepath.Join("data", "esos_telemetry.db"),
-		}
-		dbPath = possibleDbPaths[0]
-		for _, p := range possibleDbPaths {
-			if _, err := os.Stat(filepath.Dir(p)); err == nil {
-				dbPath = p
-				break
-			}
-		}
-	}
+	// 1. Muat Konfigurasi (.env)
+	cfg := config.LoadConfig()
 
-	// 1. Initialize SQLite Database (WAL Mode)
-	db, err := database.InitDB(dbPath)
+	// 2. Inisialisasi Database (PostgreSQL via pgxpool)
+	db, err := database.InitDB(cfg.DBURL)
 	if err != nil {
-		log.Fatalf("[FATAL] Failed to initialize database: %v", err)
+		log.Fatalf("Gagal inisialisasi database: %v", err)
 	}
 	defer db.Close()
+	log.Println("Berhasil terhubung ke PostgreSQL.")
 
-	// 2. Initialize Real-Time WebSocket Streaming Hub
-	wsHub := api.NewHub()
-
-	// 3. Initialize Streaming & Batch ETL Engine
-	// Flushes every 20 records or every 3 seconds to optimize SQLite write throughput
-	pipeline := etl.NewPipeline(db, wsHub, 20, 3*time.Second)
-	defer pipeline.Close()
-
-	// 4. Initialize REST API Handlers
-	handler := api.NewHandler(db, pipeline, wsHub)
-
-	// 5. Setup HTTP Routing
-	mux := http.NewServeMux()
-
-	// WebSocket Endpoint
-	mux.HandleFunc("/ws", wsHub.ServeWS)
-
-	// REST API Endpoints
-	mux.HandleFunc("/api/telemetry", handler.IngestTelemetry)
-	mux.HandleFunc("/api/telemetry/latest", handler.GetLatestTelemetry)
-	mux.HandleFunc("/api/telemetry/history", handler.GetHistoricalTelemetry)
-	mux.HandleFunc("/api/alerts/active", handler.GetActiveAlerts)
-	mux.HandleFunc("/api/alerts/resolve", handler.ResolveAlert)
-
-	// Static Web Dashboard Multi-Path Resolver
-	possibleDirs := []string{
-		filepath.Join("src", "server", "static"),
-		filepath.Join("..", "server", "static"),
-		filepath.Join("..", "src", "server", "static"),
-		"static",
+	// 3. Inisialisasi In-Memory Threshold Cache & Listen/Notify
+	if err := etl.GlobalThresholdCache.LoadAll(db.Pool); err != nil {
+		log.Fatalf("Gagal memuat threshold cache: %v", err)
 	}
-	staticDir := filepath.Join("src", "server", "static")
-	for _, dir := range possibleDirs {
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			staticDir = dir
-			break
+	log.Println("Threshold Cache berhasil dimuat ke memory.")
+	etl.GlobalThresholdCache.StartListenNotify(db.Pool)
+
+	// 4. Inisialisasi & Jalankan WebSocket Hub
+	wsHub := api.NewWSHub()
+	go wsHub.Run()
+	log.Println("WebSocket Hub berjalan.")
+
+	// 5. Inisialisasi Mesin ETL (Pipeline)
+	pipeline := etl.NewPipeline(db.Pool)
+	pipeline.BroadcastTelemetry = func(rec models.TelemetryRecord) {
+		wsHub.Broadcast <- api.WSEvent{
+			Type:    "TELEMETRY_STREAM",
+			Payload: rec,
 		}
 	}
-	log.Printf("[STATIC] Serving Web Dashboard assets from: %s", staticDir)
-	fs := http.FileServer(http.Dir(staticDir))
-	mux.Handle("/", fs)
+	pipeline.StartWorkers(8) // 8 Goroutine Workers
+	pipeline.StartBatchInserter()
+	log.Println("Mesin ETL Pipeline berjalan.")
 
-	// 6. Start HTTP Server
-	port := os.Getenv("SERVER_PORT")
-	if port == "" {
-		port = "8000"
+	// 6. Inisialisasi & Hubungkan Klien MQTT (Subscriber)
+	mqttConn, err := mqttclient.SubscribeToTelemetry(cfg, pipeline)
+	if err != nil {
+		log.Fatalf("Gagal menjalankan MQTT Subscriber: %v", err)
 	}
+	defer mqttConn.Disconnect(250)
 
+	// 7. Setup & Jalankan HTTP Server (REST API + WS)
+	router := api.SetupRouter(db.Pool, wsHub)
 	server := &http.Server{
-		Addr:         ":" + port,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:    ":8000",
+		Handler: router,
 	}
 
-	log.Printf("[SERVER] Starting Go HTTP & WebSocket Server on http://0.0.0.0:%s", port)
-	log.Printf("[DASHBOARD] Web Dashboard accessible at http://localhost:%s/", port)
+	go func() {
+		log.Println("HTTP Server (REST + WebSocket) mendengarkan di port :8000")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Kesalahan HTTP Server: %v", err)
+		}
+	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("[FATAL] Server terminated unexpectedly: %v", err)
+	// 8. Mekanisme Graceful Shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit // Blokir sampai sinyal ditangkap
+
+	log.Println("\nMenerima sinyal shutdown, mematikan sistem secara anggun...")
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Kesalahan saat shutdown HTTP Server: %v", err)
 	}
+
+	log.Println("Sistem berhasil dimatikan. Sampai jumpa.")
 }

@@ -1,6 +1,6 @@
-﻿WBS ID,Paket Pekerjaan,PIC Utama,Pekan Mulai,Pekan Selesai,Durasi Hari,Bobot (%),Status,Progres (%),Keterangan / Capaian
+WBS ID,Paket Pekerjaan,PIC Utama,Pekan Mulai,Pekan Selesai,Durasi Hari,Bobot (%),Status,Progres (%),Keterangan / Capaian
 1.0,Inisiasi & Re-Planning Repositori,Daffa H.,W1,W1,7,0.08,DONE,1.0,"Evaluasi proposal DP1, RACI 205 jam, & Master WBS selesai"
-2.0,Pengadaan Komponen & Kesiapan Sistem,Raka A.,W2,W2,7,0.12,DONE,1.0,"Checkout 15 item BoM, Server Go aktif, Firmware baseline siap"
+2.0,Pengadaan Komponen & Prototipe Software Awal,Raka / Daffa,W2,W3,14,0.12,IN_PROGRESS,0.7,"BoM tervalidasi & Server Go/PostgreSQL siap, Checkout BoM bergeser ke W3"
 3.0,Fabrikasi 3D Casing & Perakitan Hardware,Darrel / Ilman,W3,W4,14,0.18,IN_PROGRESS,0.25,"Cetak 3D PETG casing, perakitan wiring harness daya"
 4.0,Integrasi Sensor & Komunikasi Nirkabel,Siti / Daffa,W5,W6,14,0.2,PENDING,0.0,"Uji stack LoRa 433MHz, transmisi nirkabel via TP-Link CPE220"
 5.0,Evaluasi Tengah Semester (Gerbang UTS),Daffa H.,W7,W7,7,0.1,PENDING,0.0,Uji fungsional terintegrasi & demo evaluasi tengah semester

@@ -1,180 +1,154 @@
-# REPOSITORI UTAMA PROYEK — SMART-SANITATION eSOS
-## Sistem Pemantauan Sanitasi Cerdas Berbasis IoT & Transmisi Nirkabel Daerah Bencana
+# Smart-Sanitation eSOS 🚀
+### Emergency Sanitation Operating System — Modular & Offline-First
 
-Status Dokumen: REPOSITORI MASTER TERKENDALI (CONTROLLED BASELINE)  
-Institusi: Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (DTE FTUI)  
-Mata Kuliah: Desain Proyek 2 (Semester Gasal 2026/2027)  
-Dosen Pembimbing: Prof. Dr. Muhammad Suryanegara, S.T., M.Sc.  
-Kelompok: 4 (Empat)  
-
----
-
-## 1. Glosarium Singkatan & Istilah Resmi Repositori (Master Glossary)
-
-Untuk memastikan kemudahan pemahaman bagi seluruh penguji dan anggota tim, berikut adalah daftar kepanjangan resmi dan definisi setiap istilah teknis yang digunakan di seluruh repositori:
-
-| Singkatan | Kepanjangan Lengkap (Full Term) | Penjelasan Sederhana & Fungsi dalam Sistem eSOS |
-|:---|:---|:---|
-| **eSOS** | *Emergency Sanitation Operating System* | Nama sistem perangkat lunak dan arsitektur pemantauan fasilitas sanitasi darurat terpadu kelompok 4 Despro. |
-| **WBS** | *Work Breakdown Structure* (Struktur Rincian Kerja) | Dekomposisi hierarkis 14 pekan dari seluruh ruang lingkup pekerjaan proyek sesuai Bab 5.5 Proposal DP1. |
-| **BoM** | *Bill of Materials* (Daftar Kebutuhan Komponen) | Daftar lengkap 15 komponen perangkat keras, spesifikasi teknis, batas anggaran (RAB), dan status verifikasi vendor. |
-| **RACI** | *Responsible, Accountable, Consulted, Informed* | Matriks pembagian peran dan tanggung jawab kerja 205 jam total yang mengikat seluruh anggota tim. |
-| **ETL** | *Extract, Transform, Load* | Alur pemrosesan data tiga tahap: mengekstrak paket sensor, mentransformasikan kalibrasi gas/air, dan memuatnya ke basis data. |
-| **ACID** | *Atomicity, Consistency, Isolation, Durability* | Empat standar keandalan transaksi basis data agar data dijamin utuh dan tidak korup saat genset/daya padam mendadak. |
-| **UUIDv7** | *Universally Unique Identifier Version 7 (RFC 9562)* | Standar kunci unik global 128-bit terurut waktu (*time-ordered*) yang mencegah tabrakan data (*zero ID collision*) saat multi-posko digabungkan. |
-| **ERD** | *Entity Relationship Diagram* | Diagram visual relasi keterhubungan antar-tabel data di dalam basis data sistem. |
-| **DDL** | *Data Definition Language* | Sekumpulan perintah SQL untuk membangun kerangka skema tabel, tipe data, dan indeks basis data. |
-| **API** | *Application Programming Interface* | Antarmuka perantara komunikasi program antara mikrokontroler sensor dan server backend Go. |
-| **REST** | *Representational State Transfer* | Standar arsitektur layanan web berbasis HTTP dengan format pertukaran data JSON. |
-| **WebSocket** | *WebSocket Protocol (RFC 6455)* | Saluran komunikasi dua arah berlatensi sangat rendah ($< 1\text{ ms}$) untuk menyiarkan pembaruan data sensor langsung ke dashboard peramban web. |
-| **WAL** | *Write-Ahead Logging* | Mekanisme pencatatan log transaksi permanen pada disk sebelum penulisan basis data SQLite/PostgreSQL selesai. |
-| **MVCC** | *Multi-Version Concurrency Control* | Manajemen konkurensi database agar operasi pembacaan dashboard tidak pernah saling mengunci dengan operasi penulisan paket data sensor. |
-| **CPE** | *Customer Premises Equipment* | Perangkat pemancar nirkabel luar ruangan (*outdoor access point*) TP-Link CPE220 berdaya pancar tinggi 23 dBm. |
-| **AP** | *Access Point* (Titik Akses Nirkabel) | Pemancar sinyal Wi-Fi lokal tempat mikrokontroler ESP32 di bilik sanitasi terhubung. |
-| **LoRa** | *Long Range Radio* | Modulasi frekuensi radio 433 MHz berdaya rendah untuk transmisi data cadangan jarak jauh menembus reruntuhan ($2-3\text{ km}$). |
-| **PPM** | *Parts Per Million* (Bagian per Sejuta) | Satuan konsentrasi gas amonia ($NH_3$) dan hidrogen sulfida ($H_2S$) di udara. |
-| **AQI** | *Air Quality Index* (Indeks Mutu Udara) | Klasifikasi mutu udara lingkungan bilik sanitasi (*Baik*, *Sedang*, atau *Berbahaya*). |
-| **RTM** | *Requirements Traceability Matrix* | Matriks penelusuran dari kebutuhan proposal, arsitektur sistem, hingga skenario uji verifikasi. |
-| **IP54** | *Ingress Protection 54* | Standar ketahanan casing terhadap debu partikel padat (level 5) dan percikan air dari segala arah (level 4). |
+![Build Status](https://img.shields.io/badge/firmware-passing-brightgreen)
+![Go Backend](https://img.shields.io/badge/backend-Go%201.21-blue)
+![Database](https://img.shields.io/badge/database-PostgreSQL%2015%2B-indigo)
+![LoRa Compliance](https://img.shields.io/badge/LoRa-Permenkomdigi%20No.2%2F2025-orange)
+![RTOS](https://img.shields.io/badge/RTOS-ESP--IDF%20FreeRTOS-red)
 
 ---
 
-## 2. Ringkasan Eksekutif Sistem Smart-Sanitation eSOS
+## 📖 Deskripsi Singkat
 
-**Smart-Sanitation eSOS** adalah sistem rekayasa sanitasi cerdas modular yang dirancang khusus untuk fasilitas tanggap darurat pasca-bencana pada wilayah tanpa jangkauan seluler (*blank spot*). Sistem ini mengintegrasikan:
-1. **Penginderaan Lingkungan Otomatis:** Sensor gas amonia ($NH_3$) MQ-137, hidrogen sulfida ($H_2S$) MQ-136, dan sensor jarak ultrasonik kedap air JSN-SR04T.
-2. **Kendali Aktuasi Higienis:** Mikrokontroler ESP32 DevKitC V4 dan motor servo logam MG996R untuk mekanisme buka-tutup katup nirsentuh (*touchless*).
-3. **Komunikasi Nirkabel Jarak Jauh Jalur Ganda (*Dual-Path*):** Jalur Utama Wi-Fi 2.4GHz via Access Point TP-Link CPE220 dan Jalur Cadangan LoRa RA-02 433 MHz SX1278.
-4. **Kemandirian Daya Surya Mandiri:** Panel surya 10 Wp, modul manajemen pengisian baterai TP4056 BMS, dan sel Li-ion 18650 1S4P terproteksi (operasi 24 jam kontinu).
-5. **Casing 3D IoT Modular (Weatherproof):** Enclosure kustom hasil cetak 3D PETG dengan proteksi standar setara IP54 (dirancang khusus oleh Darrel Alfath).
-6. **Arsitektur Perakitan Elektrikal Cepat:** Menggunakan modul breakout standar industri dan *perfboard / wiring harness* terisolasi berkeandalan tinggi (tidak menggunakan custom PCB kelompok).
-7. **Infrastruktur Server Go (Golang) Berkinerja Tinggi:** Backend mandiri berbasis Go dengan Streaming Ingestion, Batch ETL Engine, WebSocket Hub real-time, dan basis data SQLite WAL mode berformat UUIDv7.
+**Smart-Sanitation eSOS** (*Emergency Sanitation Operating System*) adalah sistem rekayasa sanitasi cerdas modular dan *Offline-First* yang dirancang khusus untuk fasilitas tanggap darurat pasca-bencana di wilayah terisolir (*blank spot* tanpa internet). Sistem ini mengkombinasikan teknologi radio jarak jauh **Semtech SX1278 LoRa (433 MHz)** dengan arsitektur server berkinerja tinggi **Golang**, **PostgreSQL ACID**, dan antarmuka web pemantauan darurat real-time (*Emergency Management System / EMS*).
+
+Sistem dikembangkan oleh **Kelompok 4 - Desain Proyek 2, Departemen Teknik Elektro, Fakultas Teknik Universitas Indonesia (2026)**.
 
 ---
 
-## 3. Struktur Direktori Repositori Modular (Enterprise Architecture)
+## 🗂️ Struktur Repositori Terstruktur
 
-```text
+Repositori ini distrukturisasi secara tegas memisahkan **Keperluan Manajemen & Administrasi** dengan **Keperluan Teknis Rekayasa**:
+
+```
 DESPRO2_SMART_SANITATION_MODULAR/
 │
-├── 00_MASTER_README.md                   # Dokumen Induk & Peta Repositori
-├── 01_MASTER_TASK_ALLOCATION.md          # Matriks Tanggung Jawab Tetap (RACI & Boundaries)
-├── 02_BOM_PROCUREMENT.md                 # Master BoM 15 Komponen, RAB, & Technical Gates
-├── 03_MASTER_SEMESTER_WBS.md             # Master WBS Semester (W1-W14) & Link Live Spreadsheet
-├── 04_PHASE_GATE_AND_TRACEABILITY.md     # Governance Gerbang 1-4 & Matriks Keterlacakan (RTM)
-├── 05_EVIDENCE_REGISTER.md               # Master Register Bukti Teknis & Rantai Ketertelusuran
-├── MANIFEST.json                         # Metadata Repositori & Katalog Berkas JSON
-├── README.md                             # Berkas Root Readme Utama Repositori
+├── management/                        📋 [MANAJEMEN] Tata Kelola, WBS, BOM & Laporan
+│   ├── README.md                      # Indeks Navigasi Manajemen
+│   ├── 01_MASTER_TASK_ALLOCATION.md   # Matriks RACI & Pembagian Beban Kerja Tim
+│   ├── 02_BOM_PROCUREMENT.md          # Bill of Materials & Tracking Pengadaan Suku Cadang
+│   ├── 03_MASTER_SEMESTER_WBS.md      # Work Breakdown Structure (WBS) & Jadwal Semester
+│   ├── 04_PHASE_GATE_AND_TRACEABILITY.md # Phase Gate Review & Traceability Matrix
+│   ├── 05_EVIDENCE_REGISTER.md        # Register Bukti Pengujian, Bench Testing & Lab Photos
+│   └── reports/                       # Arsip Laporan Kemajuan Berkala (Weekly Reports)
+│       ├── group/                     # Laporan Kelompok Mingguan (Week 01 - 04)
+│       ├── individual/                # Laporan Individu per Anggota (Daffa, Darrel, Ilman, Raka, Siti)
+│       └── media/                     # Dokumentasi Foto & Visual Laboratorium
 │
-├── assets/                               # Direktori Artefak dan Berkas Rekayasa
-│   ├── cad/                              # Berkas 3D CAD Parametrik (.step, .stl, gambar 2D)
-│   ├── schematics/                       # Skematik Sirkuit Elektrikal & Wiring Diagram
-│   ├── docs/                             # Dokumen Spesifikasi, Notula, & Panduan
-│   ├── logs/                             # Dataset Pengujian Sensor & Log Transmisi
-│   ├── media/                            # Foto Perangkat & Rekaman Video Pengujian
-│   ├── procurement/                      # Dokumen Pengadaan & Bukti Pembelian
-│   │   ├── receipts_bundle.pdf           # Bundel Faktur & Kuitansi Pembelian Resmi
-│   │   └── asset_photos/                 # Foto Fisik Unboxing Komponen
-│   └── sheets_templates/                 # Berkas Template CSV Siap Impor ke Google Sheets
-│       ├── 01_DAILY_LOGBOOK_TRACKING.csv # Logbook 14 Pekan Lengkap (205 Jam Target)
-│       ├── 02_MASTER_WBS_GANTT_CHART.csv # Jadwal WBS 14 Pekan & Bobot Progres
-│       ├── 03_PHASE_GATE_GOVERNANCE.csv  # Kriteria Audit Gerbang 1 sampai 4
-│       └── 04_TEST_MATRIX_TC_RTM.csv     # Matriks Pengujian Lab Skenario TC-01..06
+├── docs/                              📚 [TEKNIS] Arsitektur Sistem & Spesifikasi Rekayasa
+│   ├── architecture/                  # Architecture Decision Records (ADR 00 - 06)
+│   ├── hardware_references/           # Lembar Data Komponen, Wiring & Kalibrasi Sensor
+│   └── AGENT_IMPLEMENTATION_BRIEF.md  # Ringkasan Spesifikasi Teknis Implementasi
 │
-├── reports/                              # Direktori Laporan Berkala (Tidak Mengotori Root)
-│   ├── group/                            # Laporan Kemajuan Kelompok Mingguan (Pekan 1 s.d. 14)
-│   │   ├── WEEK_01_GROUP_REPORT.md
-│   │   ├── WEEK_02_GROUP_REPORT.md
-│   │   └── ...
-│   │
-│   └── individual/                       # Laporan Logbook Individu per Anggota (Pekan 1 s.d. 14)
-│       ├── daffa/ (WEEK_01 & WEEK_02)
-│       ├── raka/ (WEEK_01 & WEEK_02)
-│       ├── siti/ (WEEK_01 & WEEK_02)
-│       ├── ilman/ (WEEK_01 & WEEK_02)
-│       └── darrel/ (WEEK_01 & WEEK_02)
-│
-└── src/                                  # SELURUH SISTEM & KODE SUMBER LENGKAP
-    ├── bin/                              # Binary Executable Siap Pakai (Standalone Executable)
-    │   └── esos-server.exe               # Single Executable Native Binary Server Go (Port :8000)
-    │
-    ├── config/                           # Berkas Konfigurasi Sistem End-to-End
-    │   ├── sensor_thresholds.json        # Kalibrasi & Ambang Batas Sensor (Gas, Level, Volt)
-    │   ├── lora_config.json              # Parameter RF LoRa 433 MHz & Format Payload
-    │   ├── network_cpe220.conf           # Konfigurasi Jaringan Access Point TP-Link CPE220
-    │   └── .env.example                  # Template Variabel Lingkungan Server Lokal
-    │
-    ├── data/                             # Direktori Penyimpanan Basis Data Lokal
-    │   └── esos_telemetry.db             # Basis Data SQLite WAL Mode Teroptimasi
-    │
-    ├── firmware/                         # Source Code Firmware ESP32 (C++ / PlatformIO)
-    │   ├── platformio.ini                # Konfigurasi Build PlatformIO & Dependensi
-    │   ├── include/config.h              # Pinout Hardware & Threshold Macros
-    │   └── src/main.cpp                  # Implementasi Sensor Sampling & LoRa TX
-    │
-    └── server/                           # High-Performance Go Backend & Web Dashboard
-        ├── main.go                       # Entry Point HTTP & WebSocket Server Go
-        ├── go.mod & go.sum               # Modul Dependensi Go (UUIDv7, SQLite, WebSocket)
-        ├── models/models.go              # Definisi Struktur Data & Model Telemetri UUIDv7
-        ├── database/database.go          # SQLite WAL Mode Manager & Transactional Batch Insert
-        ├── database/postgres_schema.sql  # Skema Produksi PostgreSQL 15/16 (ACID & UUIDv7)
-        ├── etl/pipeline.go               # Streaming & Batch ETL Engine (Worker & Anomaly Detection)
-        ├── api/handlers.go               # REST API Endpoints (Telemetry, Alerts, History)
-        ├── api/websocket.go              # Real-Time WebSocket Streaming Hub
-        ├── static/index.html             # Web Dashboard Frontend (HTML5, Tailwind, Chart.js)
-        ├── schema.sql                    # Skema Basis Data SQLite Bawaan
-        └── docs/                         # Rangkaian Dokumentasi Teknis Lengkap
-            ├── 01_DATABASE_ARCHITECTURE_AND_ERD.md
-            ├── 02_BACKEND_ETL_AND_API_ARCHITECTURE.md
-            ├── 03_FRONTEND_DASHBOARD_ARCHITECTURE.md
-            └── 04_GATEWAY_ROUTER_NETWORK_PIPELINE.md
+└── src/                               ⚙️ [TEKNIS] Kode Sumber Sistem Terintegrasi
+    ├── firmware/                      # Firmware ESP32 Berbasis FreeRTOS
+    │   ├── docs/                      # Dokumentasi Master Pipeline LoRa & Wiring Matrix
+    │   │   └── README.md
+    │   ├── node_wc/                   # Firmware Node Bilik Sensor (Ultrasonik, MQ, SOS, Servo)
+    │   │   ├── docs/                  # Panduan Arsitektur & 3 Panduan Uji Standalone (MQ, JSN, LoRa)
+    │   │   ├── src/main.cpp           # Kode Sumber Produksi FreeRTOS Terintegrasi
+    │   │   ├── standalone_test/       # Suite Uji Mandiri Hardware (MQ, JSN, LoRa TX & RX)
+    │   │   └── platformio.ini         # Konfigurasi Build PlatformIO Node (5 Environment)
+    │   └── gateway/                   # Firmware Gateway Router (LoRa RX, Store-Forward, WiFi)
+    │       ├── docs/README.md         # Dokumentasi FreeRTOS Task, Ring Buffer, & DIO0 ISR
+    │       ├── src/main.cpp           # Kode Sumber Produksi FreeRTOS
+    │       ├── standalone_test/       # Sketch Uji Mandiri Hardware Gateway RX
+    │       └── platformio.ini         # Konfigurasi Build PlatformIO Gateway
+    ├── server/                        # Mesin Server Golang & Emergency Dashboard Web
+    │   ├── docs/README.md             # Dokumentasi Arsitektur Backend, ETL Worker, & REST API
+    │   ├── api/                       # REST API (Chi) & Native WebSocket Hub
+    │   ├── etl/                       # In-Memory Cache (LISTEN/NOTIFY) & Dynamic Batch Inserter
+    │   ├── database/                  # PostgreSQL Connection Pool (pgxpool)
+    │   ├── mqtt/                      # MQTT Subscriber & Actuator Downlink Publisher
+    │   ├── static/index.html          # Dashboard EMS Tunggal (Tailwind CSS + Chart.js)
+    │   └── main.go                    # Entrypoint Server dengan Graceful Shutdown
+    ├── data/                          # Basis Data & Skema Relasional
+    │   ├── docs/README.md             # Dokumentasi Skema Relasional & ERD
+    │   └── postgres_schema.sql        # DDL PostgreSQL dengan Indeks UUIDv7 & Trigger
+    └── scripts/                       # Simulator & Skrip Pengujian Beban
+        ├── docs/README.md             # Dokumentasi Utilitas Simulator
+        └── dummy_gateway.go           # Generator Telemetri Sintetis via MQTT
 ```
 
 ---
 
-## 4. Cara Menjalankan Server & Dashboard (Quick Start Guide)
+## 📡 Regulasi & Parameter Radio LoRa
 
-Untuk menjalankan server backend Go dan membuka dashboard pemantauan di komputer posko bencana:
+Sistem LoRa eSOS mematuhi sepenuhnya regulasi spektrum frekuensi radio Indonesia:
+*   **Regulasi Rujukan:** **Permenkomdigi No. 2 Tahun 2025** (Pita LPWAN / Non-Exclusive SRD).
+*   **Rentang Alokasi Pita:** 433,050 – 434,790 MHz (Bandwidth Maksimum 125 kHz).
+*   **Frekuensi Tengah Operasional ($f_c$):** **`433.175 MHz`** (Kanal nominal 433,1125 – 433,2375 MHz).
+*   **Modulasi LoRa:** Spreading Factor 9 (**SF9**) | Bandwidth **125.0 kHz** | Coding Rate **4/7** | SyncWord **`0x12`** (Private).
+*   **Kontrak Payload Telemetri:** Biner terkompresi **34 Bytes** (validasi waktu kompilasi via `static_assert`).
 
+---
+
+## 🔌 Pinout Hardware Resmi (Wiring Bus SPI)
+
+Untuk menghindari tabrakan fungsi pin ESP32 (*pin contention*), konfigurasi pinout fisik berikut telah diverifikasi dan dikunci:
+
+| Pin SX1278 (Ra-02) | Pin ESP32 DevKit V1 | Warna Kabel Jumper Fisik | Keterangan Fungsi |
+| :--- | :--- | :--- | :--- |
+| **NSS / CS** | **GPIO 5** | Kuning | SPI Slave Select Manual via Driver Hardware |
+| **MOSI** | **GPIO 18** | Oranye | SPI Master Output Slave Input (VSPI / HSPI) |
+| **MISO** | **GPIO 19** | Merah | SPI Master Input Slave Output |
+| **SCK** | **GPIO 21** | Cokelat | SPI Serial Clock |
+| **RST** | **GPIO 15** | Biru | Hardware Reset Pulsa Aktif Rendah |
+| **DIO0** | **GPIO 2** | Ungu | External Interrupt (Packet Rx / Tx Done) |
+| **VCC (3.3V)** | **3V3 Pin** | Putih | Tegangan Operasi Semtech SX1278 |
+| **GND** | **GND Pin** | Hitam | Ground Referensi Sistem Bersama |
+
+> [!IMPORTANT]
+> Pin `GPIO 21` dialokasikan untuk LoRa SCK. Oleh karena itu, jalur komunikasi **I2C Modul RTC DS3231** pada Gateway dialokasikan secara eksplisit ke:
+> *   **SDA:** `GPIO 4`
+> *   **SCL:** `GPIO 22`
+
+---
+
+## ⚡ Panduan Menjalankan Sistem (Quick Start)
+
+### 1. Backend Server & Database
 ```powershell
-# 1. Pindah ke direktori root repositori
-cd c:\Users\dapah\Documents\DESPRO\DESPRO2_SMART_SANITATION_MODULAR
+# 1. Jalankan PostgreSQL dan terapkan schema DDL
+psql -U postgres -d esos_db -f src/data/postgres_schema.sql
 
-# 2. Jalankan binary server Go mandiri
-.\src\bin\esos-server.exe
+# 2. Jalankan MQTT Broker
+mosquitto -v
+
+# 3. Jalankan Server Go
+cd src/server
+go run main.go
+```
+*Akses dashboard pemantau darurat di peramban web pada alamat `http://localhost:8000`.*
+
+### 2. Kompilasi & Flash Firmware (PlatformIO)
+```powershell
+# Kompilasi Firmware Node WC
+pio run -d src/firmware/node_wc
+
+# Kompilasi Firmware Gateway Router
+pio run -d src/firmware/gateway
+
+# Unggah ke ESP32 yang terhubung ke port COM
+pio run -d src/firmware/node_wc -t upload
+pio run -d src/firmware/gateway -t upload
 ```
 
-Setelah server aktif, buka peramban web pada alamat:
-👉 **`http://localhost:8000/`** (Akses Lokal) atau **`http://192.168.0.100:8000/`** (Akses Jaringan Nirkabel CPE220).
+### 3. Pengujian Mandiri Cepat (Standalone Test Harness)
+Tersedia skrip mandiri Arduino IDE & PlatformIO di subdirektori terdedikasi:
+*   **Node WC - Sensor Gas MQ-137 & MQ-136:** [`src/firmware/node_wc/standalone_test/test_mq_sensors/`](src/firmware/node_wc/standalone_test/test_mq_sensors/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_MQ_TEST_GUIDE.md)
+*   **Node WC - Sensor Ultrasonik JSN-SR04T:** [`src/firmware/node_wc/standalone_test/test_jsn_sr04t/`](src/firmware/node_wc/standalone_test/test_jsn_sr04t/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_JSN_TEST_GUIDE.md)
+*   **Node WC - LoRa Transmitter Uplink:** [`src/firmware/node_wc/standalone_test/test_lora_node_tx/`](src/firmware/node_wc/standalone_test/test_lora_node_tx/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_LORA_TEST_GUIDE.md)
+*   **Node WC - LoRa Receiver Downlink:** [`src/firmware/node_wc/standalone_test/test_lora_node_rx/`](src/firmware/node_wc/standalone_test/test_lora_node_rx/) | [Panduan Teknis](src/firmware/node_wc/docs/STANDALONE_LORA_TEST_GUIDE.md)
+*   **Gateway Posko - LoRa Receiver:** [`src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino`](src/firmware/gateway/standalone_test/test_lora_gateway_rx.ino)
+*   **Simulasi Beban MQTT:** [`src/scripts/dummy_gateway.go`](src/scripts/dummy_gateway.go)
 
 ---
 
-## 5. Susunan Tim & Kepemilikan Domain (Alokasi 205 Jam Proposal)
-
-| No | Nama Anggota | NPM | Peran Proposal | Domain Tanggung Jawab Utama | Alokasi Proposal |
-|:---:|:---|:---:|:---|:---|:---:|
-| 1 | **Daffa Hardhan** | 2306161763 | Manajer Proyek dan Pengembang | Manajemen proyek, master WBS, arsitektur sistem, Go backend server (Batch & Streaming ETL), Web Dashboard UI, integrasi CPE220 | **40 Jam** |
-| 2 | **Raka Arrayan Muttaqien** | 2306161800 | Analis Solusi dan Integrasi Layanan | Requirement analysis, verifikasi standar sanitasi, evaluasi vendor BoM, koordinasi pengadaan, feasibility review | **35 Jam** |
-| 3 | **Siti Amalia Nurfaidah** | 2306161851 | Pengembang Perangkat Lunak | Firmware mikrokontroler ESP32, pengolahan ADC/PWM, stack protokol LoRa RA-02, logika kendali servo | **45 Jam** |
-| 4 | **Muhammad Ilman Zuhriy** | 2306266786 | Perancang Perangkat Keras | Arsitektur daya solar 10Wp + baterai 18650, modul TP4056, wiring harness daya & sensor (No Custom PCB), kalibrasi gas analog | **45 Jam** |
-| 5 | **Darrel Alfath** | 2306266810 | Desainer Mekanis dan Penguji Kualitas | Desain 3D CAD casing/enclosure IoT modular, weatherproofing IP54, perakitan fixture mekanik, Master Test Plan, QA | **40 Jam** |
-| | **TOTAL AKUMULASI** | | | | **205 Jam** |
-
----
-
-## 6. Indeks Navigasi Cepat Dokumen Master
-
-- [01_MASTER_TASK_ALLOCATION.md](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/01_MASTER_TASK_ALLOCATION.md) : Matriks RACI semester penuh, aturan kepemilikan domain, dan batas tanggung jawab.
-- [02_BOM_PROCUREMENT.md](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/02_BOM_PROCUREMENT.md) : Kontrol pengadaan 15 komponen BoM, gerbang verifikasi teknis, dan [Google Sheets Live BoM & WBS Tracker](https://docs.google.com/spreadsheets/d/1zRfozwUUJNMKAodWKQSK0rwU4v89uHyB7RLKbxfwlRk/edit?usp=sharing).
-- [03_MASTER_SEMESTER_WBS.md](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/03_MASTER_SEMESTER_WBS.md) : Master WBS 14 Pekan (Bab 5.5 Proposal), alur hirarki, dan [Tautan Live Google Sheets](https://docs.google.com/spreadsheets/d/1zRfozwUUJNMKAodWKQSK0rwU4v89uHyB7RLKbxfwlRk/edit?usp=sharing).
-- [04_PHASE_GATE_AND_TRACEABILITY.md](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/04_PHASE_GATE_AND_TRACEABILITY.md) : Governance Gerbang 1-4 dan Matriks Keterlacakan Kebutuhan (RTM).
-- [05_EVIDENCE_REGISTER.md](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/05_EVIDENCE_REGISTER.md) : Register bukti teknis (`EV-W[PEKAN]-[DOMAIN]-[NO]`) dan rantai verifikasi.
-- [src/bin/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/bin/) : Direktori binary server Go mandiri (`src/bin/esos-server.exe`).
-- [src/config/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/config/) : Direktori konfigurasi ambang batas sensor, jaringan CPE220, dan protokol LoRa.
-- [src/data/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/data/) : Direktori basis data lokal SQLite WAL mode (`src/data/esos_telemetry.db`).
-- [src/firmware/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/firmware/) : Kode sumber firmware C++ PlatformIO mikrokontroler ESP32.
-- [src/server/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/server/) : Kode sumber backend Go (Streaming & Batch ETL), WebSocket Hub, Web Dashboard, dan skema basis data.
-- [src/server/docs/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/src/server/docs/) : Dokumentasi lengkap Arsitektur Data ERD DDL, Mesin ETL Go, Frontend Dashboard, dan Pipeline Router Gateway.
-- [reports/group/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/reports/group/) : Direktori Laporan Kemajuan Kelompok Mingguan resmi FTUI.
-- [reports/individual/](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/reports/individual/) : Direktori Laporan Logbook Individu Pekanan seluruh anggota.
-- [MANIFEST.json](file:///c:/Users/dapah/Documents/DESPRO/DESPRO2_SMART_SANITATION_MODULAR/MANIFEST.json) : Metadata katalog repositori JSON terstruktur.
+## 👥 Tim Pengembang (Kelompok 4)
+*   **Daffa** - Project Lead, Integrator Sensor & Aktuator, FreeRTOS Firmware Gateway, LoRa RF Pipeline Architecture
+*   **Darrel** - Mechanical Structural Design, Sanitation Cubicle Enclosure, IP54 Weatherproofing
+*   **Ilman** - Power Management (PV Solar 10-20Wp, BMS Li-Ion 18650), Hardware Schematic & Wiring Harness
+*   **Raka** - Penanggung Jawab Hardware Aktuator (Servo/Solenoid Lock), Solution Analyst, Sanitation Standards & Procurement
+*   **Siti** - FreeRTOS Sensor Node Firmware, Ultrasonic Level & Gas Detection Integration

@@ -1,27 +1,29 @@
-# OS Metadata
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-.DS_Store
+# Environment Variables
+.env
 
-# Temporary & Lock files
-*.tmp
-*~
-*.bak
+# Go binaries and build outputs
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
 
-# SQLite temporary journal files (keep the main .db)
-*.db-shm
-*.db-wal
-*.db-journal
-
-# IDE & Editor configurations
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Build caches
+# PlatformIO
 .pio/
-.pioenvs/
-.piolibdeps/
+lib/
+
+# VS Code / IDE
+.vscode/
+*.swp
+.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# LittleFS / Simulation data
+*.dat
+
+# Logs
+*.log
