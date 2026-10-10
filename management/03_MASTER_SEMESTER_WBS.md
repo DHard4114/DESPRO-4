@@ -126,12 +126,14 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
   - **Daffa:** Kompilasi Laporan Tengah Semester dan evaluasi kelulusan **Phase Gate 3 (Mid-term Prototype Review)**.
 - **Milestone & Gerbang Mutu:** **Phase Gate 3 Review — PROGRES SIGNIFIKAN / NETWORK LAYER VERIFIED**.
 
+> **Status Capaian Midterm (Pekan 7):** Lapisan jaringan lokal (*Network & TCP Transport Layer*) terverifikasi 100% (Uji ICMP Ping satu per satu 0% loss dan pembukaan soket TCP port 1883 sukses `connected=1`). Transmisi nirkabel LoRa-to-LoRa dari Node WC ke Gateway tertahan sementara akibat kendala fisik inisialisasi modul radio SX1278 pada Gateway (`Kode: -2` / `CHIP_NOT_FOUND`) dan dijadwalkan diselesaikan melalui penataan ulang kabel jumper/catu daya fisik pada awal Pekan 8.
+
 #### Matriks Artefak Bukti Capaian Teknis Pekan 7 (WBS Deliverables):
 | ID Bukti | Deskripsi Bukti Teknis | Target Simpul / Alamat IP | Hasil Verifikasi | Lokasi Berkas Bukti |
 |:---|:---|:---|:---|:---|
 | **EV-W7-PM-001** | Uji ICMP Ping PC Laptop ke Broker Mosquitto | `192.168.101.100` | 4/4 Paket (0% loss), Latensi $<1\text{ ms}$ | `reports/media/Ping_Broker_Laptop_W7.png` |
 | **EV-W7-PM-002** | Uji ICMP Ping PC Laptop ke ESP32 Node Gateway | `192.168.101.11` | 4/4 Paket (0% loss), Rata-rata $78\text{ ms}$ | `reports/media/Ping_Gateway_ESP32_W7.png` |
-| **EV-W7-PM-003** | Log Serial Monitor Wi-Fi STA & TCP Socket Connect | `192.168.101.100:1883` | `connected=1`, Durasi $9-22\text{ ms}$, RSSI $-56\text{ dBm}$ | `reports/media/Serial_Monitor_Gateway_TCP_W7.png` |
+| **EV-W7-PM-003** | Log Serial Monitor Wi-Fi STA & TCP Socket Connect (Rekaman Galat LoRa Kode: -2) | `192.168.101.100:1883` | `connected=1`, Durasi $9-22\text{ ms}$, RSSI $-56\text{ dBm}$ (Log Radio LoRa Error -2) | `reports/media/Serial_Monitor_Gateway_TCP_W7.png` |
 
 #### Dokumentasi Visual Bukti Teknis Pekan 7 (WBS Evidence Artifacts):
 
@@ -143,8 +145,8 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
 *Verifikasi keterhubungan nirkabel PC Client ke ESP32 Node Gateway via Access Point `CompEngQuiz-Server-Live`:*
 ![EV-W7-PM-002: Uji Ping ESP32 Gateway](reports/media/Ping_Gateway_ESP32_W7.png)
 
-##### 3. Bukti EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA & Soket TCP Port 1883
-*Verifikasi pembentukan soket transport layer TCP dari ESP32 Gateway ke Broker Mosquitto Port 1883:*
+##### 3. Bukti EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA & Soket TCP Port 1883 (beserta Log Galat LoRa Kode: -2)
+*Verifikasi pembentukan soket transport layer TCP dari ESP32 Gateway ke Broker Mosquitto Port 1883 (`connected=1`) sekaligus rekaman kegagalan inisialisasi radio LoRa SX1278 (`Kode: -2`) yang menjadi alasan transmisi LoRa-to-LoRa belum bisa dilakukan:*
 ![EV-W7-PM-003: Serial Monitor Gateway Wi-Fi and TCP](reports/media/Serial_Monitor_Gateway_TCP_W7.png)
 
 ### Fase 6: Pengujian Lapangan, Keandalan Kontinu & Validasi QA (Pekan 8 – Pekan 10)

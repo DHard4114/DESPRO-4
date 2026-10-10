@@ -105,9 +105,9 @@ $$\text{Sensor Node (FreeRTOS)} \xrightarrow[\text{LoRa 433MHz}]{\text{JSON Enve
 
 ---
 
-### 5.3 EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA & Soket TCP Port 1883
-- **Deskripsi:** Tangkapan layar Serial Monitor ESP32 (115200 baud) yang mendemonstrasikan inisialisasi Wi-Fi STA sukses dengan IP statis `192.168.101.11`, RSSI -56 dBm, dan pembukaan soket TCP ke Broker `192.168.101.100:1883` sukses (`connected=1`) dengan durasi koneksi $22\text{ ms}$ dan $9\text{ ms}$.
-- **Hasil Kuantitatif:** Status koneksi TCP `connected=1`, durasi pembentukan koneksi $9-22\text{ ms}$, RSSI nirkabel $-56\text{ dBm}$ (Sinyal Baik).
+### 5.3 EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA, Soket TCP Port 1883 & Rekaman Galat LoRa (Kode: -2)
+- **Deskripsi:** Tangkapan layar Serial Monitor ESP32 (115200 baud) yang mendemonstrasikan inisialisasi Wi-Fi STA sukses dengan IP statis `192.168.101.11`, RSSI -56 dBm, dan pembukaan soket TCP ke Broker `192.168.101.100:1883` sukses (`connected=1`, durasi $9-22\text{ ms}$). Log ini secara otentik juga mencatat peringatan `[RADIO ERROR] Inisialisasi Radio SX1278 gagal (Kode: -2)` yang menjelaskan secara transparan mengapa transmisi nirkabel LoRa-to-LoRa dari Node WC ke Gateway belum dapat berjalan di Pekan 7.
+- **Hasil Kuantitatif:** Status koneksi TCP `connected=1`, durasi pembentukan koneksi $9-22\text{ ms}$, RSSI nirkabel $-56\text{ dBm}$ (Sinyal Baik), status modul radio LoRa SX1278 belum aktif (Kode: -2).
 - **Berkas Bukti:** `management/reports/media/Serial_Monitor_Gateway_TCP_W7.png`
 
 ![EV-W7-PM-003: Serial Monitor Gateway Wi-Fi and TCP](reports/media/Serial_Monitor_Gateway_TCP_W7.png)
