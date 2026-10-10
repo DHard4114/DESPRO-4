@@ -1,12 +1,20 @@
 #include <Arduino.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <RadioLib.h>
-#include <Wire.h>
 #include <RTClib.h>
 #include <ctype.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include "config.h"
 
 // =========================================================================================
@@ -46,6 +54,8 @@ QueueHandle_t xQueueTelemetry = NULL;
 TaskHandle_t  TaskLoRaRxHandle = NULL;
 SemaphoreHandle_t fsMutex = NULL;
 SemaphoreHandle_t mqttMutex = NULL;
+SemaphoreHandle_t rtcMutex = NULL;
+static volatile bool g_system_ready = false;
 
 // ==========================================
 // 2. TWO-PHASE STORE-AND-FORWARD CIRCULAR BUFFER (LittleFS)
@@ -183,6 +193,43 @@ static void loadMeta() {
     }
 }
 
+// ==========================================
+// HELPER THREAD-SAFE RTC & METADATA
+// ==========================================
+static uint32_t getRtcTimestamp() {
+    uint32_t epoch = 0;
+    if (rtcMutex != NULL && g_rtc_available) {
+        if (xSemaphoreTake(rtcMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            epoch = rtc.now().unixtime();
+            xSemaphoreGive(rtcMutex);
+        }
+    }
+    return epoch;
+}
+
+static bool setRtcTimestamp(uint32_t epoch) {
+    bool ok = false;
+    if (rtcMutex != NULL) {
+        if (xSemaphoreTake(rtcMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+            if (g_rtc_available || rtc.begin()) {
+                rtc.adjust(DateTime(epoch));
+                g_rtc_available = true;
+                ok = true;
+            }
+            xSemaphoreGive(rtcMutex);
+        }
+    }
+    return ok;
+}
+
+static uint16_t getBufferCount() {
+    if (fsMutex == NULL || !g_fs_available) return 0;
+    if (xSemaphoreTake(fsMutex, pdMS_TO_TICKS(100)) != pdTRUE) return 0;
+    uint16_t count = meta.count;
+    xSemaphoreGive(fsMutex);
+    return count;
+}
+
 // Push data ke flash buffer tanpa pemotongan ("r+" mode)
 static bool pushToBuffer(const GatewayTelemetryRecord &record) {
     if (fsMutex == NULL || !g_fs_available) return false;
@@ -245,10 +292,18 @@ static bool pushToBuffer(const GatewayTelemetryRecord &record) {
 
 // Tahap 1 Two-Phase Commit: Peek data pada posisi head tanpa menghapusnya
 static bool peekBuffer(GatewayTelemetryRecord *outRecord, CommitToken *outToken) {
-    if (fsMutex == NULL || !g_fs_available || meta.count == 0 || outRecord == NULL || outToken == NULL) {
+    if (fsMutex == NULL || !g_fs_available || outRecord == NULL || outToken == NULL) {
         return false;
     }
-    xSemaphoreTake(fsMutex, portMAX_DELAY);
+    if (xSemaphoreTake(fsMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        return false;
+    }
+
+    // Validasi meta.count di dalam mutex yang sama
+    if (meta.count == 0) {
+        xSemaphoreGive(fsMutex);
+        return false;
+    }
 
     bool success = false;
     outToken->valid = false;
@@ -278,10 +333,18 @@ static bool peekBuffer(GatewayTelemetryRecord *outRecord, CommitToken *outToken)
 
 // Tahap 2 Two-Phase Commit: Hapus logis record setelah MQTT publish berhasil
 static bool commitBufferDeletion(const CommitToken &token) {
-    if (fsMutex == NULL || !g_fs_available || !token.valid || meta.count == 0) {
+    if (fsMutex == NULL || !g_fs_available || !token.valid) {
         return false;
     }
-    xSemaphoreTake(fsMutex, portMAX_DELAY);
+    if (xSemaphoreTake(fsMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        return false;
+    }
+
+    // Validasi meta.count di dalam mutex yang sama
+    if (meta.count == 0) {
+        xSemaphoreGive(fsMutex);
+        return false;
+    }
 
     bool success = false;
     // Verifikasi bahwa posisi head belum berubah atau ditimpa oleh wrap-around
@@ -360,8 +423,18 @@ static bool validateTelemetryFloats(const TelemetryPayload &p, char* err_buf, si
 }
 
 // ==========================================
-// 4. ISR INTERRUPT DIO0 (HARDWARE RX_DONE)
+// 4. ISR INTERRUPT DIO0 (HARDWARE RX_DONE) & RADIO RECOVERY
 // ==========================================
+static bool ensureRadioRxMode() {
+    if (!g_radio_available) return false;
+    int state = radio.startReceive();
+    if (state != RADIOLIB_ERR_NONE) {
+        Serial.printf("[LORA ERROR] startReceive() gagal (Kode: %d)\n", state);
+        return false;
+    }
+    return true;
+}
+
 void IRAM_ATTR isr_lora_rx() {
     if (TaskLoRaRxHandle != NULL) {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -375,9 +448,20 @@ void IRAM_ATTR isr_lora_rx() {
 // ==========================================
 void vTaskLoRaRx(void *pvParameters) {
     (void)pvParameters;
+
+    // Gerbang Startup: Tunggu setup() selesai sempurna
+    while (!g_system_ready) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
     for (;;) {
-        // Blokir sampai ada sinyal interupsi hardware DIO0
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        // Blokir dengan batas waktu 5000 ms agar jika interupsi terlewat, radio dapat dipulihkan
+        uint32_t notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(5000));
+        if (notified == 0) {
+            // Heartbeat/Watchdog: Pastikan radio tetap siaga mode RX kontinu
+            ensureRadioRxMode();
+            continue;
+        }
 
         if (!g_radio_available) {
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -389,7 +473,7 @@ void vTaskLoRaRx(void *pvParameters) {
         if (packetLen != sizeof(TelemetryPayload)) {
             Serial.printf("[LORA RX REJECTED] Ukuran paket tidak sesuai kontrak: %u bytes (diharapkan %u bytes). CRC: RF Hardware Check.\n",
                           (unsigned int)packetLen, (unsigned int)sizeof(TelemetryPayload));
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
@@ -399,20 +483,20 @@ void vTaskLoRaRx(void *pvParameters) {
         int state = radio.readData((uint8_t*)&rxData, sizeof(TelemetryPayload));
         if (state != RADIOLIB_ERR_NONE) {
             Serial.printf("[LORA RX ERROR] Gagal membaca data radio (Kode: %d)\n", state);
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
         // 2. Validasi Skema & Flag
         if (rxData.schema_version != 1) {
             Serial.printf("[LORA RX REJECTED] Versi skema tidak dikenal: %u\n", rxData.schema_version);
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
         if (rxData.sos_triggered > 1) {
             Serial.printf("[LORA RX REJECTED] Status SOS tidak sah: %u\n", rxData.sos_triggered);
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
@@ -423,7 +507,7 @@ void vTaskLoRaRx(void *pvParameters) {
 
         if (safe_node[0] == '\0') {
             Serial.println(F("[LORA RX REJECTED] node_code kosong!"));
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
@@ -436,7 +520,7 @@ void vTaskLoRaRx(void *pvParameters) {
         }
         if (!nodeValid) {
             Serial.printf("[LORA RX REJECTED] node_code mengandung karakter non-printable!\n");
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
@@ -444,34 +528,30 @@ void vTaskLoRaRx(void *pvParameters) {
         char floatErr[80] = {0};
         if (!validateTelemetryFloats(rxData, floatErr, sizeof(floatErr))) {
             Serial.printf("[LORA RX REJECTED] Kontrak data float dilanggar: %s\n", floatErr);
-            radio.startReceive();
+            ensureRadioRxMode();
             continue;
         }
 
-        // 5. Pencatatan Waktu: Simpan Waktu Penerimaan RTC Secara Terpisah
+        // 5. Pencatatan Waktu: Simpan Waktu Penerimaan RTC Secara Terpisah (Thread-Safe)
         GatewayTelemetryRecord record;
         record.payload = rxData; // Mempertahankan uptime_seconds asli dari Node WC tanpa overwrite
-        
-        if (g_rtc_available) {
-            record.gateway_timestamp = rtc.now().unixtime();
-        } else {
-            record.gateway_timestamp = 0; // Sentinel 0: Waktu RTC offline / belum tersinkronisasi
-        }
+        record.gateway_timestamp = getRtcTimestamp();
 
         Serial.printf("[LORA RX] Paket Sah: Node=%.8s | Seq=#%u | Node Uptime=%u s | Gateway Epoch=%u | Air=%.1f cm | Batt=%.2f V | RSSI=%.1f dBm | SNR=%.1f dB\n",
                       safe_node, record.payload.sequence_no, record.payload.uptime_seconds, record.gateway_timestamp,
                       record.payload.water_level_cm, record.payload.battery_voltage,
                       radio.getRSSI(), radio.getSNR());
 
-        // 6. Masukkan ke antrean telemetri RAM. Jika RAM penuh, simpan ke LittleFS
+        // 6. Masukkan ke antrean telemetri RAM.
+        // Task LoRa RX HANYA melayani radio dan antrean RAM, DILARANG memblokir operasi flash LittleFS.
         if (xQueueSend(xQueueTelemetry, &record, 0) != pdPASS) {
-            Serial.println(F("[LORA RX] Antrean RAM penuh, menyimpan ke LittleFS."));
-            pushToBuffer(record);
+            Serial.printf("[LORA RX DROPPED] Antrean RAM penuh! Paket Seq #%u di-drop untuk menjaga responsivitas radio.\n",
+                          record.payload.sequence_no);
         }
 
         // Catatan Operasional: Dalam fase Uplink-Only, Gateway TIDAK memancarkan downlink.
         // Radio segera dikembalikan ke mode siaga penerimaan kontinu.
-        radio.startReceive();
+        ensureRadioRxMode();
     }
 }
 
@@ -480,6 +560,12 @@ void vTaskLoRaRx(void *pvParameters) {
 // ==========================================
 void vTaskMqttTx(void *pvParameters) {
     (void)pvParameters;
+
+    // Gerbang Startup: Tunggu setup() selesai sempurna
+    while (!g_system_ready) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
     uint8_t ram_serviced_count = 0;
 
     for (;;) {
@@ -499,7 +585,8 @@ void vTaskMqttTx(void *pvParameters) {
         // Fair Scheduling: Jika ada backlog di flash dan MQTT online, jangan biarkan
         // paket RAM memonopoli jaringan secara terus menerus (Starvation Prevention).
         // Setiap 2 paket RAM, beri giliran 1 paket flash.
-        if (isMqttOnline && meta.count > 0 && ram_serviced_count >= 2) {
+        uint16_t currentBacklog = getBufferCount();
+        if (isMqttOnline && currentBacklog > 0 && ram_serviced_count >= 2) {
             if (peekBuffer(&record, &flashToken)) {
                 hasData = true;
                 isFromFlash = true;
@@ -515,7 +602,7 @@ void vTaskMqttTx(void *pvParameters) {
                 ram_serviced_count++;
             }
             // Jika RAM kosong dan flash memiliki backlog saat MQTT online
-            else if (isMqttOnline && meta.count > 0) {
+            else if (isMqttOnline && getBufferCount() > 0) {
                 if (peekBuffer(&record, &flashToken)) {
                     hasData = true;
                     isFromFlash = true;
@@ -530,7 +617,11 @@ void vTaskMqttTx(void *pvParameters) {
             if (isMqttOnline && mqttMutex != NULL) {
                 xSemaphoreTake(mqttMutex, portMAX_DELAY);
                 if (mqtt.connected()) {
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+                    JsonDocument doc;
+#else
                     StaticJsonDocument<384> doc;
+#endif
                     doc["schema_version"]  = record.payload.schema_version;
 
                     char safe_node[9] = {0};
@@ -619,9 +710,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         unsigned long server_epoch = strtoul(time_str, NULL, 10);
         // Validasi epoch waktu masuk akal (antara 1 Nov 2023 [1700000000] hingga tahun 2050 [2500000000])
         if (server_epoch >= 1700000000UL && server_epoch < 2500000000UL) {
-            if (g_rtc_available || rtc.begin()) {
-                rtc.adjust(DateTime((uint32_t)server_epoch));
-                g_rtc_available = true;
+            if (setRtcTimestamp((uint32_t)server_epoch)) {
                 Serial.printf("[RTC SYNC] RTC DS3231 berhasil disinkronkan ke Epoch Server: %lu\n", server_epoch);
             } else {
                 Serial.println(F("[RTC SYNC ERROR] RTC DS3231 offline / tidak merespons di I2C!"));
@@ -645,24 +734,22 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // 4. Deserialisasi JSON Komando
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    JsonDocument doc;
+#else
     StaticJsonDocument<256> doc;
+#endif
     DeserializationError error = deserializeJson(doc, payload, length);
     if (error) {
         Serial.printf("[MQTT RX ERROR] Format JSON rusak: %s\n", error.c_str());
         return;
     }
 
-    // 5. Wajibkan Seluruh Field (DILARANG MENGGUNAKAN NILAI DEFAULT)
-    if (!doc.containsKey("node_code") || !doc.containsKey("command_id") || !doc.containsKey("parameter")) {
-        Serial.println(F("[MQTT RX ERROR] Field wajib hilang! Wajib menyertakan: node_code, command_id, parameter."));
-        return;
-    }
-
-    // 6. Validasi Tipe Data JSON
+    // 5. Wajibkan Seluruh Field & Validasi Tipe Data JSON (DILARANG MENGGUNAKAN NILAI DEFAULT)
     if (!doc["node_code"].is<const char*>() || 
         !doc["command_id"].is<unsigned int>() || 
         !doc["parameter"].is<unsigned int>()) {
-        Serial.println(F("[MQTT RX ERROR] Tipe data JSON salah (wajib string node_code, integer command_id & parameter)."));
+        Serial.println(F("[MQTT RX ERROR] Field wajib hilang atau tipe salah (wajib string node_code, integer command_id & parameter)."));
         return;
     }
 
@@ -714,6 +801,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void vTaskWiFiSupervisor(void *pvParameters) {
     (void)pvParameters;
+
+    // Gerbang Startup: Tunggu setup() selesai sempurna
+    while (!g_system_ready) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
     uint32_t backoff = 3000;
     static bool s_wifi_connected_logged = false;
 
@@ -810,13 +903,13 @@ void setup() {
 
     Serial.println(F("[CONFIG] Konfigurasi jaringan & LoRa dimuat dari config.h"));
 
-
     // 1. Inisialisasi Mutex & Queues FreeRTOS
     fsMutex = xSemaphoreCreateMutex();
     mqttMutex = xSemaphoreCreateMutex();
-    xQueueTelemetry = xQueueCreate(20, sizeof(GatewayTelemetryRecord));
+    rtcMutex = xSemaphoreCreateMutex();
+    xQueueTelemetry = xQueueCreate(50, sizeof(GatewayTelemetryRecord));
 
-    if (fsMutex == NULL || mqttMutex == NULL || xQueueTelemetry == NULL) {
+    if (fsMutex == NULL || mqttMutex == NULL || rtcMutex == NULL || xQueueTelemetry == NULL) {
         Serial.println(F("[FATAL] Gagal membuat kernel primitives FreeRTOS! Halting."));
         while (1) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
@@ -890,10 +983,16 @@ void setup() {
     // Mencegah hilangnya event interrupt awal akibat handle bernilai NULL.
     if (g_radio_available && TaskLoRaRxHandle != NULL) {
         radio.setDio0Action(isr_lora_rx, RISING);
-        radio.startReceive();
-        Serial.println(F("[OK] ISR DIO0 terhubung ke TaskLoRaRxHandle. Radio siaga dalam mode RX Continuous."));
+        if (ensureRadioRxMode()) {
+            Serial.println(F("[OK] ISR DIO0 terhubung ke TaskLoRaRxHandle. Radio siaga dalam mode RX Continuous."));
+        } else {
+            Serial.println(F("[RADIO ERROR] Gagal mengaktifkan mode RX Continuous!"));
+        }
     }
 
+    // 9. Buka Startup Gate: Seluruh task sekarang diizinkan mulai berjalan secara harmonis
+    g_system_ready = true;
+    Serial.println(F("[SYSTEM] Seluruh task diaktifkan via Startup Gate. Gateway siap beroperasi."));
     Serial.println(F("=================================================================\n"));
 }
 

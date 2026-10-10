@@ -2,6 +2,7 @@
 #define CONFIG_GATEWAY_H
 
 #include <Arduino.h>
+#include <stddef.h>
 
 // ==========================================
 // 1. KREDENSIAL JARINGAN & BROKER MQTT [ADR-01]
