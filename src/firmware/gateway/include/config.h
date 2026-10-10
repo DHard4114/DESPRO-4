@@ -18,7 +18,7 @@
 #define STATIC_IP_DNS       152, 118, 24, 4
 
 // Konfigurasi Laptop / Broker Mosquitto MQTT
-#define MQTT_SERVER         "192.168.101.10"
+#define MQTT_SERVER         "192.168.101.100"
 #define MQTT_PORT           1883
 #define MQTT_USER           "esos_gateway"
 #define MQTT_PASS           "gateway_secret"

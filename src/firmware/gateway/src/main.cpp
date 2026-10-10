@@ -39,7 +39,7 @@
 // 1. OBJEK PERANGKAT KERAS & KERNEL FREERTOS
 // ==========================================
 // Radio SX1278 (Hardware SPI Bus). Argumen ke-4 adalah RADIOLIB_NC, SPI dioper eksplisit
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI);
+SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI, SPISettings(1000000, MSBFIRST, SPI_MODE0));
 
 RTC_DS3231 rtc;
 static bool g_rtc_available = false;
@@ -955,8 +955,13 @@ void setup() {
 
     SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, -1);
 
-    // 6. Inisialisasi Radio SX1278
-    int state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
+    // 6. Inisialisasi Radio SX1278 dengan Retry Loop
+    int state = RADIOLIB_ERR_UNKNOWN;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
+        if (state == RADIOLIB_ERR_NONE) break;
+        delay(50);
+    }
     if (state == RADIOLIB_ERR_NONE) {
         radio.setCRC(true);
         g_radio_available = true;
