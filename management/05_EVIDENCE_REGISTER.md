@@ -24,6 +24,7 @@ $$\text{Format Baku: } \mathbf{EV-W[PEKAN]-[DOMAIN]-[NOMOR\_URUT]}$$
 - `EV-W2-HW-001` : Bukti domain Perangkat Keras dan Kelistrikan pada Pekan 2.
 - `EV-W2-MECH-001` : Bukti domain Mekanikal dan Casing 3D pada Pekan 2.
 - `EV-W2-QA-001` : Bukti domain Penjaminan Mutu dan Pengujian pada Pekan 2.
+- `EV-W7-PM-001` s.d. `003` : **[PEKAN 7]** Bukti Pengujian Jaringan Lokal (ICMP Ping Broker/Gateway) dan Verifikasi Soket TCP MQTT Gateway.
 
 ---
 
@@ -38,15 +39,18 @@ $$\text{Format Baku: } \mathbf{EV-W[PEKAN]-[DOMAIN]-[NOMOR\_URUT]}$$
 | **EV-W2-PM-002** | **Backend Server Go — MQTT Subscriber & ETL Engine** | **Daffa Hardhan** | **Klien MQTT persisten (paho.mqtt.golang), Worker Pool ETL, Threshold Cache (LISTEN/NOTIFY), REST API v1** | `src/server/mqtt/subscriber.go`, `src/server/etl/pipeline.go`, `docs/architecture/02_BACKEND_ETL_AND_API_ARCHITECTURE.md` | **Kuat (*Strong*)** |
 | **EV-W2-PM-003** | **Konfigurasi Jaringan Outdoor TP-Link CPE220** | **Daffa Hardhan** | **Konfigurasi IP statis, AP SSID & port mapping (radio WiFi eksklusif untuk Gateway)** | `src/config/network_cpe220.conf`, `docs/architecture/04_GATEWAY_ROUTER_NETWORK_PIPELINE.md` | **Kuat (*Strong*)** |
 | **EV-W2-PM-004** | **Konfigurasi Mosquitto MQTT Broker & ACL** | **Daffa Hardhan** | **`mosquitto.conf` (auth wajib, persistence, keep-alive) & `mosquitto_acl` (isolasi topik per node)** | `src/config/mosquitto.conf`, `src/config/mosquitto_acl`, `docs/architecture/05_LORA_MQTT_TELEMETRY_PIPELINE.md` §7 | **Kuat (*Strong*)** |
+| **EV-W7-PM-001** | **Uji ICMP Ping PC Laptop ke Mosquitto Broker (`192.168.101.100`)** | **Daffa Hardhan** | **Tangkapan layar PowerShell verifikasi jaringan: 4 paket terkirim, 4 diterima, 0% packet loss, latensi $<1\text{ ms}$** | `management/reports/media/Ping_Broker_Laptop_W7.png` | **Kuat (*Strong*)** |
+| **EV-W7-PM-002** | **Uji ICMP Ping PC Laptop ke ESP32 Node Gateway (`192.168.101.11`)** | **Daffa Hardhan** | **Tangkapan layar PowerShell verifikasi nirkabel: 4 paket terkirim, 4 diterima, 0% packet loss, rata-rata latensi $78\text{ ms}$** | `management/reports/media/Ping_Gateway_ESP32_W7.png` | **Kuat (*Strong*)** |
+| **EV-W7-PM-003** | **Verifikasi Transport Layer Socket TCP Gateway ke Broker Port 1883** | **Daffa Hardhan** | **Tangkapan layar Serial Monitor ESP32: Wi-Fi STA aktif, IP statis `192.168.101.11`, soket TCP `connected=1` durasi $9-22\text{ ms}$** | `management/reports/media/Serial_Monitor_Gateway_TCP_W7.png` | **Kuat (*Strong*)** |
 | **EV-W1-SA-001** | Master Bill of Materials (BoM) & RAB | Raka Arrayan M. | Tabel 15 komponen, RAB proposal, dan vendor | `02_BOM_PROCUREMENT.md` | Kuat (*Strong*) |
 | **EV-W1-SA-002** | Datasheet Resmi MQ-137 ($NH_3$) & MQ-136 ($H_2S$) | Raka / Ilman | Datasheet PDF resmi pabrikan Hanwei | `assets/docs/datasheet_mq137.pdf` | Kuat (*Strong*) |
 | **EV-W2-PROC-001** | Faktur & Kuitansi Pengadaan 15 Komponen | Raka Arrayan M. | Bundel faktur pembelian resmi dan nomor resi | `assets/procurement/receipts_bundle.pdf` | Kuat (*Strong*) |
 | **EV-W2-PROC-002** | Buku Register Aset & Foto Unboxing Komponen | Raka / Ilman | Foto fisik unboxing dan kode aset inventaris | `assets/procurement/asset_photos/` | Kuat (*Strong*) |
 | **EV-W2-PROC-003** | Master BoM & Link Checkout 15 Komponen | Raka Arrayan M. | Dokumen BoM terpadu & Google Sheets Live | `02_BOM_PROCUREMENT.md` | Kuat (*Strong*) |
 | **EV-W2-SW-001** | Konfigurasi Toolchain & IDE PlatformIO | Siti Amalia N. | Berkas konfigurasi PlatformIO & board ESP32 (Node + Gateway) | `src/firmware/platformio.ini`, `src/firmware_gateway/platformio.ini` | Kuat (*Strong*) |
-| **EV-W2-SW-002** | **Source Code Firmware FreeRTOS Multi-Task** | Siti Amalia N. | **Kode C++ dengan `xTaskCreatePinnedToCore` sesuai tabel task di `01_SENSOR_AND_ACTUATOR_REFERENCES.md` (bukan lagi single-loop Arduino)** | `src/firmware/src/main.cpp`, `src/firmware_gateway/src/main.cpp` | Kuat (*Strong*) |
+| **EV-W2-SW-002** | **Source Code Firmware FreeRTOS Multi-Task** | Siti Amalia N. | **Kode C++ dengan `xTaskCreatePinnedToCore` sesuai tabel task di `01_SENSOR_AND_ACTUATOR_REFERENCES.md` (bukan lagi single-loop Arduino)** | `src/firmware/src/main.cpp`, `src/firmware_gateway/src/main.cpp` | **Kuat (*Strong*)** |
 | **EV-W2-SW-003** | Konfigurasi Pinout & Parameter LoRa 433 MHz | Siti Amalia N. | Berkas header pinout dan parameter RF LoRa (migrasi ke RadioLib non-blocking) | `src/firmware/include/config.h`, `src/config/lora_config.json` | Kuat (*Strong*) |
-| **EV-W2-SW-004** | **Arsitektur Firmware FreeRTOS (Task/Queue/Priority)** | Siti Amalia N. | **Tabel task lengkap: priority, core affinity, stack size, mekanisme antar-task (Queue/Notify)** | `docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md` §1–§2 | Kuat (*Strong*) |
+| **EV-W2-SW-004** | **Arsitektur Firmware FreeRTOS (Task/Queue/Priority)** | Siti Amalia N. | **Tabel task lengkap: priority, core affinity, stack size, mekanisme antar-task (Queue/Notify)** | `docs/hardware_references/01_SENSOR_AND_ACTUATOR_REFERENCES.md` §1–§2 | **Kuat (*Strong*)** |
 | **EV-W2-HW-001** | Skematik Sirkuit Kelistrikan Sistem | M. Ilman Zuhriy | Berkas skematik sirkuit daya dan regulator | `assets/schematics/schematic_v1.pdf` | Kuat (*Strong*) |
 | **EV-W2-HW-002** | Kalkulasi Power Budget Panel Surya 10 Wp | M. Ilman Zuhriy | Lembar perhitungan power budget 24 jam kontinu | `assets/docs/solar_power_budget.pdf` | Kuat (*Strong*) |
 | **EV-W2-HW-003** | Diagram Topologi Baterai 18650 1S4P & TP4056 | M. Ilman Zuhriy | Skema konfigurasi 1S4P dan dual TP4056 BMS | `assets/schematics/battery_topology.png`| Kuat (*Strong*) |
@@ -77,4 +81,35 @@ $$\text{Sensor Node (FreeRTOS)} \xrightarrow[\text{LoRa 433MHz}]{\text{JSON Enve
 - **Luaran Backend & Pipeline:** `src/server/mqtt/subscriber.go`, `src/server/etl/pipeline.go`, `src/server/database/postgres_schema.sql`.
 - **Luaran Jaringan:** `src/config/network_cpe220.conf`, `src/config/mosquitto.conf`, `src/config/mosquitto_acl`.
 - **Dokumen Arsitektur Rujukan:** `docs/architecture/00_ARCHITECTURE_DECISION_RECORD.md`, `05_LORA_MQTT_TELEMETRY_PIPELINE.md`, `02_BACKEND_ETL_AND_API_ARCHITECTURE.md`.
+- **Capaian Uji Jaringan Pekan 7:** `EV-W7-PM-001`, `EV-W7-PM-002`, `EV-W7-PM-003` (Verifikasi ICMP Ping end-to-end subnet `192.168.101.0/24` dan validasi soket TCP Port 1883 Gateway).
+
+---
+
+## 5. Galeri Bukti Capaian Teknis Pekan 7 (Evidence Visual Gallery — Week 7)
+
+### 5.1 EV-W7-PM-001: Uji ICMP Ping PC Laptop ke Mosquitto Broker (`192.168.101.100`)
+- **Deskripsi:** Verifikasi transmisi ICMP echo request/reply antara terminal pengembang (PC client) ke antarmuka Mosquitto Broker (`192.168.101.100`) pada port Ethernet/Virtual interface.
+- **Hasil Kuantitatif:** 4 paket terkirim, 4 paket diterima, **0% packet loss**, latensi minimal $<1\text{ ms}$, maksimal $<1\text{ ms}$, rata-rata $<1\text{ ms}$.
+- **Berkas Bukti:** `management/reports/media/Ping_Broker_Laptop_W7.png`
+
+![EV-W7-PM-001: Uji Ping Broker Laptop](reports/media/Ping_Broker_Laptop_W7.png)
+
+---
+
+### 5.2 EV-W7-PM-002: Uji ICMP Ping PC Laptop ke ESP32 Node Gateway (`192.168.101.11`)
+- **Deskripsi:** Verifikasi keterhubungan lapisan jaringan (*network layer*) nirkabel antara PC client dan ESP32 Gateway via Access Point `CompEngQuiz-Server-Live` pada subnet `192.168.101.0/24`.
+- **Hasil Kuantitatif:** 4 paket terkirim, 4 paket diterima, **0% packet loss**, latensi minimum $66\text{ ms}$, maksimum $89\text{ ms}$, rata-rata $78\text{ ms}$.
+- **Berkas Bukti:** `management/reports/media/Ping_Gateway_ESP32_W7.png`
+
+![EV-W7-PM-002: Uji Ping ESP32 Gateway](reports/media/Ping_Gateway_ESP32_W7.png)
+
+---
+
+### 5.3 EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA & Soket TCP Port 1883
+- **Deskripsi:** Tangkapan layar Serial Monitor ESP32 (115200 baud) yang mendemonstrasikan inisialisasi Wi-Fi STA sukses dengan IP statis `192.168.101.11`, RSSI -56 dBm, dan pembukaan soket TCP ke Broker `192.168.101.100:1883` sukses (`connected=1`) dengan durasi koneksi $22\text{ ms}$ dan $9\text{ ms}$.
+- **Hasil Kuantitatif:** Status koneksi TCP `connected=1`, durasi pembentukan koneksi $9-22\text{ ms}$, RSSI nirkabel $-56\text{ dBm}$ (Sinyal Baik).
+- **Berkas Bukti:** `management/reports/media/Serial_Monitor_Gateway_TCP_W7.png`
+
+![EV-W7-PM-003: Serial Monitor Gateway Wi-Fi and TCP](reports/media/Serial_Monitor_Gateway_TCP_W7.png)
+
 

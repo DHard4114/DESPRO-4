@@ -802,89 +802,236 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void vTaskWiFiSupervisor(void *pvParameters) {
     (void)pvParameters;
 
-    // Gerbang Startup: Tunggu setup() selesai sempurna
+    // Tunggu setup selesai membuat seluruh task dan hardware.
     while (!g_system_ready) {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    uint32_t backoff = 3000;
-    static bool s_wifi_connected_logged = false;
+    IPAddress localIP(STATIC_IP_LOCAL);
+    IPAddress gatewayIP(STATIC_IP_GATEWAY);
+    IPAddress subnetMask(STATIC_IP_SUBNET);
+    IPAddress dnsIP(STATIC_IP_DNS);
+    IPAddress brokerIP;
 
-    // Persiapkan Alamat IP Statis Target (192.168.101.11 / 24)
-    IPAddress local_IP(STATIC_IP_LOCAL);
-    IPAddress gateway_IP(STATIC_IP_GATEWAY);
-    IPAddress subnet_mask(STATIC_IP_SUBNET);
-    IPAddress dns_server(STATIC_IP_DNS);
+    if (!brokerIP.fromString(MQTT_SERVER)) {
+        Serial.println("[FATAL] MQTT_SERVER bukan alamat IPv4 valid.");
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    WiFi.mode(WIFI_STA);
+
+    if (!WiFi.config(localIP, gatewayIP, subnetMask, dnsIP)) {
+        Serial.println("[FATAL] Konfigurasi IP statis gagal.");
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    String clientId = "esos_gateway_" + WiFi.macAddress();
+    clientId.replace(":", "");
+
+    // MQTT dipakai task lain: lindungi konfigurasi dengan mutex.
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+
+    espClient.setConnectionTimeout(3000); // TCP: 3000 ms
+    mqtt.setSocketTimeout(10);            // MQTT: 10 detik (toleransi latensi Wi-Fi / AP)
+    mqtt.setKeepAlive(30);
+    mqtt.setServer(brokerIP, MQTT_PORT);
+    mqtt.setCallback(mqttCallback);
+
+    xSemaphoreGive(mqttMutex);
+
+    uint32_t lastWiFiAttempt = 0;
+    uint32_t lastMqttAttempt = 0;
+    uint32_t mqttRetryMs = 3000;
+
+    bool wifiAttempted = false;
+    bool mqttAttempted = false;
+    bool wifiLogged = false;
 
     for (;;) {
-        // Monitor Wi-Fi
+        uint32_t now = millis();
+
+        // =====================================
+        // 1. Wi-Fi belum tersambung
+        // =====================================
         if (WiFi.status() != WL_CONNECTED) {
-            s_wifi_connected_logged = false;
-            WiFi.disconnect();
+            if (wifiLogged) {
+                Serial.println("[WIFI] Koneksi terputus.");
+                wifiLogged = false;
 
-            // Terapkan IP Statis sebelum WiFi.begin()
-            if (!WiFi.config(local_IP, gateway_IP, subnet_mask, dns_server)) {
-                Serial.println(F("[WIFI ERROR] Penerapan IP Statis (WiFi.config) GAGAL! Periksa parameter subnet."));
-            } else {
-                Serial.println(F("[WIFI] Konfigurasi IP Statis (192.168.101.11) diterapkan."));
-            }
-
-            WiFi.begin(WIFI_SSID, WIFI_PASS);
-            Serial.printf("[WIFI] Menyambungkan ke SSID '%s'...\n", WIFI_SSID);
-            vTaskDelay(pdMS_TO_TICKS(5000));
-        } else if (!s_wifi_connected_logged) {
-            Serial.printf("[WIFI OK] Terhubung ke SSID '%s'! IP: %s | GW: %s | Netmask: %s | DNS: %s\n",
-                          WIFI_SSID,
-                          WiFi.localIP().toString().c_str(),
-                          WiFi.gatewayIP().toString().c_str(),
-                          WiFi.subnetMask().toString().c_str(),
-                          WiFi.dnsIP().toString().c_str());
-            s_wifi_connected_logged = true;
-        }
-
-        // Monitor MQTT jika Wi-Fi sudah tersambung
-        bool isConnected = false;
-        if (mqttMutex != NULL) {
-            xSemaphoreTake(mqttMutex, portMAX_DELAY);
-            isConnected = mqtt.connected();
-            xSemaphoreGive(mqttMutex);
-        }
-
-        if (WiFi.status() == WL_CONNECTED && !isConnected) {
-            if (mqttMutex != NULL) {
                 xSemaphoreTake(mqttMutex, portMAX_DELAY);
-                mqtt.setServer(MQTT_SERVER, MQTT_PORT);
-                mqtt.setCallback(mqttCallback);
-
-                String macClean = WiFi.macAddress();
-                macClean.replace(":", "");
-                String clientId = "esos_gateway_" + macClean;
-                Serial.printf("[MQTT] Menghubungi Broker %s:%d dengan ClientID: %s...\n",
-                              MQTT_SERVER, MQTT_PORT, clientId.c_str());
-
-                if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
-                    Serial.println(F("[MQTT OK] Terhubung ke Broker Mosquitto!"));
-                    mqtt.publish(MQTT_TOPIC_STATUS, "ONLINE", true);
-                    mqtt.subscribe(MQTT_TOPIC_COMMAND, 1);
-                    mqtt.subscribe(MQTT_TOPIC_TIMESYNC, 1);
-                    backoff = 3000;
-                } else {
-                    Serial.printf("[MQTT] Gagal terhubung (rc=%d). Backoff %u ms\n", mqtt.state(), backoff);
-                    if (backoff < 30000) backoff *= 2;
-                }
+                espClient.stop();
                 xSemaphoreGive(mqttMutex);
             }
-            vTaskDelay(pdMS_TO_TICKS(backoff));
-        }
 
-        if (mqttMutex != NULL) {
-            xSemaphoreTake(mqttMutex, portMAX_DELAY);
-            if (mqtt.connected()) {
-                mqtt.loop();
+            if (!wifiAttempted ||
+                (uint32_t)(now - lastWiFiAttempt) >= 15000UL) {
+
+                Serial.printf("[WIFI] Menghubungi %s...\n", WIFI_SSID);
+
+                WiFi.disconnect();
+                WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+                lastWiFiAttempt = millis();
+                wifiAttempted = true;
             }
-            xSemaphoreGive(mqttMutex);
+
+            // Memberi waktu kepada idle task.
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
         }
 
+        // =====================================
+        // 2. Wi-Fi baru tersambung
+        // =====================================
+        if (!wifiLogged) {
+            Serial.printf(
+                "[WIFI OK] IP=%s | Gateway=%s | RSSI=%d dBm\n",
+                WiFi.localIP().toString().c_str(),
+                WiFi.gatewayIP().toString().c_str(),
+                WiFi.RSSI()
+            );
+
+            wifiLogged = true;
+            mqttAttempted = false;
+            mqttRetryMs = 3000;
+        }
+
+        // Jangan menunggu mutex tanpa kesempatan mengecek ulang.
+        if (xSemaphoreTake(
+                mqttMutex,
+                pdMS_TO_TICKS(100)
+            ) != pdTRUE) {
+
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
+
+        // =====================================
+        // 3. Koneksi MQTT sudah aktif
+        // =====================================
+        if (mqtt.connected()) {
+            mqtt.loop();
+
+            xSemaphoreGive(mqttMutex);
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
+
+        // =====================================
+        // 4. Tunggu jadwal percobaan berikutnya
+        // =====================================
+        now = millis();
+
+        if (mqttAttempted &&
+            (uint32_t)(now - lastMqttAttempt) < mqttRetryMs) {
+
+            xSemaphoreGive(mqttMutex);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
+        Serial.printf(
+            "[TCP] Menghubungi %s:%u...\n",
+            MQTT_SERVER,
+            (unsigned int)MQTT_PORT
+        );
+
+        espClient.stop();
+
+        uint32_t started = millis();
+
+        // Koneksi TCP eksplisit dengan timeout 1500 ms.
+        // Menggunakan IPAddress agar tidak memerlukan DNS.
+        bool tcpConnected = espClient.connect(
+            brokerIP,
+            MQTT_PORT,
+            3000
+        );
+
+        Serial.printf(
+            "[TCP RESULT] connected=%d duration=%lu ms\n",
+            tcpConnected,
+            (unsigned long)(millis() - started)
+        );
+
+        bool mqttReady = false;
+
+        if (tcpConnected) {
+            // Beri kesempatan idle berjalan sebelum handshake MQTT.
+            // Mutex tetap dipegang agar task lain tidak memakai
+            // koneksi TCP yang belum menyelesaikan handshake MQTT.
+            vTaskDelay(pdMS_TO_TICKS(20));
+
+            started = millis();
+
+            // PubSubClient menggunakan koneksi TCP yang sudah terbuka.
+            bool connected = mqtt.connect(
+                clientId.c_str(),
+                MQTT_USER,
+                MQTT_PASS,
+                MQTT_TOPIC_STATUS,
+                1,              // QoS Last Will
+                true,           // Retained Last Will
+                "OFFLINE"
+            );
+
+            Serial.printf(
+                "[MQTT RESULT] connected=%d state=%d duration=%lu ms\n",
+                connected,
+                mqtt.state(),
+                (unsigned long)(millis() - started)
+            );
+
+            if (connected) {
+                // Subscribe dahulu agar respons time-sync
+                // setelah ONLINE tidak terlewat.
+                bool timeSub = mqtt.subscribe(
+                    MQTT_TOPIC_TIMESYNC, 1
+                );
+
+                bool commandSub = mqtt.subscribe(
+                    MQTT_TOPIC_COMMAND, 1
+                );
+
+                if (timeSub && commandSub) {
+                    mqttReady = mqtt.publish(
+                        MQTT_TOPIC_STATUS,
+                        "ONLINE",
+                        true
+                    );
+                }
+
+                if (mqttReady) {
+                    Serial.println(
+                        "[MQTT OK] Terhubung; subscribe dikirim; ONLINE dikirim."
+                    );
+                } else {
+                    Serial.println(
+                        "[MQTT ERROR] Pengiriman subscribe/status gagal."
+                    );
+                }
+            }
+        }
+
+        if (!mqttReady) {
+            espClient.stop();
+
+            // Backoff maksimum 30 detik.
+            mqttRetryMs = mqttRetryMs >= 15000UL
+                ? 30000UL
+                : mqttRetryMs * 2UL;
+        } else {
+            mqttRetryMs = 3000;
+        }
+
+        lastMqttAttempt = millis();
+        mqttAttempted = true;
+
+        xSemaphoreGive(mqttMutex);
+
+        // Wajib ada waktu blocked antarputaran.
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -928,7 +1075,14 @@ void setup() {
     }
 
     // 3. Konfigurasi buffer PubSubClient (Wajib 512B untuk JSON 384B)
-    mqtt.setBufferSize(512);
+    if (!mqtt.setBufferSize(512)) {
+        Serial.println("[FATAL] Alokasi buffer MQTT gagal.");
+
+        // Startup gate belum dibuka.
+        while (true) {
+            delay(1000);
+        }
+    }
 
     // 4. Inisialisasi LittleFS (Store-and-Forward Flash Disk)
     // Gunakan formatOnFail = false agar kegagalan mount tidak menghapus paksa backlog flash

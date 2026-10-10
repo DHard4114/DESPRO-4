@@ -60,7 +60,9 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
 │     └── 4.3 Setup MQTT Subscriber Worker Pool Go & Integrasi TP-Link CPE220 (Daffa)
 │
 ├── 5.0 MID-TERM EVALUATION & PHASE GATE 3 (Pekan 7 — Evaluasi Tengah Semester / UTS)
-│     └── 5.1 Demonstrasi Prototipe Terintegrasi & Evaluasi Kesiapan Midterm (Seluruh Tim)
+│     ├── 5.1 Verifikasi Konektivitas Jaringan Lokal Subnet 192.168.101.0/24 (Ping PC, Broker, Gateway) (Daffa)
+│     ├── 5.2 Pengujian Transport Layer Soket TCP & Handshake MQTT Gateway→Broker (Daffa)
+│     └── 5.3 Demonstrasi Prototipe Terintegrasi & Evaluasi Kesiapan Midterm (Seluruh Tim)
 │
 ├── 6.0 FIELD TESTING & DURABILITY VALIDATION (Pekan 8 – Pekan 10)
 │     ├── 6.1 Uji Ketahanan Cuaca IP54 & Siklus Daya Surya 24 Jam Pasca-Bencana (Darrel, Ilman)
@@ -119,8 +121,31 @@ Smart-Sanitation eSOS (Total Scope Semester: 205 Jam)
 ### Fase 5: Evaluasi Tengah Semester / UTS (Pekan 7)
 - **Target Periode:** 07 Oktober 2026 – 13 Oktober 2026
 - **Aktivitas Utama:**
+  - **Daffa Hardhan:** Verifikasi konektivitas jaringan end-to-end (ICMP Ping satu per satu antara PC Client, Broker Laptop, dan Node Gateway ESP32), pengujian transport layer TCP socket ke broker port 1883, standardisasi IP statis pada `config.h`, dan isolasi timeout MQTT serta diagnostik SPI LoRa.
   - **Seluruh Anggota:** Demonstrasi fungsional prototipe berjalan (termasuk jalur MQTT end-to-end dan kontrol aktuator dari Dashboard) di hadapan Dosen Pembimbing.
   - **Daffa:** Kompilasi Laporan Tengah Semester dan evaluasi kelulusan **Phase Gate 3 (Mid-term Prototype Review)**.
+- **Milestone & Gerbang Mutu:** **Phase Gate 3 Review — PROGRES SIGNIFIKAN / NETWORK LAYER VERIFIED**.
+
+#### Matriks Artefak Bukti Capaian Teknis Pekan 7 (WBS Deliverables):
+| ID Bukti | Deskripsi Bukti Teknis | Target Simpul / Alamat IP | Hasil Verifikasi | Lokasi Berkas Bukti |
+|:---|:---|:---|:---|:---|
+| **EV-W7-PM-001** | Uji ICMP Ping PC Laptop ke Broker Mosquitto | `192.168.101.100` | 4/4 Paket (0% loss), Latensi $<1\text{ ms}$ | `reports/media/Ping_Broker_Laptop_W7.png` |
+| **EV-W7-PM-002** | Uji ICMP Ping PC Laptop ke ESP32 Node Gateway | `192.168.101.11` | 4/4 Paket (0% loss), Rata-rata $78\text{ ms}$ | `reports/media/Ping_Gateway_ESP32_W7.png` |
+| **EV-W7-PM-003** | Log Serial Monitor Wi-Fi STA & TCP Socket Connect | `192.168.101.100:1883` | `connected=1`, Durasi $9-22\text{ ms}$, RSSI $-56\text{ dBm}$ | `reports/media/Serial_Monitor_Gateway_TCP_W7.png` |
+
+#### Dokumentasi Visual Bukti Teknis Pekan 7 (WBS Evidence Artifacts):
+
+##### 1. Bukti EV-W7-PM-001: Uji Ping PC Laptop ke Mosquitto Broker (`192.168.101.100`)
+*Verifikasi keterhubungan jaringan lokal ke Mosquitto MQTT Broker yang berjalan di PC laptop:*
+![EV-W7-PM-001: Uji Ping Broker Laptop](reports/media/Ping_Broker_Laptop_W7.png)
+
+##### 2. Bukti EV-W7-PM-002: Uji Ping PC Laptop ke Node Gateway ESP32 (`192.168.101.11`)
+*Verifikasi keterhubungan nirkabel PC Client ke ESP32 Node Gateway via Access Point `CompEngQuiz-Server-Live`:*
+![EV-W7-PM-002: Uji Ping ESP32 Gateway](reports/media/Ping_Gateway_ESP32_W7.png)
+
+##### 3. Bukti EV-W7-PM-003: Log Serial Monitor ESP32 Gateway — Koneksi Wi-Fi STA & Soket TCP Port 1883
+*Verifikasi pembentukan soket transport layer TCP dari ESP32 Gateway ke Broker Mosquitto Port 1883:*
+![EV-W7-PM-003: Serial Monitor Gateway Wi-Fi and TCP](reports/media/Serial_Monitor_Gateway_TCP_W7.png)
 
 ### Fase 6: Pengujian Lapangan, Keandalan Kontinu & Validasi QA (Pekan 8 – Pekan 10)
 - **Target Periode:** 14 Oktober 2026 – 03 November 2026

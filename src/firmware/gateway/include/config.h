@@ -17,8 +17,9 @@
 #define STATIC_IP_SUBNET    255, 255, 255, 0
 #define STATIC_IP_DNS       152, 118, 24, 4
 
-// Konfigurasi Laptop / Broker Mosquitto MQTT
-#define MQTT_SERVER         "192.168.101.100"
+// Konfigurasi Laptop (Broker MQTT & Web Server Client)
+#define MQTT_SERVER         "192.168.101.100"   // IP Broker Mosquitto MQTT (Laptop Ethernet)
+#define WEB_LAPTOP_SERVER   "192.168.101.10"    // IP Web Server Laptop Client
 #define MQTT_PORT           1883
 #define MQTT_USER           "esos_gateway"
 #define MQTT_PASS           "gateway_secret"
