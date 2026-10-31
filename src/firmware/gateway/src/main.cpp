@@ -38,8 +38,14 @@
 // ==========================================
 // 1. OBJEK PERANGKAT KERAS & KERNEL FREERTOS
 // ==========================================
-// Radio SX1278 (Hardware SPI Bus). Argumen ke-4 adalah RADIOLIB_NC, SPI dioper eksplisit
-SX1278 radio = new Module(PIN_LORA_NSS, PIN_LORA_DIO0, PIN_LORA_RESET, RADIOLIB_NC, SPI, SPISettings(1000000, MSBFIRST, SPI_MODE0));
+static SX1278 radio = new Module(
+    PIN_LORA_NSS,
+    PIN_LORA_DIO0,
+    PIN_LORA_RESET,
+    RADIOLIB_NC,
+    SPI,
+    SPISettings(1000000, MSBFIRST, SPI_MODE0)
+);
 
 RTC_DS3231 rtc;
 static bool g_rtc_available = false;
@@ -425,6 +431,62 @@ static bool validateTelemetryFloats(const TelemetryPayload &p, char* err_buf, si
 // ==========================================
 // 4. ISR INTERRUPT DIO0 (HARDWARE RX_DONE) & RADIO RECOVERY
 // ==========================================
+
+// ==========================================
+// DIAGNOSTIC: DIRECT SX1278 SPI PROBE
+// ==========================================
+
+static uint8_t readSX1278Register(uint8_t address) {
+    SPI.beginTransaction(
+        SPISettings(1000000, MSBFIRST, SPI_MODE0)
+    );
+
+    digitalWrite(PIN_LORA_NSS, LOW);
+
+    // MSB = 0: register read.
+    SPI.transfer(address & 0x7F);
+
+    uint8_t value = SPI.transfer(0x00);
+
+    digitalWrite(PIN_LORA_NSS, HIGH);
+
+    SPI.endTransaction();
+
+    return value;
+}
+
+static bool probeSX1278() {
+    for (uint8_t attempt = 1; attempt <= 3; attempt++) {
+        uint8_t version = readSX1278Register(0x42);
+
+        Serial.printf(
+            "[LORA SPI PROBE] Attempt %u/3 | RegVersion=0x%02X\n",
+            attempt,
+            version
+        );
+
+        // RegVersion SX1276/77/78/79 normalnya 0x12.
+        if (version == 0x12) {
+            Serial.println(
+                F("[LORA SPI PROBE] SX127x terdeteksi melalui SPI.")
+            );
+            return true;
+        }
+
+        delay(20);
+    }
+
+    Serial.println(
+        F("[LORA SPI PROBE] GAGAL: RegVersion bukan 0x12.")
+    );
+
+    Serial.println(
+        F("[LORA SPI PROBE] Periksa 3V3, GND, SCK, MISO, MOSI, NSS, RESET.")
+    );
+
+    return false;
+}
+
 static bool ensureRadioRxMode() {
     if (!g_radio_available) return false;
     int state = radio.startReceive();
@@ -833,7 +895,7 @@ void vTaskWiFiSupervisor(void *pvParameters) {
     // MQTT dipakai task lain: lindungi konfigurasi dengan mutex.
     xSemaphoreTake(mqttMutex, portMAX_DELAY);
 
-    espClient.setConnectionTimeout(3000); // TCP: 3000 ms
+    espClient.setTimeout(3); // TCP timeout: 3 s
     mqtt.setSocketTimeout(10);            // MQTT: 10 detik (toleransi latensi Wi-Fi / AP)
     mqtt.setKeepAlive(30);
     mqtt.setServer(brokerIP, MQTT_PORT);
@@ -1097,32 +1159,102 @@ void setup() {
                       meta.count, meta.dropped_count);
     }
 
-    // 5. Inisialisasi Perangkat Keras SPI Bus & Reset SX1278
+    // 5. Inisialisasi perangkat keras SX1278.
+    // Urutan disamakan dengan Node WC: NSS -> RESET -> SPI -> probe -> RadioLib.
+
+    Serial.println(F("[LORA] Menyiapkan NSS..."));
+
     pinMode(PIN_LORA_NSS, OUTPUT);
     digitalWrite(PIN_LORA_NSS, HIGH);
+    delay(10);
+
+    Serial.println(F("[LORA] Hardware reset SX1278..."));
 
     pinMode(PIN_LORA_RESET, OUTPUT);
     digitalWrite(PIN_LORA_RESET, LOW);
     delay(20);
+
     digitalWrite(PIN_LORA_RESET, HIGH);
     delay(100);
 
-    SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, -1);
+    Serial.printf(
+        "[LORA] SPI pins: SCK=%d MISO=%d MOSI=%d NSS=%d\n",
+        PIN_LORA_SCK,
+        PIN_LORA_MISO,
+        PIN_LORA_MOSI,
+        PIN_LORA_NSS
+    );
 
-    // 6. Inisialisasi Radio SX1278 dengan Retry Loop
-    int state = RADIOLIB_ERR_UNKNOWN;
-    for (int attempt = 1; attempt <= 3; attempt++) {
-        state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
-        if (state == RADIOLIB_ERR_NONE) break;
-        delay(50);
+    SPI.begin(
+        PIN_LORA_SCK,
+        PIN_LORA_MISO,
+        PIN_LORA_MOSI,
+        -1
+    );
+
+    delay(50);
+
+    // 6. Verifikasi komunikasi SPI secara langsung.
+    const bool chipDetected = probeSX1278();
+
+    int state = RADIOLIB_ERR_CHIP_NOT_FOUND;
+
+    if (chipDetected) {
+        // Parameter identik dengan Node WC.
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            Serial.printf(
+                "[LORA] RadioLib begin attempt %d/3...\n",
+                attempt
+            );
+
+            state = radio.begin(
+                LORA_FREQ,
+                LORA_BW,
+                LORA_SF,
+                LORA_CR,
+                LORA_SYNC_WORD,
+                LORA_TX_POWER
+            );
+
+            if (state == RADIOLIB_ERR_NONE) {
+                break;
+            }
+
+            Serial.printf(
+                "[LORA] RadioLib begin gagal: %d\n",
+                state
+            );
+
+            if (attempt < 3) {
+                delay(100);
+            }
+        }
+    } else {
+        Serial.println(
+            F("[LORA] RadioLib begin dilewati: chip tidak terdeteksi via SPI.")
+        );
     }
+
     if (state == RADIOLIB_ERR_NONE) {
         radio.setCRC(true);
+
         g_radio_available = true;
-        Serial.println(F("[OK] Radio SX1278 aktif di 433.175 MHz."));
+
+        Serial.println(
+            F("[OK] Radio SX1278 aktif di 433.175 MHz.")
+        );
     } else {
         g_radio_available = false;
-        Serial.printf("[RADIO ERROR] Inisialisasi Radio SX1278 gagal (Kode: %d). Memeriksa jumper SPI...\n", state);
+
+        Serial.printf(
+            "[RADIO ERROR] SX1278 tidak siap. Probe=%s, RadioLib state=%d\n",
+            chipDetected ? "0x12 (terdeteksi)" : "bukan 0x12",
+            state
+        );
+
+        Serial.println(
+            F("[RADIO ERROR] Gateway lanjut dalam mode degraded tanpa LoRa.")
+        );
     }
 
     // 7. Peluncuran Task FreeRTOS ke Dual Core ESP32
