@@ -12,14 +12,15 @@
 #define WIFI_PASS           "compengquiz"
 
 // Konfigurasi Alamat IP Statis ESP32 Gateway (Subnet /24)
-#define STATIC_IP_LOCAL     192, 168, 101, 11
+// Range IP Statis untuk 10 ESP32 Gateway: 192.168.101.10 s/d 192.168.101.19
+#define STATIC_IP_LOCAL     192, 168, 101, 10
 #define STATIC_IP_GATEWAY   192, 168, 101, 1
 #define STATIC_IP_SUBNET    255, 255, 255, 0
-#define STATIC_IP_DNS       152, 118, 24, 4
+#define STATIC_IP_DNS       8, 8, 8, 8
 
 // Konfigurasi Laptop (Broker MQTT & Web Server Client)
-#define MQTT_SERVER         "192.168.101.100"   // IP Broker Mosquitto MQTT (Laptop Ethernet)
-#define WEB_LAPTOP_SERVER   "192.168.101.10"    // IP Web Server Laptop Client
+#define MQTT_SERVER         "192.168.101.2"   // IP Broker Mosquitto MQTT (Laptop Ethernet)
+#define WEB_LAPTOP_SERVER   "192.168.101.2"    // IP Web Server Laptop Client
 #define MQTT_PORT           1883
 #define MQTT_USER           "esos_gateway"
 #define MQTT_PASS           "gateway_secret"

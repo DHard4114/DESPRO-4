@@ -487,14 +487,45 @@ static bool probeSX1278() {
     return false;
 }
 
+void IRAM_ATTR isr_lora_rx();
+
+static uint8_t s_rx_fail_count = 0;
+
 static bool ensureRadioRxMode() {
     if (!g_radio_available) return false;
     int state = radio.startReceive();
-    if (state != RADIOLIB_ERR_NONE) {
-        Serial.printf("[LORA ERROR] startReceive() gagal (Kode: %d)\n", state);
-        return false;
+    if (state == RADIOLIB_ERR_NONE) {
+        s_rx_fail_count = 0;
+        return true;
     }
-    return true;
+
+    Serial.printf("[LORA ERROR] startReceive() gagal (Kode: %d)\n", state);
+    s_rx_fail_count++;
+
+    // Jika gagal >= 2 kali berturut-turut (misal: SX1278 brownout drop ke FSK mode -25),
+    // lakukan hardware reset dan inisialisasi ulang otomatis agar gateway tidak terjebak mode rusak.
+    if (s_rx_fail_count >= 2) {
+        Serial.println(F("[LORA RECOVERY] Memulihkan modul SX1278 via Hardware Reset & begin()..."));
+        pinMode(PIN_LORA_RESET, OUTPUT);
+        digitalWrite(PIN_LORA_RESET, LOW);
+        vTaskDelay(pdMS_TO_TICKS(15));
+        digitalWrite(PIN_LORA_RESET, HIGH);
+        vTaskDelay(pdMS_TO_TICKS(25));
+
+        int init_state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
+        if (init_state == RADIOLIB_ERR_NONE) {
+            radio.setCRC(true);
+            radio.setDio0Action(isr_lora_rx, RISING);
+            int rx_state = radio.startReceive();
+            if (rx_state == RADIOLIB_ERR_NONE) {
+                Serial.println(F("[LORA RECOVERY OK] SX1278 pulih sempurna dan kembali siaga RX Continuous."));
+                s_rx_fail_count = 0;
+                return true;
+            }
+        }
+        Serial.printf("[LORA RECOVERY ERROR] Re-inisialisasi SX1278 gagal (Kode: %d)\n", init_state);
+    }
+    return false;
 }
 
 void IRAM_ATTR isr_lora_rx() {
@@ -526,6 +557,28 @@ void vTaskLoRaRx(void *pvParameters) {
         }
 
         if (!g_radio_available) {
+            static uint32_t lastProbeAttempt = 0;
+            uint32_t now = millis();
+            if ((uint32_t)(now - lastProbeAttempt) >= 10000UL) {
+                lastProbeAttempt = now;
+                Serial.println(F("[LORA RE-PROBE] Mencoba mendeteksi modul SX1278..."));
+                pinMode(PIN_LORA_RESET, OUTPUT);
+                digitalWrite(PIN_LORA_RESET, LOW);
+                vTaskDelay(pdMS_TO_TICKS(15));
+                digitalWrite(PIN_LORA_RESET, HIGH);
+                vTaskDelay(pdMS_TO_TICKS(25));
+                if (probeSX1278()) {
+                    int st = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, LORA_SYNC_WORD, LORA_TX_POWER);
+                    if (st == RADIOLIB_ERR_NONE) {
+                        radio.setCRC(true);
+                        radio.setDio0Action(isr_lora_rx, RISING);
+                        radio.startReceive();
+                        g_radio_available = true;
+                        s_rx_fail_count = 0;
+                        Serial.println(F("[LORA OK] SX1278 berhasil terhubung dan siaga RX Continuous!"));
+                    }
+                }
+            }
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
@@ -895,8 +948,8 @@ void vTaskWiFiSupervisor(void *pvParameters) {
     // MQTT dipakai task lain: lindungi konfigurasi dengan mutex.
     xSemaphoreTake(mqttMutex, portMAX_DELAY);
 
-    espClient.setTimeout(3); // TCP timeout: 3 s
-    mqtt.setSocketTimeout(10);            // MQTT: 10 detik (toleransi latensi Wi-Fi / AP)
+    espClient.setTimeout(2); // TCP timeout: 2 s (mencegah task watchdog starvation pada IDLE0)
+    mqtt.setSocketTimeout(2);             // MQTT: 2 detik (mencegah loop blocking melebihi batas 5s WDT)
     mqtt.setKeepAlive(30);
     mqtt.setServer(brokerIP, MQTT_PORT);
     mqtt.setCallback(mqttCallback);
@@ -1001,15 +1054,16 @@ void vTaskWiFiSupervisor(void *pvParameters) {
         );
 
         espClient.stop();
+        vTaskDelay(pdMS_TO_TICKS(20)); // Beri kesempatan IDLE0 sebelum operasi socket
 
         uint32_t started = millis();
 
-        // Koneksi TCP eksplisit dengan timeout 1500 ms.
+        // Koneksi TCP eksplisit dengan timeout 2000 ms (< 5000ms WDT).
         // Menggunakan IPAddress agar tidak memerlukan DNS.
         bool tcpConnected = espClient.connect(
             brokerIP,
             MQTT_PORT,
-            3000
+            2000
         );
 
         Serial.printf(
@@ -1021,10 +1075,10 @@ void vTaskWiFiSupervisor(void *pvParameters) {
         bool mqttReady = false;
 
         if (tcpConnected) {
-            // Beri kesempatan idle berjalan sebelum handshake MQTT.
+            // Beri kesempatan IDLE0 berjalan sebelum handshake MQTT.
             // Mutex tetap dipegang agar task lain tidak memakai
             // koneksi TCP yang belum menyelesaikan handshake MQTT.
-            vTaskDelay(pdMS_TO_TICKS(20));
+            vTaskDelay(pdMS_TO_TICKS(30));
 
             started = millis();
 
@@ -1045,6 +1099,9 @@ void vTaskWiFiSupervisor(void *pvParameters) {
                 mqtt.state(),
                 (unsigned long)(millis() - started)
             );
+
+            // Beri kesempatan IDLE0 berjalan segera setelah handshake MQTT selesai
+            vTaskDelay(pdMS_TO_TICKS(20));
 
             if (connected) {
                 // Subscribe dahulu agar respons time-sync
