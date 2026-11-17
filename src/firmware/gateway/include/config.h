@@ -19,8 +19,8 @@
 #define STATIC_IP_DNS       8, 8, 8, 8
 
 // Konfigurasi Laptop (Broker MQTT & Web Server Client)
-#define MQTT_SERVER         "192.168.101.2"   // IP Broker Mosquitto MQTT (Laptop Ethernet)
-#define WEB_LAPTOP_SERVER   "192.168.101.2"    // IP Web Server Laptop Client
+#define MQTT_SERVER         "192.168.101.100"   // IP Broker Mosquitto MQTT (Laptop Ethernet)
+#define WEB_LAPTOP_SERVER   "192.168.101.100"    // IP Web Server Laptop Client
 #define MQTT_PORT           1883
 #define MQTT_USER           "esos_gateway"
 #define MQTT_PASS           "gateway_secret"
